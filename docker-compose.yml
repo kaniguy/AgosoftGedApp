@@ -1,0 +1,83 @@
+name: agosoftged
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: agosoftged-db
+    # Un seul fichier : backend_ged/config/.env (doit contenir MSSQL_SA_PASSWORD)
+    env_file:
+      - ./backend_ged/config/.env
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+    ports:
+      # 14333 sur le PC pour eviter le conflit avec SQL Express local (1433)
+      - "14333:1433"
+    volumes:
+      - mssql_data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    networks:
+      - ged-net
+
+  backend:
+    build:
+      context: ./backend_ged
+      dockerfile: Dockerfile
+    image: agosoftged-backend
+    container_name: agosoftged-backend
+    env_file:
+      - ./backend_ged/config/.env
+    environment:
+      DB_HOST: db
+      DB_PORT: "1433"
+      DB_DRIVER: "ODBC Driver 18 for SQL Server"
+      DB_TRUSTED_CONNECTION: "no"
+      DB_TRUST_SERVER_CERTIFICATE: "yes"
+      DB_USER: sa
+      ALLOWED_HOSTS: "127.0.0.1,localhost,192.168.1.24,backend,agosoftged-backend,*"
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend_ged/media:/app/media
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - ged-net
+
+  frontend:
+    build:
+      context: ./frontend_ged
+      dockerfile: Dockerfile
+      network: host
+      args:
+        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:8000
+        NEXT_PUBLIC_API_PORT: "8000"
+    image: agosoftged-frontend
+    container_name: agosoftged-frontend
+    environment:
+      API_BACKEND_INTERNAL_URL: http://backend:8000
+      NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:8000
+      NEXT_PUBLIC_API_PORT: "8000"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    networks:
+      - ged-net
+
+volumes:
+  mssql_data:
+
+networks:
+  ged-net:
+    driver: bridge

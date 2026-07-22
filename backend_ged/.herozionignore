@@ -1,0 +1,8 @@
+# Migrations historiques : snapshots DB, pas du code exécutable runtime.
+**/migrations/**
+**/__pycache__/**
+*.pyc
+media/
+.venv/
+venv/
+django_env/

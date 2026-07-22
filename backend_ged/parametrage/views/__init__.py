@@ -1,0 +1,4 @@
+from .type_document_view import TypeDocumentViewSet
+from .champs_document_view import ChampsDocumentViewSet
+from .structure_geographique_view import StructureGeographiqueViewSet
+from .plan_geographique_view import PlanGeographiqueViewSet

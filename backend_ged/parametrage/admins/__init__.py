@@ -1,0 +1,1 @@
+from .type_document_admin import TypeDocumentAdmin
