@@ -57,7 +57,7 @@ DEBUG = str(require_env("DEBUG")).lower() == "true"
 ALLOWED_HOSTS = [h.strip() for h in require_env("ALLOWED_HOSTS").split(",") if h.strip()]
 
 # Le proxy Next.js envoie X-Forwarded-Host (IP LAN :3000) pour que
-# build_absolute_uri() ne génère pas http://127.0.0.1:8000/media/...
+# build_absolute_uri() ne génère pas http://127.0.0.1:9000/media/...
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 

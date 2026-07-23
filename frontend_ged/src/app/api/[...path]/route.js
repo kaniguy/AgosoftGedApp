@@ -21,7 +21,7 @@ async function proxyToDjango(request) {
   if (authorization) headers.set("authorization", authorization);
 
   // Pour que Django construise des URLs absolues avec l'hôte du client (LAN),
-  // et non 127.0.0.1:8000 (hôte du proxy interne).
+  // et non 127.0.0.1:9000 (hôte du proxy interne).
   const clientHost = request.headers.get("host");
   if (clientHost) {
     headers.set("x-forwarded-host", clientHost);

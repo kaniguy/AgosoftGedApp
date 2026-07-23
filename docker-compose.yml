@@ -4,6 +4,7 @@ services:
   db:
     image: mcr.microsoft.com/mssql/server:2022-latest
     container_name: agosoftged-db
+    restart: unless-stopped
     # Un seul fichier : backend_ged/config/.env (doit contenir MSSQL_SA_PASSWORD)
     env_file:
       - ./backend_ged/config/.env
@@ -34,6 +35,7 @@ services:
       dockerfile: Dockerfile
     image: agosoftged-backend
     container_name: agosoftged-backend
+    restart: unless-stopped
     env_file:
       - ./backend_ged/config/.env
     environment:
@@ -45,7 +47,7 @@ services:
       DB_USER: sa
       ALLOWED_HOSTS: "127.0.0.1,localhost,192.168.1.24,backend,agosoftged-backend,*"
     ports:
-      - "8000:8000"
+      - "9000:9000"
     volumes:
       - ./backend_ged/media:/app/media
     depends_on:
@@ -60,14 +62,15 @@ services:
       dockerfile: Dockerfile
       network: host
       args:
-        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:8000
-        NEXT_PUBLIC_API_PORT: "8000"
+        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
+        NEXT_PUBLIC_API_PORT: "9000"
     image: agosoftged-frontend
     container_name: agosoftged-frontend
+    restart: unless-stopped
     environment:
-      API_BACKEND_INTERNAL_URL: http://backend:8000
-      NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:8000
-      NEXT_PUBLIC_API_PORT: "8000"
+      API_BACKEND_INTERNAL_URL: http://backend:9000
+      NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
+      NEXT_PUBLIC_API_PORT: "9000"
     ports:
       - "3000:3000"
     depends_on:

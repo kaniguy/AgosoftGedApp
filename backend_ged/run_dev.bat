@@ -9,10 +9,10 @@ if not exist %PYTHON% (
 )
 
 echo Backend accessible sur :
-echo   - http://127.0.0.1:8000
-echo   - http://localhost:8000
-echo   - http://192.168.1.40:8000  (reseau local)
+echo   - http://127.0.0.1:9000
+echo   - http://localhost:9000
+echo   - http://192.168.1.40:9000  (reseau local)
 echo.
 echo Utilisez ce script plutot que "python manage.py runserver" seul.
 echo.
-%PYTHON% manage.py runserver 0.0.0.0:8000
+%PYTHON% manage.py runserver 0.0.0.0:9000

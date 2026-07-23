@@ -17,7 +17,7 @@ function isLocalHost(hostname) {
 
 /**
  * URL de l'API Django.
- * - localhost : connexion directe au port 8000 (fiable en dev local).
+ * - localhost : connexion directe au port 9000 (fiable en dev local).
  * - IP réseau (192.168.x.x) : même origine Next.js (proxy /api → Django).
  */
 export function getApiUrl() {
@@ -101,7 +101,7 @@ export function resolveMediaUrl(url) {
     return url;
   }
 
-  // Django renvoie souvent http://127.0.0.1:8000/media/... via le proxy Next.
+  // Django renvoie souvent http://127.0.0.1:9000/media/... via le proxy Next.
   // Sur un autre PC du réseau, localhost pointe vers la machine cliente → Failed to fetch.
   // On extrait le chemin et on le rebascule sur getApiUrl() (origine courante en LAN).
   let path = url;

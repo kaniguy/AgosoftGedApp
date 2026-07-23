@@ -26,6 +26,7 @@ db.sqlite3
 .DS_Store
 .idea/
 .vscode/
+*.code-workspace
 Thumbs.db
 
 # Docker

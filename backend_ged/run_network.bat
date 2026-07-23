@@ -10,6 +10,6 @@ if not exist %PYTHON% (
   exit /b 1
 )
 
-echo Backend GED accessible sur le reseau : http://192.168.1.40:8000
+echo Backend GED accessible sur le reseau : http://192.168.1.40:9000
 echo Python utilise : %PYTHON%
-%PYTHON% manage.py runserver 0.0.0.0:8000
+%PYTHON% manage.py runserver 0.0.0.0:9000
