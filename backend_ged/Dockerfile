@@ -38,7 +38,10 @@ RUN pip install --upgrade pip \
 
 COPY . .
 
-RUN chmod +x /app/scripts/docker-entrypoint.sh \
+# Corrige les fins de ligne Windows (CRLF) qui provoquent :
+# "exec /app/scripts/docker-entrypoint.sh: no such file or directory"
+RUN sed -i 's/\r$//' /app/scripts/docker-entrypoint.sh \
+    && chmod +x /app/scripts/docker-entrypoint.sh \
     && mkdir -p /app/media
 
 EXPOSE 9000
