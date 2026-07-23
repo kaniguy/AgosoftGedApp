@@ -72,7 +72,8 @@ services:
       NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
       NEXT_PUBLIC_API_PORT: "9000"
     ports:
-      - "3000:3000"
+      # 3001 sur l'hote si 3000 est deja pris (sinon "3000:3000")
+      - "3001:3000"
     depends_on:
       - backend
     networks:

@@ -27,7 +27,7 @@ REM Confirmation a l'ecran
 echo.
 echo Demarrage automatique active.
 echo Au prochain login Windows, AgosoftGed demarrera sans clic.
-echo Ouvrir ensuite : http://localhost:3000
+echo Ouvrir ensuite : http://localhost:3001
 echo.
 echo Pour desactiver : double-cliquer sur desactiver-demarrage-auto.bat
 echo.

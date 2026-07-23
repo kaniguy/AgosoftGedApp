@@ -44,4 +44,4 @@ RUN chmod +x /app/scripts/docker-entrypoint.sh \
 EXPOSE 9000
 
 ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:9000", "--workers", "2", "--timeout", "300"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:9000", "--workers", "1", "--threads", "2", "--timeout", "300"]
