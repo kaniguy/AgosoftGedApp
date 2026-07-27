@@ -31,10 +31,7 @@ services:
       - ged-net
 
   backend:
-    build:
-      context: ./backend_ged
-      dockerfile: Dockerfile
-    image: agosoftged-backend
+    image: kaniguy/agosoftged-backend:latest
     platform: linux/amd64
     container_name: agosoftged-backend
     restart: unless-stopped
