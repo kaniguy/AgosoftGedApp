@@ -1,19 +1,13 @@
 @echo off
 REM ============================================================
 REM Activer le demarrage automatique d'AgosoftGed au login Windows
-REM A lancer UNE FOIS sur le PC cible.
+REM A lancer UNE FOIS (ou via installer.bat).
 REM ============================================================
 
-REM Dossier demarrage Windows de l'utilisateur courant
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
-
-REM Script VBS silencieux qui attend Docker puis lance docker compose
 set "TARGET=%~dp0scripts\agosoftged-autostart.vbs"
-
-REM Raccourci cree dans le dossier Demarrage
 set "LINK=%STARTUP%\AgosoftGed.lnk"
 
-REM Creation du raccourci via PowerShell (cible wscript.exe + le .vbs)
 powershell -NoProfile -Command ^
   "$s=(New-Object -ComObject WScript.Shell).CreateShortcut('%LINK%');" ^
   "$s.TargetPath='wscript.exe';" ^
@@ -23,14 +17,12 @@ powershell -NoProfile -Command ^
   "$s.Description='Demarre AgosoftGed avec Docker au login';" ^
   "$s.Save()"
 
-REM Confirmation a l'ecran
-echo.
-echo Demarrage automatique active.
-echo Au prochain login Windows, AgosoftGed demarrera sans clic.
-echo Ouvrir ensuite : http://localhost:3001
-echo.
-echo Pour desactiver : double-cliquer sur desactiver-demarrage-auto.bat
-echo.
+echo Demarrage automatique active (login Windows).
 
-REM Pause pour laisser lire le message
+REM Pas de pause si appele par installer.bat
+if /I "%~1"=="SILENT" exit /b 0
+
+echo Ouvrir ensuite : http://localhost:3001
+echo Pour desactiver : desactiver-demarrage-auto.bat
+echo.
 pause
