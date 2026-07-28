@@ -1,35 +1,6 @@
 name: agosoftged
 
 services:
-  db:
-    # PC Intel/AMD : SQL Server 2022. Sur PC ARM, utiliser installer.bat
-    # (applique docker-compose.arm.yml → Azure SQL Edge).
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    platform: linux/amd64
-    container_name: agosoftged-db
-    restart: unless-stopped
-    env_file:
-      - ./backend_ged/config/.env
-    environment:
-      ACCEPT_EULA: "Y"
-      MSSQL_PID: Express
-    ports:
-      - "14333:1433"
-    volumes:
-      - mssql_data:/var/opt/mssql
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1",
-        ]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-      start_period: 30s
-    networks:
-      - ged-net
-
   backend:
     image: kaniguy/agosoftged-backend:latest
     platform: linux/amd64
@@ -38,32 +9,22 @@ services:
     env_file:
       - ./backend_ged/config/.env
     environment:
-      DB_HOST: db
-      DB_PORT: "1433"
       DB_DRIVER: "ODBC Driver 18 for SQL Server"
       DB_TRUSTED_CONNECTION: "no"
       DB_TRUST_SERVER_CERTIFICATE: "yes"
-      DB_USER: sa
       ALLOWED_HOSTS: "127.0.0.1,localhost,192.168.1.24,backend,agosoftged-backend,*"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "9000:9000"
     volumes:
       - ./backend_ged/media:/app/media
-    depends_on:
-      db:
-        condition: service_healthy
     networks:
       - ged-net
 
   frontend:
-    build:
-      context: ./frontend_ged
-      dockerfile: Dockerfile
-      network: host
-      args:
-        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
-        NEXT_PUBLIC_API_PORT: "9000"
-    image: agosoftged-frontend
+    image: kaniguy/agosoftged-frontend:latest
+    platform: linux/amd64
     container_name: agosoftged-frontend
     restart: unless-stopped
     environment:
@@ -76,9 +37,6 @@ services:
       - backend
     networks:
       - ged-net
-
-volumes:
-  mssql_data:
 
 networks:
   ged-net:

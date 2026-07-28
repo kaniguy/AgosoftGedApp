@@ -1,5 +1,5 @@
 ' Demarre AgosoftGed en silence au login Windows (pas de fenetre console).
-' Sur PC ARM : utilise docker-compose.arm.yml (Azure SQL Edge).
+' Sur PC ARM : docker-compose.arm.yml (backend arm64). SQL Server = instance Windows locale.
 Option Explicit
 
 Dim shell, fso, projectDir, composeFile, armFile, markerFile

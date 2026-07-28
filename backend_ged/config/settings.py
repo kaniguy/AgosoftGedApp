@@ -227,16 +227,22 @@ _db_options = {
 if _extra:
     _db_options["extra_params"] = ";".join(_extra)
 
+_db_host = require_env("DB_HOST")
+_db_port = require_env("DB_PORT").strip()
+
 DATABASES = {
     "default": {
         "ENGINE": "mssql",
         "NAME": require_env("DB_NAME"),
-        "HOST": require_env("DB_HOST"),
-        "PORT": require_env("DB_PORT"),
+        "HOST": _db_host,
         "OPTIONS": _db_options,
     }
 }
-# Auth SQL (necessaire depuis Docker Linux vers SQL Server Windows)
+# Instance nommee (DESKTOP\AGOSOFTGED) : laisser DB_PORT vide
+if _db_port and "\\" not in _db_host:
+    DATABASES["default"]["PORT"] = _db_port
+
+# Auth SQL (Docker Linux → SQL Server Windows local)
 if not _db_trusted:
     DATABASES["default"]["USER"] = require_env("DB_USER")
     DATABASES["default"]["PASSWORD"] = require_env("DB_PASSWORD")

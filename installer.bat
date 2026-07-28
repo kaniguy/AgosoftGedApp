@@ -43,11 +43,11 @@ if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "USE_ARM=1"
 if /I "%PROCESSOR_ARCHITECTURE%"=="ARM" set "USE_ARM=1"
 
 if "%USE_ARM%"=="1" (
-  echo [INFO] PC ARM64 detecte → Azure SQL Edge + images arm64
+  echo [INFO] PC ARM64 detecte → backend arm64 (SQL Server = instance Windows locale)
   echo arm> "%~dp0.agosoftged-arm"
   set "COMPOSE_CMD=docker compose -f docker-compose.yml -f docker-compose.arm.yml"
 ) else (
-  echo [INFO] PC AMD64/Intel detecte → SQL Server 2022 + images amd64
+  echo [INFO] PC AMD64/Intel detecte (SQL Server = instance Windows locale)
   if exist "%~dp0.agosoftged-arm" del "%~dp0.agosoftged-arm" >nul 2>&1
   set "COMPOSE_CMD=docker compose"
 )
