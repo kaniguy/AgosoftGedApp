@@ -1,7 +1,7 @@
 #!/bin/sh
 set -e
 
-# Instance nommee (host\INSTANCE) : pas de port dans SERVER=
+# Port fixe: si DB_PORT est défini, la connexion utilise host,port
 _sql_server() {
   host="${DB_HOST:-db}"
   port="${DB_PORT:-}"
