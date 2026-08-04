@@ -72,7 +72,7 @@ export const APP_MODULES = [
     color: "indigo",
     icon: "info",
     description: "Informations sur l'entreprise",
-    path: "/a-propos",
+    path: "https://agosoftci.com/",
   },
 ];
 

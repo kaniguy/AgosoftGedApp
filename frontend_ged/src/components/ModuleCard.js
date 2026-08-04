@@ -1,5 +1,5 @@
 // components/ModuleCard.jsx
-export default function ModuleCard({ title, color, icon, description, onClick }) {
+export default function ModuleCard({ title, color, icon, description, onClick, href, external = false }) {
   const colors = {
     blue: {
       bg: "bg-gradient-to-br from-blue-500 to-blue-700",
@@ -143,8 +143,8 @@ export default function ModuleCard({ title, color, icon, description, onClick })
     }
   };
 
-  return (
-    <div className="group relative cursor-pointer h-full" onClick={onClick}>
+  const cardContent = (
+    <>
       <div className={`absolute inset-0 ${colors[color].bg} rounded-2xl blur-xl opacity-0 group-hover:opacity-25 transition-all duration-500`}></div>
       
       <div className={`relative ${colors[color].bg} text-white p-6 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:-translate-y-2 overflow-hidden backdrop-blur-sm h-full flex flex-col`}>
@@ -179,6 +179,25 @@ export default function ModuleCard({ title, color, icon, description, onClick })
           </div>
         </div>
       </div>
+    </>
+  );
+
+  if (external && href) {
+    return (
+      <a
+        href={href}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="group relative cursor-pointer h-full block no-underline"
+      >
+        {cardContent}
+      </a>
+    );
+  }
+
+  return (
+    <div className="group relative cursor-pointer h-full" onClick={onClick}>
+      {cardContent}
     </div>
   );
 }

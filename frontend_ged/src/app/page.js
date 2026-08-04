@@ -60,10 +60,11 @@ export default function Home() {
   const modules = allowedModules;
   const filterChips = getModuleFilterChips(modules);
 
+  const isExternalPath = (path) => /^https?:\/\//i.test(path || "");
+
   const handleModuleClick = (module) => {
-    if (module.path) {
-      router.push(module.path);
-    }
+    if (!module.path || isExternalPath(module.path)) return;
+    router.push(module.path);
   };
 
   const filteredModules = modules.filter(module => 
@@ -182,6 +183,8 @@ export default function Home() {
                 color={module.color}
                 icon={module.icon}
                 description={module.description}
+                href={module.path}
+                external={isExternalPath(module.path)}
                 onClick={() => handleModuleClick(module)}
               />
             ))}

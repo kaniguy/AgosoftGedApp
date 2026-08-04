@@ -28,6 +28,12 @@ services:
       - ged-net
 
   frontend:
+    build:
+      context: ./frontend_ged
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
+        NEXT_PUBLIC_API_PORT: "9000"
     image: kaniguy/agosoftged-frontend:latest
     platform: linux/amd64
     container_name: agosoftged-frontend

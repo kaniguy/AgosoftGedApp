@@ -14,7 +14,7 @@ docker exec -it container cmd : Entrer dans un conteneur
 docker compose up -d          : Démarrer un projet Compose
 docker compose down           : Arrêter un projet Compose
 
-
+docker compose up -d --build frontend: a chaque modif du front
 
 
 
@@ -77,6 +77,12 @@ docker compose start           : Démarrer les services arrêtés
 docker compose pull            : Télécharger les dernières images
 docker compose build          : Construire les images
 docker compose up -d --build   : Reconstruire et démarrer
+
+pour ceux qui vont téléchargé mon projet
+docker compose pull
+docker compose up -d
+
+
 
 
 docker login                   : Se connecter à Docker Hub
