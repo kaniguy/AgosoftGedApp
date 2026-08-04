@@ -37,37 +37,24 @@ if not exist "backend_ged\config\.env" (
   echo [OK] Fichier .env deja present
 )
 
-REM --- Detecter architecture ---
-set "USE_ARM=0"
-if /I "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "USE_ARM=1"
-if /I "%PROCESSOR_ARCHITECTURE%"=="ARM" set "USE_ARM=1"
-
-if "%USE_ARM%"=="1" (
-  echo [INFO] PC ARM64 detecte → backend arm64 (SQL Server = instance Windows locale)
-  echo arm> "%~dp0.agosoftged-arm"
-  set "COMPOSE_CMD=docker compose -f docker-compose.yml -f docker-compose.arm.yml"
-) else (
-  echo [INFO] PC AMD64/Intel detecte (SQL Server = instance Windows locale)
-  if exist "%~dp0.agosoftged-arm" del "%~dp0.agosoftged-arm" >nul 2>&1
-  set "COMPOSE_CMD=docker compose"
-)
+echo [INFO] SQL Server = instance Windows locale (hors Docker)
 
 echo.
 echo Build + demarrage (peut prendre plusieurs minutes la 1ere fois)...
 echo.
 
-%COMPOSE_CMD% up --build -d
+docker compose up --build -d
 if errorlevel 1 (
   echo.
   echo [ERREUR] Echec du demarrage. Logs :
-  %COMPOSE_CMD% logs --tail 80
+  docker compose logs --tail 80
   pause
   exit /b 1
 )
 
 echo.
 echo Etat des conteneurs :
-%COMPOSE_CMD% ps
+docker compose ps
 echo.
 
 REM --- Demarrage auto Windows ---

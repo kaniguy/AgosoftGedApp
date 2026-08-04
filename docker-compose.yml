@@ -2,6 +2,9 @@ name: agosoftged
 
 services:
   backend:
+    build:
+      context: ./backend_ged
+      dockerfile: Dockerfile
     image: kaniguy/agosoftged-backend:latest
     platform: linux/amd64
     container_name: agosoftged-backend
@@ -9,6 +12,8 @@ services:
     env_file:
       - ./backend_ged/config/.env
     environment:
+      DB_HOST: host.docker.internal
+      DB_PORT: "1433"
       DB_DRIVER: "ODBC Driver 18 for SQL Server"
       DB_TRUSTED_CONNECTION: "no"
       DB_TRUST_SERVER_CERTIFICATE: "yes"
