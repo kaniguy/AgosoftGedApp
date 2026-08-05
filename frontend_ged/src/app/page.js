@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ModuleCard from "../components/ModuleCard";
 import Header from "../components/strucuture_page/Header";
-import { APP_MODULES, getVisibleModulesFromStorage, getModuleFilterChips } from "../constants/modules";
+import { APP_MODULES, getVisibleModulesFromStorage, getModuleFilterChips, moduleMatchesFilterGroup } from "../constants/modules";
 import { hasControleQualiteModule } from "../utils/controleQualitePermissions";
 
 const FILTER_CHIP_CLASSES = {
@@ -40,7 +40,7 @@ export default function Home() {
       setAllowedModules(visible);
       setSelectedFilter((current) => {
         if (current === "all") return current;
-        const stillValid = visible.some((m) => m.color === current);
+        const stillValid = getModuleFilterChips(visible).some((chip) => chip.id === current);
         return stillValid ? current : "all";
       });
     };
@@ -69,7 +69,7 @@ export default function Home() {
 
   const filteredModules = modules.filter(module => 
     module.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
-    (selectedFilter === 'all' || module.color === selectedFilter)
+    moduleMatchesFilterGroup(module, selectedFilter)
   );
 
   // Formatage de la date et l'heure

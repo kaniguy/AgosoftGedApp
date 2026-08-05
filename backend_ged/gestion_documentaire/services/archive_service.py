@@ -129,15 +129,15 @@ def build_documents_archive(documents):
             if not doc.fichier:
                 continue
             try:
-                src = doc.fichier.path
-            except (ValueError, AttributeError):
+                with doc.fichier.open("rb") as handle:
+                    content = handle.read()
+            except Exception:
+                logger.exception("Lecture fichier impossible pour document %s", getattr(doc, "pk", "?"))
                 continue
-            if not src or not os.path.isfile(src):
+            if not content:
                 continue
             arc_name = _archive_entry_name(doc, used_names)
             dest = os.path.join(files_dir, arc_name)
-            with open(src, "rb") as handle:
-                content = handle.read()
             annotations = list(getattr(doc, "annotations", None) or [])
             if content[:4] == b"%PDF":
                 content = prepare_pdf_for_download(content, annotations)

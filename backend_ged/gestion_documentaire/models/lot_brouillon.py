@@ -6,6 +6,7 @@ from config.file_validation import (
     UploadedFileValidator,
 )
 from gestion_documentaire.services.lot_brouillon_storage import lot_brouillon_item_upload_path
+from gestion_documentaire.services.encrypted_storage import encrypted_document_storage
 from parametrage.models.champs_document import TypeDocument
 from parametrage.models.plan_geographique import PlanGeographique
 
@@ -60,7 +61,9 @@ class ItemLotBrouillonRattachement(models.Model):
     ordre = models.PositiveIntegerField(default=0)
     nom_fichier = models.CharField(max_length=255, default="document.pdf")
     fichier = models.FileField(
-        upload_to=lot_brouillon_item_upload_path, validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
+        upload_to=lot_brouillon_item_upload_path,
+        storage=encrypted_document_storage,
+        validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
         max_length=1024,
     )
     field_values = models.JSONField(default=dict, blank=True)

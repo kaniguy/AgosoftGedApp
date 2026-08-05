@@ -258,6 +258,7 @@ export default function DocumentRattachementPanel({
   const navigateToChampPage = useCallback((champ) => {
     if (!champ) return;
     setActiveChampId(champ.id);
+    if (!champHasCaptureZone(champ)) return;
     const pageIdx = champ.capture_page ?? 0;
     setFocusPageIndex(pageIdx);
     setCurrentPage(pageIdx + 1);
@@ -1355,11 +1356,16 @@ export default function DocumentRattachementPanel({
 
   const handleChampFocus = (champId) => {
     const champ = effectiveChamps.find((c) => c.id === champId);
-    if (champ) {
-      navigateToChampPage(champ);
-    } else {
+    if (!champ) {
       setActiveChampId(champId);
+      return;
     }
+    // En saisie manuelle (zones masquées), ne pas forcer le changement de page PDF.
+    if (showZonesMode && champHasCaptureZone(champ)) {
+      navigateToChampPage(champ);
+      return;
+    }
+    setActiveChampId(champ.id);
   };
 
   const handleZoneChange = useCallback(

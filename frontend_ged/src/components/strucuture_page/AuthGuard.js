@@ -11,22 +11,19 @@ export default function AuthGuard({ children }) {
   const [authorized, setAuthorized] = useState(null);
   const [backendError, setBackendError] = useState(false);
 
+  const isLoginPage = pathname === "/auth/login";
+  const isPublicDownloadPage = pathname?.startsWith("/telechargement/");
+
+  // Validation de session une seule fois au chargement (pas à chaque navigation).
   useEffect(() => {
     let cancelled = false;
 
-    const checkAuth = async () => {
+    const validateSession = async () => {
       const token = localStorage.getItem("token");
-      const isLoginPage = pathname === "/auth/login";
-      const isPublicDownloadPage = pathname?.startsWith("/telechargement/");
 
       if (!token) {
-        if (!isLoginPage && !isPublicDownloadPage) {
-          if (!cancelled) {
-            setAuthorized(false);
-            router.push("/auth/login");
-          }
-        } else if (!cancelled) {
-          setAuthorized(true);
+        if (!cancelled) {
+          setAuthorized(isLoginPage || isPublicDownloadPage);
         }
         return;
       }
@@ -34,7 +31,6 @@ export default function AuthGuard({ children }) {
       if (isLoginPage) {
         if (!cancelled) {
           setAuthorized(true);
-          router.push("/");
         }
         return;
       }
@@ -53,21 +49,32 @@ export default function AuthGuard({ children }) {
           router.replace("/auth/login?session=expired");
           return;
         }
-        // Backend injoignable (réseau, erreur 5xx) : bloquer l'accès et afficher un message.
         setBackendError(true);
         setAuthorized(false);
       }
     };
 
-    checkAuth();
+    validateSession();
 
     return () => {
       cancelled = true;
     };
-  }, [pathname, router]);
+  }, [isLoginPage, isPublicDownloadPage, router]);
 
-  const isPublicDownloadPage = pathname?.startsWith("/telechargement/");
-  const isLoginPage = pathname === "/auth/login";
+  // Garde de route sans appel API : redirections locales uniquement.
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token && !isLoginPage && !isPublicDownloadPage) {
+      setAuthorized(false);
+      router.push("/auth/login");
+      return;
+    }
+
+    if (token && isLoginPage) {
+      router.push("/");
+    }
+  }, [pathname, router, isLoginPage, isPublicDownloadPage]);
 
   // Affichage erreur serveur injoignable
   if (backendError && !isLoginPage && !isPublicDownloadPage) {

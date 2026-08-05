@@ -103,12 +103,20 @@ class DocumentLocaliteSerializer(serializers.ModelSerializer):
         return build_chemin_from_map(obj.localite_id, chemin_map)
 
     def get_fichier_url(self, obj):
+        """URL d'aperçu authentifiée (déchiffrement côté API), pas le /media/ brut."""
+        if not obj.fichier or not obj.pk:
+            return None
         request = self.context.get("request")
-        if obj.fichier and request:
-            return request.build_absolute_uri(obj.fichier.url)
-        if obj.fichier:
-            return obj.fichier.url
-        return None
+        from gestion_documentaire.services.document_storage import download_display_filename
+        import os
+        from urllib.parse import quote
+
+        raw = os.path.basename(obj.fichier.name) or f"document-{obj.pk}.pdf"
+        filename = download_display_filename(raw, fallback=f"document-{obj.pk}.pdf")
+        path = f"/api/gestion-documentaire/documents/{obj.pk}/fichier/?name={quote(filename)}"
+        if request:
+            return request.build_absolute_uri(path)
+        return path
 
     def get_valeurs(self, obj):
         if not obj.reponse_id:
@@ -361,12 +369,24 @@ class DocumentVersionSerializer(serializers.ModelSerializer):
         ]
 
     def get_fichier_url(self, obj):
+        if not obj.fichier or not obj.document_id or not obj.pk:
+            return None
         request = self.context.get("request")
-        if obj.fichier and request:
-            return request.build_absolute_uri(obj.fichier.url)
-        if obj.fichier:
-            return obj.fichier.url
-        return None
+        from gestion_documentaire.services.document_storage import download_display_filename
+        import os
+        from urllib.parse import quote
+
+        raw = os.path.basename(obj.fichier.name) or f"document-{obj.document_id}-v{obj.version_number}.pdf"
+        filename = download_display_filename(
+            raw, fallback=f"document-{obj.document_id}-v{obj.version_number}.pdf"
+        )
+        path = (
+            f"/api/gestion-documentaire/documents/{obj.document_id}/fichier/"
+            f"?version_id={obj.pk}&name={quote(filename)}"
+        )
+        if request:
+            return request.build_absolute_uri(path)
+        return path
 
     def get_created_by_nom(self, obj):
         brief = _user_brief(obj.created_by)

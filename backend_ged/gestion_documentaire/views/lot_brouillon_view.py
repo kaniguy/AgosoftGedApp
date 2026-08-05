@@ -2,15 +2,18 @@ from rest_framework import mixins, parsers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.http import HttpResponse
+import os
 
 from gestion_acces.permissions import GedDjangoModelPermissions, RequiresDjangoPerm
 from gestion_acces.services.access_service import filter_lot_brouillon_queryset
-from gestion_documentaire.models import LotBrouillonRattachement
+from gestion_documentaire.models import ItemLotBrouillonRattachement, LotBrouillonRattachement
 from gestion_documentaire.serializers.lot_brouillon_serializer import (
     LotBrouillonDetailSerializer,
     LotBrouillonListSerializer,
     LotBrouillonSyncSerializer,
 )
+from gestion_documentaire.services.document_storage import download_display_filename
 from gestion_documentaire.services.localite_chemin import nodes_map_for_localite_ids
 
 
@@ -29,6 +32,7 @@ class LotBrouillonRattachementViewSet(
         "retrieve": "gestion_documentaire.view_documentlocalite",
         "sync": "gestion_documentaire.add_documentlocalite",
         "destroy": "gestion_documentaire.delete_documentlocalite",
+        "item_fichier": "gestion_documentaire.view_documentlocalite",
     }
 
     def get_permissions(self):
@@ -88,3 +92,46 @@ class LotBrouillonRattachementViewSet(
             lot, context={"request": request, "localite_chemin_map": chemin_map}
         ).data
         return Response(data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"], url_path=r"items/(?P<item_id>[^/.]+)/fichier")
+    def item_fichier(self, request, item_id=None):
+        """Aperçu déchiffré d'un fichier d'item de lot brouillon."""
+        item = (
+            ItemLotBrouillonRattachement.objects.select_related("lot")
+            .filter(pk=item_id)
+            .first()
+        )
+        if not item or not item.fichier:
+            return Response({"detail": "Fichier introuvable."}, status=status.HTTP_404_NOT_FOUND)
+
+        allowed_lots = filter_lot_brouillon_queryset(
+            LotBrouillonRattachement.objects.filter(pk=item.lot_id),
+            request.user,
+        )
+        if not allowed_lots.exists():
+            return Response({"detail": "Accès refusé."}, status=status.HTTP_403_FORBIDDEN)
+
+        try:
+            with item.fichier.open("rb") as handle:
+                content = handle.read()
+        except Exception:
+            return Response(
+                {"detail": "Impossible de lire le fichier."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        raw = item.nom_fichier or os.path.basename(item.fichier.name) or f"brouillon-{item.pk}.pdf"
+        filename = download_display_filename(raw, fallback=f"brouillon-{item.pk}.pdf")
+        content_type = "application/octet-stream"
+        lower = filename.lower()
+        if lower.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif lower.endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif lower.endswith(".png"):
+            content_type = "image/png"
+
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        return response

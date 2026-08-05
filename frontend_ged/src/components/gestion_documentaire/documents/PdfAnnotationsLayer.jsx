@@ -187,7 +187,7 @@ function BoxShell({
         zIndex,
         cursor,
       }}
-      className="touch-none"
+      className="touch-none pointer-events-auto"
       onPointerDown={(e) => {
         // Sélection dynamique : cliquer un élément permet de le déplacer immédiatement
         startDrag(e, "move");
@@ -863,15 +863,19 @@ export default function PdfAnnotationsLayer({
   return (
     <div
       ref={layerRef}
-      className="absolute inset-0 z-20"
+      className={`absolute inset-0 z-20 ${selectMode ? "pointer-events-none" : ""}`}
       style={{ width: pageWidth, height: pageHeight }}
-      onPointerDown={handleLayerPointerDown}
-      onPointerMove={handleLayerPointerMove}
-      onPointerUp={handleLayerPointerUp}
-      onPointerLeave={() => {
-        if (draft?.type === "pen") return;
-        handleLayerPointerUp();
-      }}
+      onPointerDown={selectMode ? undefined : handleLayerPointerDown}
+      onPointerMove={selectMode ? undefined : handleLayerPointerMove}
+      onPointerUp={selectMode ? undefined : handleLayerPointerUp}
+      onPointerLeave={
+        selectMode
+          ? undefined
+          : () => {
+              if (draft?.type === "pen") return;
+              handleLayerPointerUp();
+            }
+      }
     >
       {pageAnns
         .filter((ann) => !(textEditor?.editingId && ann.id === textEditor.editingId))

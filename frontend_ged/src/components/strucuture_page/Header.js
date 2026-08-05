@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { logout, refreshUserAccess } from "../../services/auth.service";
+import { logout } from "../../services/auth.service";
 import { getProfile } from "../../services/profile.service";
 import { getEntrepriseFromStorage, refreshEntreprise } from "../../services/entreprise.service";
 import { resolveMediaUrl } from "../../services/api";
@@ -47,7 +47,6 @@ export default function Header() {
     const refreshProfile = async () => {
       if (!localStorage.getItem("token")) return;
       try {
-        await refreshUserAccess();
         const data = await getProfile();
         setUser(data);
       } catch (e) {

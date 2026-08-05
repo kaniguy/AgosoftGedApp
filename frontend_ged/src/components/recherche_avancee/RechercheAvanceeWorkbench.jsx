@@ -55,19 +55,36 @@ const FORMAT_STYLES = {
 };
 
 function getFileFormat(doc) {
-  const source = (doc.fichier_url || doc.fichier || "").toLowerCase().split("?")[0];
-  const ext = source.split(".").pop() || "";
+  const source = (doc.fichier_url || doc.fichier || "").toLowerCase();
+  const nameMatch = source.match(/[?&]name=([^&]+)/);
+  let candidate = source.split("?")[0];
+  if (nameMatch?.[1]) {
+    try {
+      candidate = decodeURIComponent(nameMatch[1]);
+    } catch {
+      candidate = nameMatch[1];
+    }
+  }
+  const ext = candidate.split(".").pop() || "";
   const labels = { pdf: "PDF", jpg: "JPEG", jpeg: "JPEG", png: "PNG", webp: "WEBP", gif: "GIF" };
-  return labels[ext] || (ext ? ext.toUpperCase() : "—");
+  return labels[ext] || (ext && ext !== "fichier" ? ext.toUpperCase() : "—");
 }
 
 function getFilename(doc) {
   const url = doc.fichier_url || doc.fichier || "";
+  const nameMatch = url.match(/[?&]name=([^&]+)/);
+  if (nameMatch?.[1]) {
+    try {
+      return decodeURIComponent(nameMatch[1]);
+    } catch {
+      return nameMatch[1];
+    }
+  }
   const fromUrl = url.split("/").pop()?.split("?")[0];
-  if (fromUrl) return fromUrl;
+  if (fromUrl && fromUrl !== "fichier") return fromUrl;
   const type = doc.type_document_libelle || "document";
   const ext = getFileFormat(doc).toLowerCase();
-  return `${type}.${ext === "jpeg" ? "jpg" : ext}`;
+  return `${type}.${ext === "jpeg" ? "jpg" : ext === "—" ? "pdf" : ext}`;
 }
 
 function mergeDocumentsById(lists) {

@@ -80,13 +80,21 @@ body {
   max-width: none;
 }
 
-.ged-doc-scroll .react-pdf__Page__textContent,
+/* Annotations désactivées pour le pan ; la text layer reste sélectionnable pour copier. */
 .ged-doc-scroll .react-pdf__Page__annotations,
 .ged-doc-scroll .annotationLayer,
-.ged-pdf-scroll-area .react-pdf__Page__textContent,
 .ged-pdf-scroll-area .react-pdf__Page__annotations,
 .ged-pdf-scroll-area .annotationLayer {
   pointer-events: none !important;
+}
+
+.ged-doc-scroll .react-pdf__Page__textContent,
+.ged-doc-scroll .textLayer,
+.ged-pdf-scroll-area .react-pdf__Page__textContent,
+.ged-pdf-scroll-area .textLayer {
+  pointer-events: auto !important;
+  user-select: text;
+  cursor: text;
 }
 
 .ged-pdf-scroll-area {

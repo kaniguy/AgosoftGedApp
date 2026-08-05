@@ -115,13 +115,12 @@ def resolve_documents_for_link(document_ids):
 
 
 def _document_has_file(doc) -> bool:
-    if not doc.fichier:
+    if not doc.fichier or not doc.fichier.name:
         return False
     try:
-        path = doc.fichier.path
-    except (ValueError, AttributeError):
+        return bool(doc.fichier.storage.exists(doc.fichier.name))
+    except Exception:
         return False
-    return bool(path and os.path.isfile(path))
 
 
 def get_downloadable_documents(document_ids):

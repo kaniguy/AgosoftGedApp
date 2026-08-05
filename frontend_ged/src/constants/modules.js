@@ -1,11 +1,41 @@
 /**
+ * Regroupements pour les filtres du tableau de bord (un filtre = plusieurs modules).
+ */
+export const MODULE_FILTER_GROUPS = [
+  {
+    id: "documents",
+    label: "Documents",
+    styleKey: "emerald",
+    moduleCodes: ["gestion_documentaire", "recherche_avancee", "controle_qualite"],
+  },
+  {
+    id: "administration",
+    label: "Administration",
+    styleKey: "blue",
+    moduleCodes: ["parametrage", "gestion_acces"],
+  },
+  {
+    id: "pilotage",
+    label: "Pilotage",
+    styleKey: "orange",
+    moduleCodes: ["analytique"],
+  },
+  {
+    id: "ressources",
+    label: "Ressources",
+    styleKey: "indigo",
+    moduleCodes: ["aide_video", "a_propos"],
+  },
+];
+
+/**
  * Modules applicatifs (codes alignés avec le backend gestion_acces/constants.py).
  */
 export const APP_MODULES = [
   {
     code: "parametrage",
     title: "Paramétrage",
-    filterLabel: "Paramétrage",
+    filterGroup: "administration",
     color: "blue",
     icon: "settings",
     description: "Configuration avancée et préférences personnalisées du système",
@@ -14,7 +44,7 @@ export const APP_MODULES = [
   {
     code: "gestion_documentaire",
     title: "Gestion Documentaire",
-    filterLabel: "Documents",
+    filterGroup: "documents",
     color: "green",
     icon: "documents",
     description: "Archive intelligente, recherche rapide et organisation optimisée",
@@ -23,7 +53,7 @@ export const APP_MODULES = [
   {
     code: "recherche_avancee",
     title: "Recherche Avancée",
-    filterLabel: "Recherche",
+    filterGroup: "documents",
     color: "cyan",
     icon: "search",
     description: "Recherche multi-critères, filtres par colonne et exploration approfondie des archives",
@@ -32,7 +62,7 @@ export const APP_MODULES = [
   {
     code: "controle_qualite",
     title: "Contrôle qualité",
-    filterLabel: "Qualité",
+    filterGroup: "documents",
     color: "yellow",
     icon: "quality",
     description: "Organisation par buckets — un bucket par localité du dernier niveau",
@@ -41,7 +71,7 @@ export const APP_MODULES = [
   {
     code: "analytique",
     title: "Analytique & Rapports",
-    filterLabel: "Analytique",
+    filterGroup: "pilotage",
     color: "orange",
     icon: "reports",
     description: "Tableaux de bord, indicateurs de performance et analyses détaillées",
@@ -50,7 +80,7 @@ export const APP_MODULES = [
   {
     code: "gestion_acces",
     title: "Gestion des accès",
-    filterLabel: "Accès",
+    filterGroup: "administration",
     color: "purple",
     icon: "users",
     description: "Contrôle des permissions, rôles utilisateurs et sécurité d'accès",
@@ -59,7 +89,7 @@ export const APP_MODULES = [
   {
     code: "aide_video",
     title: "Aide Vidéo",
-    filterLabel: "Aide",
+    filterGroup: "ressources",
     color: "rose",
     icon: "video",
     description: "Tutoriels vidéo, guides interactifs et assistance pas à pas",
@@ -68,18 +98,13 @@ export const APP_MODULES = [
   {
     code: "a_propos",
     title: "À Propos d'AGSOFT",
-    filterLabel: "À Propos",
+    filterGroup: "ressources",
     color: "indigo",
     icon: "info",
     description: "Informations sur l'entreprise",
     path: "https://agosoftci.com/",
   },
 ];
-
-/** Clé de style Tailwind pour les puces de filtre (green → emerald). */
-export function getFilterStyleKey(color) {
-  return color === "green" ? "emerald" : color;
-}
 
 /** Lit l'utilisateur depuis le localStorage. */
 function getStoredUser() {
@@ -112,18 +137,29 @@ export function getVisibleModulesFromStorage() {
 }
 
 /**
- * Puces de filtre du tableau de bord : « Tous » + un onglet par module autorisé.
+ * Puces de filtre du tableau de bord : « Tous » + un onglet par regroupement
+ * contenant au moins un module autorisé.
  */
 export function getModuleFilterChips(visibleModules) {
+  const visibleCodes = new Set(visibleModules.map((m) => m.code));
   const chips = [{ id: "all", label: "Tous", styleKey: "slate" }];
-  for (const module of visibleModules) {
-    chips.push({
-      id: module.color,
-      label: module.filterLabel || module.title,
-      styleKey: getFilterStyleKey(module.color),
-    });
+  for (const group of MODULE_FILTER_GROUPS) {
+    const hasVisibleModule = group.moduleCodes.some((code) => visibleCodes.has(code));
+    if (hasVisibleModule) {
+      chips.push({
+        id: group.id,
+        label: group.label,
+        styleKey: group.styleKey,
+      });
+    }
   }
   return chips;
+}
+
+/** Indique si un module appartient au regroupement de filtre sélectionné. */
+export function moduleMatchesFilterGroup(module, filterGroupId) {
+  if (!filterGroupId || filterGroupId === "all") return true;
+  return module.filterGroup === filterGroupId;
 }
 
 /** Lit les modules autorisés depuis le localStorage. */

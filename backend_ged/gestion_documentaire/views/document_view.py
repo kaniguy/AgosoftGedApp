@@ -1,6 +1,7 @@
 # API REST : consultation, filtres toolbar + filtres par colonne (document_column_filters), rattachement et OCR
 from collections import defaultdict
 from datetime import datetime
+import os
 
 from django.db.models import Count, Q
 from django.http import HttpResponse
@@ -555,6 +556,63 @@ class DocumentLocaliteViewSet(
 
         notifier_rejet(document, actor=request.user)
         return Response(serializer.data)
+
+    @action(detail=True, methods=["get"], url_path="fichier")
+    def fichier(self, request, pk=None):
+        """
+        Aperçu / lecture du fichier déchiffré (auth + permissions).
+        Sans fusion d'annotations (l'UI les superpose côté client).
+        """
+        document = self.get_object()
+        version_id = request.query_params.get("version_id")
+        try:
+            if version_id:
+                version = document.versions.filter(pk=version_id).first()
+                if not version or not version.fichier:
+                    return Response(
+                        {"detail": "Version introuvable."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                with version.fichier.open("rb") as handle:
+                    content = handle.read()
+                raw_name = os.path.basename(version.fichier.name) or f"document-{document.pk}.pdf"
+            else:
+                if not document.fichier:
+                    return Response(
+                        {"detail": "Fichier indisponible."},
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
+                with document.fichier.open("rb") as handle:
+                    content = handle.read()
+                raw_name = os.path.basename(document.fichier.name) or f"document-{document.pk}.pdf"
+        except FileNotFoundError:
+            return Response(
+                {"detail": "Fichier indisponible."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Impossible de lire le fichier."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        from gestion_documentaire.services.document_storage import download_display_filename
+
+        filename = download_display_filename(raw_name, fallback=f"document-{document.pk}.pdf")
+        content_type = "application/octet-stream"
+        lower = filename.lower()
+        if lower.endswith(".pdf"):
+            content_type = "application/pdf"
+        elif lower.endswith((".jpg", ".jpeg")):
+            content_type = "image/jpeg"
+        elif lower.endswith(".png"):
+            content_type = "image/png"
+
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'inline; filename="{filename}"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
 
     @action(detail=True, methods=["get"], url_path="telecharger")
     def telecharger(self, request, pk=None):

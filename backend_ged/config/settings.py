@@ -52,6 +52,9 @@ def require_env(key):
 
 SECRET_KEY = require_env("SECRET_KEY")
 
+# Clé AES-256 (32 octets en base64) pour chiffrer les documents au repos
+DOCUMENT_ENCRYPTION_KEY = require_env("DOCUMENT_ENCRYPTION_KEY")
+
 DEBUG = str(require_env("DEBUG")).lower() == "true"
 
 ALLOWED_HOSTS = [h.strip() for h in require_env("ALLOWED_HOSTS").split(",") if h.strip()]
@@ -85,14 +88,9 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.TokenAuthentication",
     ],
-    # Limitation des tentatives : 5/min en anonyme (login), 300/heure en authentifié.
-    "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
-    ],
+    # Limitation ciblée sur le login uniquement (voir LoginRateThrottle).
+    # Pas de throttle global : une SPA GED génère beaucoup d'appels légitimes.
     "DEFAULT_THROTTLE_RATES": {
-        "anon": require_env("THROTTLE_RATE_ANON"),
-        "user": require_env("THROTTLE_RATE_USER"),
         "login": require_env("THROTTLE_RATE_LOGIN"),
     },
 }

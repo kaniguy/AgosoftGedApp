@@ -114,7 +114,7 @@ const PanZoomViewport = forwardRef(function PanZoomViewport({
     if (!(target instanceof Element)) return false;
     return Boolean(
       target.closest(
-        "a, button, input, select, textarea, .react-pdf__Page__annotations, .annotationLayer, .capture-zone-adjust, .react-draggable, .react-resizable-handle"
+        "a, button, input, select, textarea, .react-pdf__Page__textContent, .textLayer, .react-pdf__Page__annotations, .annotationLayer, .capture-zone-adjust, .react-draggable, .react-resizable-handle"
       )
     );
   };

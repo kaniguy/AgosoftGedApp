@@ -64,15 +64,13 @@ export default function ModifierDocumentPage() {
     loadData();
   }, [loadData]);
 
-  const goToList = () => {
+  const goBack = useCallback(() => {
+    if (typeof window !== "undefined" && window.history.length > 1) {
+      window.history.back();
+      return;
+    }
     router.push(`/gestion_documentaire/plan_geographique/${localiteId}/documents`);
-  };
-
-  const handleSaved = () => {
-    router.push(
-      `/gestion_documentaire/plan_geographique/${localiteId}/documents?updated=1`
-    );
-  };
+  }, [router, localiteId]);
 
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] -mx-2 min-h-0">
@@ -104,11 +102,11 @@ export default function ModifierDocumentPage() {
             Plan géographique
           </button>
           <span>/</span>
-          <button type="button" onClick={goToList} className="hover:text-emerald-600 cursor-pointer">
+          <button type="button" onClick={goBack} className="hover:text-emerald-600 cursor-pointer">
             Documents
           </button>
           <span>/</span>
-          <span className="text-gray-700 font-medium">Modifier</span>
+          <span className="text-gray-700 font-medium">modifier</span>
         </nav>
       </div>
 
@@ -126,7 +124,7 @@ export default function ModifierDocumentPage() {
           <p className="font-medium">{error}</p>
           <button
             type="button"
-            onClick={goToList}
+            onClick={goBack}
             className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 cursor-pointer"
           >
             Retour à la liste
@@ -140,8 +138,8 @@ export default function ModifierDocumentPage() {
             localite={localite}
             documentToEdit={document}
             fullPage
-            onClose={goToList}
-            onSaved={handleSaved}
+            onClose={goBack}
+            onSaved={goBack}
             onNotify={showNotification}
           />
         </div>

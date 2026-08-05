@@ -41,7 +41,7 @@ export default function EntreprisePage() {
   useEffect(() => {
     const load = async () => {
       try {
-        const data = await getEntreprise();
+        const data = await getEntreprise({ force: true });
         setForm({
           libelle: data.libelle || "",
           slogan: data.slogan || "",

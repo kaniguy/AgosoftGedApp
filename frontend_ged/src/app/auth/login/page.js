@@ -3,7 +3,7 @@
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "../../../services/auth.service";
-import { getEntreprise } from "../../../services/entreprise.service";
+import { refreshEntreprise, getEntrepriseFromStorage } from "../../../services/entreprise.service";
 
 const DEFAULT_BRANDING = {
   libelle: "AGOSOFT-GED",
@@ -25,7 +25,8 @@ function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
-    getEntreprise()
+    setBranding(getEntrepriseFromStorage());
+    refreshEntreprise()
       .then((data) => {
         setBranding({
           libelle: data.libelle || DEFAULT_BRANDING.libelle,

@@ -27,12 +27,20 @@ class ItemLotBrouillonSerializer(serializers.ModelSerializer):
         ]
 
     def get_fichier_url(self, obj):
+        """Aperçu brouillon : endpoint auth (fichier chiffré hors /media/)."""
+        if not obj.fichier or not obj.pk:
+            return None
         request = self.context.get("request")
-        if obj.fichier and request:
-            return request.build_absolute_uri(obj.fichier.url)
-        if obj.fichier:
-            return obj.fichier.url
-        return None
+        from urllib.parse import quote
+
+        filename = obj.nom_fichier or f"brouillon-{obj.pk}.pdf"
+        path = (
+            f"/api/gestion-documentaire/lots-brouillon/items/{obj.pk}/fichier/"
+            f"?name={quote(filename)}"
+        )
+        if request:
+            return request.build_absolute_uri(path)
+        return path
 
 
 class LotBrouillonListSerializer(serializers.ModelSerializer):

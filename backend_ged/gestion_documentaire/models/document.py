@@ -6,6 +6,7 @@ from config.file_validation import (
     UploadedFileValidator,
 )
 from gestion_documentaire.services.document_storage import document_upload_path
+from gestion_documentaire.services.encrypted_storage import encrypted_document_storage
 from parametrage.models.champs_document import ReponseDocument, TypeDocument
 from parametrage.models.plan_geographique import PlanGeographique
 
@@ -35,7 +36,9 @@ class DocumentLocalite(models.Model):
         related_name="documents_localite",
     )
     fichier = models.FileField(
-        upload_to=document_upload_path, validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
+        upload_to=document_upload_path,
+        storage=encrypted_document_storage,
+        validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
         max_length=1024,
     )
     reponse = models.OneToOneField(
