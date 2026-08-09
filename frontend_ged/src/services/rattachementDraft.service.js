@@ -1,5 +1,6 @@
 import { getApiUrl, getHeaders, getMultipartHeaders, apiFetch } from "./api";
 import { fetchDocumentFileBlob } from "./documentLocalite.service";
+import { buildDocumentFile } from "@/utils/pdfPageUtils";
 
 function mapListItem(lot) {
   return {
@@ -69,8 +70,10 @@ export async function downloadDraftItemFile(item) {
   if (!url) return null;
   try {
     const { blob } = await fetchDocumentFileBlob(url);
-    return new File([blob], item.name || item.nom_fichier || "document.pdf", {
-      type: blob.type || "application/pdf",
+    return buildDocumentFile(blob, {
+      url,
+      name: item.name || item.nom_fichier,
+      fallbackName: "document",
     });
   } catch {
     return null;

@@ -9,7 +9,51 @@ function isPdfFile(file) {
 }
 
 function isImageFile(file) {
-  return file?.type?.startsWith("image/");
+  if (file?.type?.startsWith("image/")) return true;
+  return /\.(jpe?g|png|webp|gif)$/i.test(file?.name || "");
+}
+
+const MIME_BY_EXT = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  gif: "image/gif",
+};
+
+/** Nom de fichier depuis une URL API (`?name=…`) ou un chemin. */
+export function filenameFromDocumentUrl(url, fallback = "document") {
+  if (!url) return fallback;
+  const source = String(url);
+  const nameMatch = source.match(/[?&]name=([^&]+)/);
+  if (nameMatch?.[1]) {
+    try {
+      return decodeURIComponent(nameMatch[1]);
+    } catch {
+      return nameMatch[1];
+    }
+  }
+  const last = source.split("/").pop()?.split("?")[0];
+  return last || fallback;
+}
+
+export function mimeFromFilename(name) {
+  const ext = (name || "").split(".").pop()?.toLowerCase();
+  return MIME_BY_EXT[ext] || "";
+}
+
+/**
+ * Construit un File à partir d'un blob distant en conservant le format d'origine
+ * (pas de conversion PDF).
+ */
+export function buildDocumentFile(blob, { url, name, fallbackName = "document" } = {}) {
+  if (!blob) throw new Error("Fichier manquant");
+  if (blob instanceof File && !url && !name) return blob;
+  const resolvedName = name || filenameFromDocumentUrl(url, fallbackName);
+  const declared = blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
+  const type = declared || mimeFromFilename(resolvedName) || "application/octet-stream";
+  return new File([blob], resolvedName, { type, lastModified: Date.now() });
 }
 
 /** Convertit un fichier (PDF ou image) en tableau d'octets PDF. */
@@ -23,13 +67,18 @@ export async function fileToPdfBytes(file) {
   if (isImageFile(file)) {
     const pdfDoc = await PDFDocument.create();
     const bytes = await file.arrayBuffer();
+    const mime = file.type || mimeFromFilename(file.name);
     let image;
-    if (file.type === "image/png") {
+    if (mime === "image/png" || /\.png$/i.test(file.name || "")) {
       image = await pdfDoc.embedPng(bytes);
-    } else if (file.type === "image/jpeg" || file.type === "image/jpg") {
+    } else if (
+      mime === "image/jpeg" ||
+      mime === "image/jpg" ||
+      /\.jpe?g$/i.test(file.name || "")
+    ) {
       image = await pdfDoc.embedJpg(bytes);
     } else {
-      const blob = new Blob([bytes], { type: file.type || "image/png" });
+      const blob = new Blob([bytes], { type: mime || "image/png" });
       const url = URL.createObjectURL(blob);
       try {
         const img = await new Promise((resolve, reject) => {
@@ -280,7 +329,10 @@ export async function appendFilesToPdf(baseFile, additionalFiles) {
   return result;
 }
 
-/** Normalise tout fichier accepté en PDF pour le contrôle qualité. */
+/**
+ * Convertit un fichier en PDF uniquement si nécessaire (ex. fusion / édition multi-pages).
+ * Les images importées doivent rester dans leur format d'origine via buildDocumentFile.
+ */
 export async function normalizeToPdfFile(file) {
   if (isPdfFile(file)) return file;
   const bytes = await fileToPdfBytes(file);

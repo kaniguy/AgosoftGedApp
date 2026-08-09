@@ -24,7 +24,8 @@ import {
   getCheminEntry,
   getLeafLocaliteLabel,
 } from "../../../utils/documentGeoColumns";
-import { formatDisplayDateTime } from "../../../utils/dateFormat";
+import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationDateChamp } from "../../../utils/dateFormat";
+import { getFileFormat } from "../../../utils/documentFileFormat";
 import ChampCellValue from "./ChampCellValue";
 import { useCrudPermissions, MODELS } from "../../../utils/permissions";
 
@@ -63,36 +64,15 @@ function formatDate(value) {
 }
 
 function buildChampColumns(champs) {
-  return (champs || []).map((c) => ({
+  return (champs || [])
+    .filter((c) => !isRegistrationDateChamp(c))
+    .map((c) => ({
     key: `champ_${c.id}`,
     champId: c.id,
     typeChamp: c.type_champ,
     label: c.libelle_champ || `Champ ${c.id}`,
     options: c.options || [],
   }));
-}
-
-function getFileFormat(doc) {
-  const source = (doc.fichier_url || doc.fichier || "").toLowerCase();
-  const nameMatch = source.match(/[?&]name=([^&]+)/);
-  let candidate = source.split("?")[0];
-  if (nameMatch?.[1]) {
-    try {
-      candidate = decodeURIComponent(nameMatch[1]);
-    } catch {
-      candidate = nameMatch[1];
-    }
-  }
-  const ext = candidate.split(".").pop() || "";
-  const labels = {
-    pdf: "PDF",
-    jpg: "JPEG",
-    jpeg: "JPEG",
-    png: "PNG",
-    webp: "WEBP",
-    gif: "GIF",
-  };
-  return labels[ext] || (ext && ext !== "fichier" ? ext.toUpperCase() : "—");
 }
 
 function getFormatStyle(format) {
@@ -700,7 +680,14 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
                             </span>
                           )}
                           {col.key === "date" && (
-                            <span className="text-gray-600 whitespace-nowrap text-xs">{formatDate(doc.date_creation)}</span>
+                            <span className="text-gray-600 whitespace-nowrap text-xs">
+                              {formatDate(getRegistrationDateFromDocument(doc))}
+                            </span>
+                          )}
+                          {col.key === "date_modification" && (
+                            <span className="text-gray-600 whitespace-nowrap text-xs">
+                              {formatDate(doc.date_modification || doc.date_creation)}
+                            </span>
                           )}
                           {col.key.startsWith("champ_") && (
                             <ChampCellValue

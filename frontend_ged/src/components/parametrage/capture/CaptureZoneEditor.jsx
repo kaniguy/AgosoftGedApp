@@ -263,6 +263,37 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
   };
 
   /**
+   * Réinitialise toutes les zones de capture.
+   */
+  const handleClearAllZones = async () => {
+    if (
+      !window.confirm(
+        "Réinitialiser toutes les zones de capture pour ce type de document ?"
+      )
+    ) {
+      return;
+    }
+    try {
+      setSaving(true);
+      const zones = champs.map((champ) => ({
+        champ_id: champ.id,
+        capture_page: 0,
+        zone_x: null,
+        zone_y: null,
+        zone_width: null,
+        zone_height: null,
+      }));
+      await saveCaptureZones(typeDocumentId, zones);
+      await loadData();
+      onNotify?.("Toutes les zones ont été réinitialisées.", "success");
+    } catch (err) {
+      onNotify?.(err.message || "Erreur de réinitialisation", "error");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  /**
    * Upload un nouveau document modèle.
    */
   const handleUploadModele = async (e) => {
@@ -276,6 +307,7 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
       setNumPages(Math.max(1, updated.modele_page_count || 1));
       setCurrentPage(0);
       setPreviewKind(isPdfSource(updated.fichier_modele_url, file.name) ? "pdf" : "image");
+      await loadData();
       onNotify?.("Document modèle importé.", "success");
     } catch (err) {
       onNotify?.(err.message || "Erreur d'upload", "error");
@@ -294,12 +326,13 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
     }
     try {
       setUploading(true);
-      const updated = await deleteModeleCapture(typeDocumentId);
-      setTypeDocument(updated);
+      await deleteModeleCapture(typeDocumentId);
       setPreviewKind(null);
       setNumPages(1);
       setCurrentPage(0);
-      onNotify?.("Document modèle supprimé.", "success");
+      setPageHeight(0);
+      await loadData();
+      onNotify?.("Document modèle supprimé. Les zones ont été réinitialisées.", "success");
     } catch (err) {
       onNotify?.(err.message || "Erreur de suppression", "error");
     } finally {
@@ -409,6 +442,16 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
             Supprimer modèle
           </button>
         )}
+        {champs.length > 0 && (
+          <button
+            type="button"
+            disabled={saving}
+            onClick={handleClearAllZones}
+            className="px-3 py-1.5 text-sm text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-50 disabled:opacity-50"
+          >
+            Réinitialiser toutes les zones
+          </button>
+        )}
         <button
           type="button"
           disabled={saving || !champs.length}
@@ -458,15 +501,17 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
               })
             )}
           </div>
-          {activeChampId && modeleUrl && (
+          {activeChampId && (
             <div className="p-3 border-t border-gray-200 bg-gray-50 flex flex-col gap-2">
-              <button
-                type="button"
-                onClick={handleCreateDefaultZone}
-                className="w-full px-2 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
-              >
-                Ajouter / réinitialiser zone
-              </button>
+              {modeleUrl && (
+                <button
+                  type="button"
+                  onClick={handleCreateDefaultZone}
+                  className="w-full px-2 py-1.5 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700"
+                >
+                  Ajouter / réinitialiser zone
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleClearZone}

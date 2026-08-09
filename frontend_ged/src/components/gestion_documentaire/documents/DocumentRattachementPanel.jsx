@@ -47,12 +47,13 @@ import {
   listUserSignatures,
 } from "../../../services/userSignature.service";
 import { apiFetch, resolveMediaUrl } from "../../../services/api";
-import { normalizeDatetimeLocalValue, buildValeursPayload } from "../../../utils/dateFormat";
+import { normalizeDatetimeLocalValue, buildValeursPayload, formatDisplayDateTime, getRegistrationDateFromDocument } from "../../../utils/dateFormat";
+import { getFileFormat, getFileFormatFromName } from "@/utils/documentFileFormat";
 import {
   appendSelectedPagesToPdf,
+  buildDocumentFile,
   cropPdfPage,
   getPdfPageCount,
-  normalizeToPdfFile,
   removePageFromPdf,
   rotatePdfPage,
 } from "@/utils/pdfPageUtils";
@@ -430,16 +431,14 @@ export default function DocumentRattachementPanel({
         const fileData = await fetchDocumentFileBlob(documentToEdit.fichier_url);
         if (cancelled) return;
 
-        const rawFile = new File(
-          [fileData.blob],
-          documentToEdit.fichier_url?.split("/").pop() || "document.pdf",
-          { type: fileData.blob.type || "application/pdf" }
-        );
-        const pdfFile = await normalizeToPdfFile(rawFile);
+        const loadedFile = buildDocumentFile(fileData.blob, {
+          url: documentToEdit.fichier_url,
+          fallbackName: `document-${documentToEdit.id || "edit"}`,
+        });
         if (cancelled) return;
 
-        setFichier(pdfFile);
-        const count = await getPdfPageCount(pdfFile);
+        setFichier(loadedFile);
+        const count = await getPdfPageCount(loadedFile);
         setPageCount(count);
         setFileModified(false);
         const loadedAnnotations = normalizeAnnotations(documentToEdit.annotations);
@@ -452,7 +451,7 @@ export default function DocumentRattachementPanel({
         };
         await resetHistory(
           await createSnapshot({
-            fichier: pdfFile,
+            fichier: loadedFile,
             zoneOverrides: {},
             currentPage: 1,
             annotations: loadedAnnotations,
@@ -1158,11 +1157,11 @@ export default function DocumentRattachementPanel({
 
     setProcessing(true);
     try {
-      const pdfFile = await normalizeToPdfFile(file);
       setBatchItems(null);
       setBatchActiveIndex(0);
       setBatchSubmitProgress(null);
-      await loadPdfDocument(pdfFile, { resetFields: !isEditMode });
+      // Conserve le format d'origine (JPG/PNG/…) ; conversion PDF uniquement si manipulation multi-pages.
+      await loadPdfDocument(file, { resetFields: !isEditMode });
     } catch (err) {
       onNotify?.(err.message || "Impossible de charger le fichier", "error");
     } finally {
@@ -1181,17 +1180,17 @@ export default function DocumentRattachementPanel({
 
     setProcessing(true);
     try {
-      const pdfs = [];
+      const accepted = [];
       for (const file of rawFiles) {
         if (!isAcceptedImportFile(file)) continue;
-        pdfs.push(await normalizeToPdfFile(file));
+        accepted.push(file);
       }
-      if (!pdfs.length) {
+      if (!accepted.length) {
         onNotify?.("Aucun fichier valide dans le lot (PDF ou image).", "error");
         return;
       }
 
-      const newItems = pdfs.map((file) => createBatchItem(file, champs));
+      const newItems = accepted.map((file) => createBatchItem(file, champs));
 
       if (!fichier && !batchItems?.length) {
         setBatchItems(newItems);
@@ -1218,7 +1217,7 @@ export default function DocumentRattachementPanel({
       setBatchItems(merged);
       setBatchActiveIndex(stayIndex);
       onNotify?.(
-        `${pdfs.length} document${pdfs.length > 1 ? "s" : ""} ajouté${pdfs.length > 1 ? "s" : ""} — lot de ${merged.length} documents.`,
+        `${newItems.length} document${newItems.length > 1 ? "s" : ""} ajouté${newItems.length > 1 ? "s" : ""} — lot de ${merged.length} documents.`,
         "success"
       );
     } catch (err) {
@@ -1677,7 +1676,7 @@ export default function DocumentRattachementPanel({
 
   const performEditSave = useCallback(
     async (saveMode) => {
-      const valeurs = buildValeursPayload(champs, fieldValues, { refreshRegistrationDate: true });
+      const valeurs = buildValeursPayload(champs, fieldValues, { refreshRegistrationDate: false });
       const refreshedFieldValues = { ...fieldValues };
       champs.forEach((champ) => {
         const entry = valeurs.find((v) => v.champ_id === champ.id);
@@ -2284,38 +2283,6 @@ export default function DocumentRattachementPanel({
             ))}
           </select>
         </div>
-        {isEditMode && documentToEdit && (
-          <dl className="text-xs space-y-2 text-slate-600">
-            <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
-              <dt className="text-slate-400">Fichier</dt>
-              <dd className="font-medium text-right truncate max-w-[60%]" title={fichier?.name || documentToEdit.nom_fichier}>
-                {fichier?.name || documentToEdit.nom_fichier || "—"}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
-              <dt className="text-slate-400">Pages</dt>
-              <dd className="font-medium">{pageCount}</dd>
-            </div>
-            <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
-              <dt className="text-slate-400">Version courante</dt>
-              <dd className="font-medium">v{versionCourante}</dd>
-            </div>
-            <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
-              <dt className="text-slate-400">Nombre de versions</dt>
-              <dd className="font-medium">
-                {versionsLoading ? "…" : Math.max(versionCourante, (documentVersions?.length || 0) + 1)}
-              </dd>
-            </div>
-            <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
-              <dt className="text-slate-400">Versions archivées</dt>
-              <dd className="font-medium">{versionsLoading ? "…" : documentVersions?.length || 0}</dd>
-            </div>
-            <div className="flex justify-between gap-2">
-              <dt className="text-slate-400">ID</dt>
-              <dd className="font-medium">#{documentToEdit.id}</dd>
-            </div>
-          </dl>
-        )}
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs text-slate-500">
@@ -2446,6 +2413,68 @@ export default function DocumentRattachementPanel({
     />
   );
 
+  const documentInfoPanelContent =
+    isEditMode && documentToEdit ? (
+      <div className="p-4">
+        <p className="text-xs text-slate-500 mb-4">
+          Informations générales sur le document en cours de modification.
+        </p>
+        <dl className="text-xs space-y-2 text-slate-600">
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Fichier</dt>
+            <dd
+              className="font-medium text-right truncate max-w-[60%]"
+              title={fichier?.name || documentToEdit.nom_fichier}
+            >
+              {fichier?.name || documentToEdit.nom_fichier || "—"}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Format</dt>
+            <dd className="font-medium">
+              {getFileFormat(documentToEdit) !== "—"
+                ? getFileFormat(documentToEdit)
+                : getFileFormatFromName(fichier?.name || documentToEdit.nom_fichier)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Date d&apos;enregistrement</dt>
+            <dd className="font-medium text-right">
+              {formatDisplayDateTime(getRegistrationDateFromDocument(documentToEdit))}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Dernière modification</dt>
+            <dd className="font-medium text-right">
+              {formatDisplayDateTime(documentToEdit.date_modification || documentToEdit.date_creation)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Pages</dt>
+            <dd className="font-medium">{pageCount}</dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Version courante</dt>
+            <dd className="font-medium">v{versionCourante}</dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Nombre de versions</dt>
+            <dd className="font-medium">
+              {versionsLoading ? "…" : Math.max(versionCourante, (documentVersions?.length || 0) + 1)}
+            </dd>
+          </div>
+          <div className="flex justify-between gap-2 border-b border-slate-100 pb-2">
+            <dt className="text-slate-400">Versions archivées</dt>
+            <dd className="font-medium">{versionsLoading ? "…" : documentVersions?.length || 0}</dd>
+          </div>
+          <div className="flex justify-between gap-2">
+            <dt className="text-slate-400">ID</dt>
+            <dd className="font-medium">#{documentToEdit.id}</dd>
+          </div>
+        </dl>
+      </div>
+    ) : null;
+
   const versionsPanelContent = isEditMode ? (
     <DocumentVersionsPanel
       documentId={documentToEdit?.id}
@@ -2470,6 +2499,22 @@ export default function DocumentRattachementPanel({
     },
     ...(isEditMode
       ? [
+          {
+            id: "infos",
+            label: "Infos générales",
+            icon: (
+              <RailIcon>
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.8}
+                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  />
+                </svg>
+              </RailIcon>
+            ),
+          },
           hasPermission(PERMISSIONS.ANNOTER_DOCUMENT) && {
             id: "annotations",
             label: "Annotations",
@@ -2536,6 +2581,7 @@ export default function DocumentRattachementPanel({
 
   const railPanelMap = {
     index: { title: "Type & champs d'index", content: indexPanelContent },
+    infos: { title: "Infos générales", content: documentInfoPanelContent },
     annotations: { title: "Annotations", content: annotationsPanelContent },
     stamps: { title: "Tampons", content: stampsPanelContent },
     signatures: { title: "Signatures", content: signaturesPanelContent },

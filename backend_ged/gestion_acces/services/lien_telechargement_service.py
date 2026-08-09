@@ -2,10 +2,11 @@
 import os
 from datetime import datetime
 
-from django.http import FileResponse, HttpResponse
+from django.http import HttpResponse
 
 from gestion_documentaire.models import DocumentLocalite
 from gestion_documentaire.services.archive_service import build_documents_archive
+from gestion_documentaire.services.document_download_service import get_document_download_payload
 from gestion_documentaire.services.document_storage import download_display_filename
 
 FORMAT_LABELS = {
@@ -81,17 +82,14 @@ def build_download_response(documents):
         doc = documents[0]
         if not doc.fichier:
             raise ValueError("Fichier introuvable.")
-        filename = _safe_filename(
-            download_display_filename(
-                os.path.basename(doc.fichier.name),
-                fallback=f"document-{doc.pk}",
-            )
+        content, filename, content_type = get_document_download_payload(doc)
+        filename = _safe_filename(filename)
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = (
+            f'attachment; filename="{filename}"; filename*=UTF-8\'\'{filename}'
         )
-        content_type = "application/octet-stream"
-        ext = os.path.splitext(filename)[1].lower()
-        if ext == ".pdf":
-            content_type = "application/pdf"
-        return FileResponse(doc.fichier.open("rb"), as_attachment=True, filename=filename, content_type=content_type)
+        response["Access-Control-Expose-Headers"] = "Content-Disposition, Content-Type"
+        return response
 
     content, ext = build_documents_archive(documents)
     stamp = datetime.now().strftime("%Y-%m-%d")

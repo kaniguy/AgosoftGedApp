@@ -77,6 +77,18 @@ export function nowForChampType(typeChamp) {
   return `${y}-${m}-${d}T${h}:${min}`;
 }
 
+export function getRegistrationDateFromDocument(doc) {
+  const fromChamp = (doc?.valeurs || []).find((v) => {
+    const label = String(v.libelle_champ || "").toLowerCase();
+    return (
+      (label.includes("enregistrement") || label.includes("date d'enreg")) &&
+      String(v.valeur || "").trim() !== ""
+    );
+  });
+  if (fromChamp?.valeur) return fromChamp.valeur;
+  return doc?.date_creation ?? null;
+}
+
 /** Construit les valeurs à envoyer à l'API, avec date d'enregistrement à jour si demandé. */
 export function buildValeursPayload(champs, fieldValues, { refreshRegistrationDate = false } = {}) {
   return champs.map((champ) => {

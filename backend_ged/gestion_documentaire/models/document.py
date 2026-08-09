@@ -47,6 +47,7 @@ class DocumentLocalite(models.Model):
         related_name="document_localite",
     )
     date_creation = models.DateTimeField(auto_now_add=True)
+    date_modification = models.DateTimeField(auto_now=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

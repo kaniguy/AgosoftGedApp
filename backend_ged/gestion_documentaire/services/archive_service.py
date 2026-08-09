@@ -8,7 +8,7 @@ import tempfile
 import zipfile
 from datetime import date
 
-from gestion_documentaire.services.annotation_pdf_service import prepare_pdf_for_download
+from gestion_documentaire.services.annotation_pdf_service import prepare_file_for_download
 from gestion_documentaire.services.document_storage import download_display_filename
 
 logger = logging.getLogger(__name__)
@@ -139,8 +139,7 @@ def build_documents_archive(documents):
             arc_name = _archive_entry_name(doc, used_names)
             dest = os.path.join(files_dir, arc_name)
             annotations = list(getattr(doc, "annotations", None) or [])
-            if content[:4] == b"%PDF":
-                content = prepare_pdf_for_download(content, annotations)
+            content = prepare_file_for_download(content, annotations, filename=arc_name)
             with open(dest, "wb") as handle:
                 handle.write(content)
             file_names.append(arc_name)

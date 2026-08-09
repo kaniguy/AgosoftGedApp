@@ -32,9 +32,9 @@ import { normalizeDatetimeLocalValue } from "../../utils/dateFormat";
 import { normalizeAnnotations } from "@/utils/pdfAnnotationUtils";
 import {
   appendSelectedPagesToPdf,
+  buildDocumentFile,
   cropPdfPage,
   getPdfPageCount,
-  normalizeToPdfFile,
   removePageFromPdf,
   rotatePdfPage,
 } from "@/utils/pdfPageUtils";
@@ -211,21 +211,19 @@ export default function DocumentControleQualitePanel({
         });
         setFieldValues(initial);
 
-        const rawFile = new File(
-          [fileData.blob],
-          document.fichier_url?.split("/").pop() || "document.pdf",
-          { type: fileData.blob.type || "application/pdf" }
-        );
-        const pdfFile = await normalizeToPdfFile(rawFile);
+        const loadedFile = buildDocumentFile(fileData.blob, {
+          url: document.fichier_url,
+          fallbackName: `document-${document.id || "qc"}`,
+        });
         if (cancelled) return;
 
-        setFichier(pdfFile);
-        const count = await getPdfPageCount(pdfFile);
+        setFichier(loadedFile);
+        const count = await getPdfPageCount(loadedFile);
         setPageCount(count);
         setFileModified(false);
         await resetHistory(
           await createSnapshot({
-            fichier: pdfFile,
+            fichier: loadedFile,
             zoneOverrides: {},
             currentPage: 1,
           })
@@ -652,8 +650,8 @@ export default function DocumentControleQualitePanel({
 
     setProcessing(true);
     try {
-      const pdfFile = await normalizeToPdfFile(file);
-      setFichier(pdfFile);
+      // Conserve le format d'origine (JPG/PNG/…) ; conversion PDF uniquement si manipulation multi-pages.
+      setFichier(file);
       setFileModified(true);
       setFilePreviewKey((k) => k + 1);
       setCurrentPage(1);
@@ -663,10 +661,10 @@ export default function DocumentControleQualitePanel({
       setActiveChampId(null);
       setFilledChampIds([]);
       setOcrFilledCount(0);
-      await refreshPageCount(pdfFile);
+      await refreshPageCount(file);
       await workbenchHistory.resetHistory(
         await workbenchHistory.createSnapshot({
-          fichier: pdfFile,
+          fichier: file,
           zoneOverrides: {},
           currentPage: 1,
         })

@@ -1,8 +1,9 @@
-"""Fusionne les annotations JSON dans un PDF (téléchargement / archive)."""
+"""Fusionne les annotations JSON dans un PDF ou une image (téléchargement / archive)."""
 from __future__ import annotations
 
 import base64
 import io
+import os
 import re
 
 import fitz
@@ -302,3 +303,108 @@ def flatten_annotations_on_pdf(pdf_bytes: bytes, annotations) -> bytes:
         return doc.tobytes(garbage=0, clean=False)
     finally:
         doc.close()
+
+
+def _extension_from_filename(filename: str) -> str:
+    return os.path.splitext(filename or "")[1].lower()
+
+
+def _detect_image_filetype(content: bytes, filename: str = "") -> str | None:
+    ext = _extension_from_filename(filename)
+    ext_map = {
+        ".jpg": "jpeg",
+        ".jpeg": "jpeg",
+        ".png": "png",
+        ".webp": "webp",
+        ".gif": "gif",
+    }
+    if ext in ext_map:
+        return ext_map[ext]
+
+    head = content[:12]
+    if head[:8] == b"\x89PNG\r\n\x1a\n":
+        return "png"
+    if head[:2] == b"\xff\xd8":
+        return "jpeg"
+    if head[:4] == b"RIFF" and head[8:12] == b"WEBP":
+        return "webp"
+    if head[:6] in (b"GIF87a", b"GIF89a"):
+        return "gif"
+    return None
+
+
+def _pixmap_to_image_bytes(pix: fitz.Pixmap, filetype: str) -> bytes:
+    if filetype == "jpeg":
+        return pix.tobytes("jpeg", jpg_quality=92)
+    if filetype == "png":
+        return pix.tobytes("png")
+    if filetype in ("webp", "gif"):
+        image = Image.open(io.BytesIO(pix.tobytes("png")))
+        buf = io.BytesIO()
+        image.save(buf, format=filetype.upper())
+        return buf.getvalue()
+    return pix.tobytes("png")
+
+
+def flatten_annotations_on_image(image_bytes: bytes, annotations, *, filetype: str) -> bytes:
+    """
+    Retourne une image avec les annotations dessinées dedans.
+
+    PyMuPDF ne permet pas de dessiner (draw_line, draw_rect…) sur une page image
+    ouverte directement — on intègre l'image dans un PDF mono-page temporaire.
+    """
+    if not image_bytes:
+        return image_bytes
+    if not annotations:
+        return image_bytes
+
+    src_doc = fitz.open(stream=image_bytes, filetype=filetype)
+    try:
+        if src_doc.page_count < 1:
+            return image_bytes
+        rect = src_doc[0].rect
+    finally:
+        src_doc.close()
+
+    pdf_doc = fitz.open()
+    try:
+        page = pdf_doc.new_page(width=rect.width, height=rect.height)
+        page.insert_image(rect, stream=image_bytes)
+        for ann in annotations:
+            if not isinstance(ann, dict):
+                continue
+            page_idx = int(ann.get("page") or 0)
+            if page_idx != 0:
+                continue
+            _apply_annotation(page, ann)
+        pix = page.get_pixmap(alpha=False)
+        return _pixmap_to_image_bytes(pix, filetype)
+    finally:
+        pdf_doc.close()
+
+
+def prepare_image_for_download(image_bytes: bytes, annotations=None, *, filename: str = "") -> bytes:
+    """Prépare une image pour téléchargement en fusionnant les annotations."""
+    if not image_bytes:
+        return image_bytes
+    anns = [a for a in (annotations or []) if isinstance(a, dict)]
+    if not anns:
+        return image_bytes
+    filetype = _detect_image_filetype(image_bytes, filename)
+    if not filetype:
+        return image_bytes
+    return flatten_annotations_on_image(image_bytes, anns, filetype=filetype)
+
+
+def prepare_file_for_download(content: bytes, annotations=None, *, filename: str = "") -> bytes:
+    """Fusionne les annotations sur un PDF ou une image selon le contenu."""
+    if not content:
+        return content
+    anns = [a for a in (annotations or []) if isinstance(a, dict)]
+    if not anns:
+        return content
+    if content[:4] == b"%PDF":
+        return prepare_pdf_for_download(content, anns)
+    if _detect_image_filetype(content, filename):
+        return prepare_image_for_download(content, anns, filename=filename)
+    return content

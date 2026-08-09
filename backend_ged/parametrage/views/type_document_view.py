@@ -73,7 +73,7 @@ class TypeDocumentViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def _delete_modele_capture(self, request, pk=None):
-        """Supprime le document modèle de capture d'un type."""
+        """Supprime le document modèle de capture d'un type et réinitialise les zones."""
         type_document = self.get_object()
 
         if type_document.fichier_modele:
@@ -81,6 +81,14 @@ class TypeDocumentViewSet(viewsets.ModelViewSet):
             type_document.fichier_modele = None
             type_document.modele_page_count = 0
             type_document.save(update_fields=["fichier_modele", "modele_page_count"])  # ALLOWED — modèle removed
+
+        ChampsDocument.objects.filter(type_document=type_document).update(
+            capture_page=0,
+            zone_x=None,
+            zone_y=None,
+            zone_width=None,
+            zone_height=None,
+        )
 
         serializer = self.get_serializer(type_document)
         return Response(serializer.data, status=status.HTTP_200_OK)

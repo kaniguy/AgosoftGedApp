@@ -26,7 +26,8 @@ const ZOOM_STEP = 0.25;
 const BASE_IMAGE_WIDTH = CAPTURE_BASE_PAGE_WIDTH;
 
 function isImageFile(file) {
-  return file?.type?.startsWith("image/");
+  if (file?.type?.startsWith("image/")) return true;
+  return /\.(jpe?g|png|webp|gif)$/i.test(file?.name || "");
 }
 
 function isPdfFile(file) {
@@ -757,6 +758,27 @@ export default function DocumentPreview({
           {toolbar}
         </div>
       </div>
+      {annotationMode && onAnnotationToolChange && !hideAnnotationToolbar && (
+        <div className="px-3 py-2 bg-amber-50 border-b border-amber-200 shrink-0 space-y-1.5">
+          <AnnotationToolbar
+            activeTool={annotationTool}
+            onToolChange={handleAnnotationToolChange}
+            activeColor={annotationColor}
+            onColorChange={onAnnotationColorChange}
+            onUndo={onAnnotationUndo}
+            onRedo={onAnnotationRedo}
+            onClearPage={onAnnotationClearPage}
+            onDeleteSelected={onAnnotationDeleteSelected}
+            canUndo={canAnnotationUndo}
+            canRedo={canAnnotationRedo}
+            canDeleteSelected={canAnnotationDeleteSelected}
+          />
+          <p className="text-[11px] text-amber-900/70">
+            Cliquez un élément pour le déplacer / redimensionner / pivoter. Bouton rouge × ou
+            Suppr pour supprimer. <strong>Double-clic</strong> sur un texte pour le modifier.
+          </p>
+        </div>
+      )}
       {documentViewport(
         <div className="relative inline-block">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -768,8 +790,17 @@ export default function DocumentPreview({
             onLoad={handleImageLoad}
             draggable={false}
           />
-          {renderZonesOverlay(0, imageWidth, pageHeight)}
+          {renderPageOverlay(0, imageWidth, pageHeight)}
         </div>
+      )}
+      {!signatureControlled && (
+        <SignatureCreateModal
+          open={showSignatureModal}
+          onClose={() => setShowSignatureModal(false)}
+          onCreated={handleSignatureCreated}
+          username={signatureUsername}
+          busy={signatureSaving}
+        />
       )}
     </div>
   );

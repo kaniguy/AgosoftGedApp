@@ -58,8 +58,19 @@ function openDb() {
 function blobToFile(blob, name) {
   if (!blob) return null;
   if (blob instanceof File) return blob;
-  return new File([blob], name || "document.pdf", {
-    type: blob.type || "application/pdf",
+  const resolvedName = name || "document";
+  const ext = resolvedName.split(".").pop()?.toLowerCase();
+  const mimeByExt = {
+    pdf: "application/pdf",
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    webp: "image/webp",
+    gif: "image/gif",
+  };
+  const declared = blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
+  return new File([blob], resolvedName, {
+    type: declared || mimeByExt[ext] || "application/octet-stream",
   });
 }
 

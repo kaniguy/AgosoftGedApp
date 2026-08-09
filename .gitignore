@@ -6,7 +6,7 @@ frontend_ged/.env*
 !.env.example
 !**/.env.example
 
-# Notes et commandes perso (non versionnées)
+
 NOTE.txt
 commande docker.txt
 

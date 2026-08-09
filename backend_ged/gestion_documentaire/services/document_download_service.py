@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import os
 
-from gestion_documentaire.services.annotation_pdf_service import prepare_pdf_for_download
+from gestion_documentaire.services.annotation_pdf_service import prepare_file_for_download
 from gestion_documentaire.services.document_storage import download_display_filename
 
 
@@ -21,11 +21,9 @@ def get_document_download_payload(document) -> tuple[bytes, str, str]:
         content = handle.read()
 
     annotations = list(document.annotations or [])
-    if content[:4] == b"%PDF":
-        content = prepare_pdf_for_download(content, annotations)
-
     raw_name = os.path.basename(document.fichier.name) or f"document-{document.pk}.pdf"
     filename = download_display_filename(raw_name, fallback=f"document-{document.pk}.pdf")
+    content = prepare_file_for_download(content, annotations, filename=filename)
     content_type = "application/pdf"
     if not filename.lower().endswith(".pdf"):
         guessed = (document.fichier.name or "").lower()
@@ -48,9 +46,6 @@ def get_archived_version_download_payload(version) -> tuple[bytes, str, str]:
         content = handle.read()
 
     annotations = list(version.annotations or [])
-    if content[:4] == b"%PDF":
-        content = prepare_pdf_for_download(content, annotations)
-
     raw_name = (
         os.path.basename(version.fichier.name)
         or f"document-{version.document_id}-v{version.version_number}.pdf"
@@ -59,6 +54,7 @@ def get_archived_version_download_payload(version) -> tuple[bytes, str, str]:
         raw_name,
         fallback=f"document-{version.document_id}-v{version.version_number}.pdf",
     )
+    content = prepare_file_for_download(content, annotations, filename=filename)
     content_type = "application/pdf"
     if not filename.lower().endswith(".pdf"):
         guessed = (version.fichier.name or "").lower()

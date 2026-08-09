@@ -58,6 +58,7 @@ class DocumentLocaliteSerializer(serializers.ModelSerializer):
             "fichier",
             "fichier_url",
             "date_creation",
+            "date_modification",
             "valeurs",
             "statut_qualite",
             "importe_par",
@@ -72,6 +73,7 @@ class DocumentLocaliteSerializer(serializers.ModelSerializer):
         read_only_fields = (
             "fichier",
             "date_creation",
+            "date_modification",
             "statut_qualite",
             "valide_le",
             "rejete_le",
@@ -296,11 +298,8 @@ class DocumentLocaliteUpdateSerializer(serializers.Serializer):
                     user,
                     increment_version=True,
                 )
-            instance.date_creation = timezone.now()
 
         pending_update_fields = []
-        if has_content_change:
-            pending_update_fields.append("date_creation")
 
         if type_changed:
             instance.type_document = type_document
@@ -331,6 +330,8 @@ class DocumentLocaliteUpdateSerializer(serializers.Serializer):
 
         if pending_update_fields:
             instance.save(update_fields=list(dict.fromkeys(pending_update_fields)))
+        elif has_content_change:
+            instance.save()
 
         if has_content_change:
             from gestion_acces.services.audit_service import log_modifications_document

@@ -71,6 +71,7 @@ const BASE_COLUMN_FAMILY = {
   type: FILTER_FAMILIES.TEXT,
   format: FILTER_FAMILIES.SELECTION,
   date: FILTER_FAMILIES.DATE,
+  date_modification: FILTER_FAMILIES.DATE,
 };
 
 /** Retourne la liste d'opérateurs selon la famille (texte, nombre, date, sélection). */

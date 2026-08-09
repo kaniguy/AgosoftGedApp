@@ -45,7 +45,8 @@ export function buildDocumentTableBaseColumns(structures = [], { includeType = t
   }
   cols.push(
     { key: "format", label: "Format" },
-    { key: "date", label: "Date d'enregistrement" }
+    { key: "date", label: "Date d'enregistrement" },
+    { key: "date_modification", label: "Dernière modification" }
   );
   return cols;
 }
