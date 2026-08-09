@@ -24,6 +24,7 @@ services:
       - "9000:9000"
     volumes:
       - ./backend_ged/media:/app/media
+      - ./backend_ged/logs_backend:/app/logs_backend
     networks:
       - ged-net
 
@@ -44,6 +45,8 @@ services:
       NEXT_PUBLIC_API_PORT: "9000"
     ports:
       - "3001:3000"
+    volumes:
+      - ./frontend_ged/logs_frontend:/app/logs_frontend
     depends_on:
       - backend
     networks:

@@ -1,24 +1,55 @@
 # Secrets / config locale
 .env
+*.env.local
 backend_ged/config/.env
 frontend_ged/.env*
 !.env.example
 !**/.env.example
 
+# Notes et commandes perso (non versionnées)
+NOTE.txt
+commande docker.txt
+
 # Python
 __pycache__/
+**/__pycache__/**
 *.py[cod]
+*.pyc
+*.egg-info/
 .venv/
 venv/
+django_env/
 backend_ged/python/
 
-# Node
+# Migrations historiques (snapshots DB, pas du code exécutable runtime)
+**/migrations/**
+
+# Node / Next.js
 node_modules/
+frontend_ged/.pnp
+frontend_ged/.pnp.*
+frontend_ged/.yarn/*
+!frontend_ged/.yarn/patches
+!frontend_ged/.yarn/plugins
+!frontend_ged/.yarn/releases
+!frontend_ged/.yarn/versions
+frontend_ged/coverage/
 .next/
 out/
+frontend_ged/build/
+frontend_ged/.vercel
+frontend_ged/next-env.d.ts
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.pem
 
-# Django / media
+# Django / media / logs
 backend_ged/media/
+backend_ged/logs_backend
+frontend_ged/logs_frontend
 *.log
 db.sqlite3
 
@@ -33,10 +64,6 @@ Thumbs.db
 *.tar
 .agosoftged-arm
 
-!**/.env.example
-
-
 # Backups SQL
 *.bacpac
 backend_ged/bd/
-

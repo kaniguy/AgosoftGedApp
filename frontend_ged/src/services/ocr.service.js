@@ -1,4 +1,6 @@
 import { getApiUrl, getMultipartHeaders } from "./api";
+import { logError } from "../utils/logger";
+import { USER_ERRORS } from "../utils/userError";
 
 /**
  * Envoie le fichier au backend pour extraction OCR avec suivi de progression.
@@ -105,7 +107,8 @@ export const extractDocumentFields = ({
 
     xhr.addEventListener("error", () => {
       finish();
-      reject(new Error(`Serveur API injoignable (${getApiUrl()}).`));
+      logError("ocr.extract", `Serveur API injoignable (${getApiUrl()}).`, { url });
+      reject(new Error(USER_ERRORS.network));
     });
 
     xhr.addEventListener("abort", () => {

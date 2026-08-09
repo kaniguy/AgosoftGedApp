@@ -44,8 +44,10 @@ COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
+COPY --from=builder /app/instrumentation.js ./instrumentation.js
+COPY --from=builder /app/src/lib ./src/lib
 COPY --from=builder /app/scripts ./scripts
 
 USER nextjs
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+CMD ["node", "scripts/start-with-logs.mjs"]

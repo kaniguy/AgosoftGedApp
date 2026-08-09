@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logAccess } from "../../../lib/serverLogger";
 
 function getBackend() {
   return (
@@ -42,11 +43,25 @@ async function proxyToDjango(request) {
 
   try {
     const upstream = await fetch(target, init);
+    const contentLength = upstream.headers.get("content-length");
+    const size = contentLength ? Number(contentLength) : 0;
+    logAccess(
+      request.method,
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+      upstream.status,
+      Number.isFinite(size) ? size : 0
+    );
     return new Response(upstream.body, {
       status: upstream.status,
       headers: upstream.headers,
     });
   } catch {
+    logAccess(
+      request.method,
+      `${request.nextUrl.pathname}${request.nextUrl.search}`,
+      502,
+      0
+    );
     return NextResponse.json(
       { detail: "Backend Django injoignable." },
       { status: 502 }

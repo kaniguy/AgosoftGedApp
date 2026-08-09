@@ -3,6 +3,8 @@
  * alors que Django écoute sur 127.0.0.1 (IPv4).
  */
 import { API_BACKEND_URL, API_PORT } from "../config/env";
+import { logError } from "../utils/logger";
+import { USER_ERRORS } from "../utils/userError";
 
 function resolveApiHost(hostname) {
   if (!hostname || hostname === "localhost" || hostname === "[::1]") {
@@ -46,12 +48,16 @@ export async function apiFetch(url, options = {}) {
       handleAuthFailure();
     }
     return res;
-  } catch {
+  } catch (err) {
     const hint =
       typeof window !== "undefined"
         ? "Vérifiez que Django tourne (python manage.py runserver) puis redémarrez Next.js (npm run dev)."
         : "Démarrez le backend : python manage.py runserver";
-    throw new Error(`Serveur API injoignable (${getApiUrl()}). ${hint}`);
+    logError("apiFetch", `Serveur API injoignable (${getApiUrl()}). ${hint}`, {
+      url,
+      cause: err?.message,
+    });
+    throw new Error(USER_ERRORS.network);
   }
 }
 

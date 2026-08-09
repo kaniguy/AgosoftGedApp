@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { login } from "../../../services/auth.service";
 import { refreshEntreprise, getEntrepriseFromStorage } from "../../../services/entreprise.service";
+import { USER_ERRORS, toUserMessage } from "../../../utils/userError";
 
 const DEFAULT_BRANDING = {
   libelle: "AGOSOFT-GED",
@@ -64,10 +65,10 @@ function LoginForm() {
         router.push("/");
         router.refresh();
       } else {
-        setError(result.error || "Identifiants incorrects.");
+        setError(toUserMessage(result.error, USER_ERRORS.auth));
       }
     } catch (err) {
-      setError("Une erreur inattendue est survenue. Veuillez réessayer.");
+      setError(USER_ERRORS.network);
     } finally {
       setLoading(false);
     }

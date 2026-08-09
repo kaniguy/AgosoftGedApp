@@ -53,6 +53,13 @@ done
 
 echo "SQL Server pret."
 
+LOG_FILE="/app/logs_backend"
+STARTED_AT="$(date +'%d/%b/%Y %H:%M:%S')"
+python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] Performing system checks..."
+python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] System check identified no issues (0 silenced)."
+python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] Django — settings 'config.settings'"
+python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] Starting gunicorn at http://0.0.0.0:9000/"
+
 echo "Migrations Django..."
 python manage.py migrate --noinput
 

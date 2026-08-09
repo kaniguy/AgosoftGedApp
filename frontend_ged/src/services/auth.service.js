@@ -1,5 +1,7 @@
 import { getApiUrl, getHeaders, resolveMediaUrl, apiFetch, resetAuthRedirectState } from "./api";
 import { syncUserStorage } from "./profile.service";
+import { logError } from "../utils/logger";
+import { USER_ERRORS, toUserMessage } from "../utils/userError";
 
 function buildUserFromAuthResponse(data) {
   const base = data.user || data;
@@ -23,9 +25,13 @@ export const login = async (username, password) => {
       body: JSON.stringify({ username, password }),
     });
   } catch (err) {
+    logError("auth.login", "Échec de connexion", {
+      username,
+      cause: err?.message,
+    });
     return {
       success: false,
-      error: err.message,
+      error: USER_ERRORS.network,
     };
   }
 
@@ -34,7 +40,7 @@ export const login = async (username, password) => {
   if (!res.ok || !data.token) {
     return {
       success: false,
-      error: data.detail || "Identifiant ou mot de passe incorrect.",
+      error: toUserMessage(data.detail, USER_ERRORS.auth),
     };
   }
 

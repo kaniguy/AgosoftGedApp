@@ -119,6 +119,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "gestion_acces.middleware.AuditLogMiddleware",
+    "config.middleware.AccessLogMiddleware",
 ]
 
 
@@ -282,3 +283,74 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # =================================================
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+
+
+# =================================================
+# LOGS (fichier à la racine backend_ged/logs_backend)
+# =================================================
+LOG_FILE = BASE_DIR / "logs_backend"
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "access": {
+            "()": "django.utils.log.ServerFormatter",
+            "format": "[{server_time}] {message}",
+            "style": "{",
+        },
+        "verbose": {
+            "format": "[{asctime}] [{levelname}] [{name}] {message}",
+            "style": "{",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+        "console_access": {
+            "class": "logging.StreamHandler",
+            "formatter": "access",
+        },
+        "file": {
+            "()": "config.prepend_log.PrependFileHandler",
+            "filename": LOG_FILE,
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        },
+        "file_access": {
+            "()": "config.prepend_log.PrependFileHandler",
+            "filename": LOG_FILE,
+            "formatter": "access",
+            "encoding": "utf-8",
+        },
+    },
+    "root": {
+        "handlers": ["console", "file"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console", "file"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console_access", "file_access"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "ged.access": {
+            "handlers": ["console_access", "file_access"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+}
