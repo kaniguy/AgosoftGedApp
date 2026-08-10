@@ -21,8 +21,8 @@ venv/
 django_env/
 backend_ged/python/
 
-# Migrations historiques (snapshots DB, pas du code exécutable runtime)
-**/migrations/**
+# Cache Python des migrations (les fichiers *.py de migration restent versionnés dans Git)
+**/migrations/__pycache__/**
 
 # Node / Next.js
 node_modules/
