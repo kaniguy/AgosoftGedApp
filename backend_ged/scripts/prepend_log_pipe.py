@@ -10,7 +10,7 @@ from config.prepend_log import prepend_to_file  # noqa: E402
 
 
 def main() -> None:
-    log_path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "logs_backend"
+    log_path = Path(sys.argv[1]) if len(sys.argv) > 1 else ROOT / "logs" / "logs_backend"
     for line in sys.stdin:
         sys.stdout.write(line)
         sys.stdout.flush()

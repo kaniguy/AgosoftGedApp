@@ -48,8 +48,10 @@ yarn-error.log*
 
 # Django / media / logs
 backend_ged/media/
-backend_ged/logs_backend
-frontend_ged/logs_frontend
+backend_ged/logs/*
+!backend_ged/logs/.gitkeep
+frontend_ged/logs/*
+!frontend_ged/logs/.gitkeep
 *.log
 db.sqlite3
 

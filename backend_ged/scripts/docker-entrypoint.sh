@@ -53,7 +53,7 @@ done
 
 echo "SQL Server pret."
 
-LOG_FILE="/app/logs_backend"
+LOG_FILE="/app/logs/logs_backend"
 STARTED_AT="$(date +'%d/%b/%Y %H:%M:%S')"
 python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] Performing system checks..."
 python /app/scripts/prepend_log_line.py "$LOG_FILE" "[$STARTED_AT] System check identified no issues (0 silenced)."

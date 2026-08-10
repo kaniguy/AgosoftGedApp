@@ -1,7 +1,7 @@
 import { join } from "path";
 import { prependLog } from "./prependLog";
 
-const LOG_FILE = join(process.cwd(), "logs_frontend");
+const LOG_FILE = join(process.cwd(), "logs", "logs_frontend");
 
 function prependLine(line) {
   try {

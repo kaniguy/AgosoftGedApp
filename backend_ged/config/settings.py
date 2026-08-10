@@ -286,9 +286,9 @@ MEDIA_ROOT = BASE_DIR / "media"
 
 
 # =================================================
-# LOGS (fichier à la racine backend_ged/logs_backend)
+# LOGS (dossier backend_ged/logs/ — monté par Docker)
 # =================================================
-LOG_FILE = BASE_DIR / "logs_backend"
+LOG_FILE = BASE_DIR / "logs" / "logs_backend"
 
 LOGGING = {
     "version": 1,

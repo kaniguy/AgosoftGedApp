@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 set PYTHON="%~dp0..\django_env\Scripts\python.exe"
-set LOGFILE=%~dp0logs_backend
+set LOGFILE=%~dp0logs\logs_backend
 set PREPEND=%~dp0scripts\prepend_log_line.py
 set PREPEND_PIPE=%~dp0scripts\prepend_log_pipe.py
 

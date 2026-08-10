@@ -24,7 +24,7 @@ services:
       - "9000:9000"
     volumes:
       - ./backend_ged/media:/app/media
-      - ./backend_ged/logs_backend:/app/logs_backend
+      - ./backend_ged/logs:/app/logs
     networks:
       - ged-net
 
@@ -46,7 +46,7 @@ services:
     ports:
       - "3001:3000"
     volumes:
-      - ./frontend_ged/logs_frontend:/app/logs_frontend
+      - ./frontend_ged/logs:/app/logs
     depends_on:
       - backend
     networks:

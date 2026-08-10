@@ -1,7 +1,7 @@
 import { join } from "path";
 import { prependLog } from "../../../lib/prependLog";
 
-const LOG_FILE = join(process.cwd(), "logs_frontend");
+const LOG_FILE = join(process.cwd(), "logs", "logs_frontend");
 
 function formatLine({ level = "info", scope = "app", message = "", details, at }) {
   const timestamp = at || new Date().toISOString();
