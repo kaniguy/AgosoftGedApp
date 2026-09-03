@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import tempfile
@@ -38,22 +39,30 @@ DUMP_EXCLUDE = (
 )
 
 _lock = threading.Lock()
+logger = logging.getLogger(__name__)
 
 
 @contextmanager
-def _silence_user_profile_signals():
-    from django.contrib.auth.models import User
+def _silence_restore_signals():
+    """Évite les profils auto-créés pendant loaddata (sinon UNIQUE sur SQL Server)."""
+    from django.contrib.auth.models import Group, User
     from django.db.models.signals import post_save
 
+    from gestion_acces.models.group_profile import create_group_profile
     from gestion_acces.models.user_profile import create_user_profile, save_user_profile
 
-    post_save.disconnect(create_user_profile, sender=User)
-    post_save.disconnect(save_user_profile, sender=User)
+    pairs = (
+        (create_user_profile, User),
+        (save_user_profile, User),
+        (create_group_profile, Group),
+    )
+    for receiver, sender in pairs:
+        post_save.disconnect(receiver, sender=sender)
     try:
         yield
     finally:
-        post_save.connect(create_user_profile, sender=User)
-        post_save.connect(save_user_profile, sender=User)
+        for receiver, sender in pairs:
+            post_save.connect(receiver, sender=sender)
 
 
 class SauvegardeError(Exception):
@@ -225,7 +234,7 @@ def _serialize_keep_users(user_ids):
 def _reload_users(payload: str):
     if not payload:
         return
-    with _silence_user_profile_signals():
+    with _silence_restore_signals():
         for obj in serializers.deserialize("json", payload):
             obj.save()
 
@@ -280,11 +289,12 @@ def restore_from_zip_path(tmp_zip, progress=None):
             _notify(progress, "flush", 40, "Vidage de la base actuelle…")
             call_command("flush", verbosity=0, interactive=False, allow_cascade=True)
             _notify(progress, "loaddata", 58, "Import des données…")
-            with _silence_user_profile_signals():
+            with _silence_restore_signals():
                 call_command("loaddata", str(data_file), verbosity=0)
         except SauvegardeError:
             raise
         except Exception as exc:
+            logger.exception("Échec loaddata pendant la restauration")
             _reload_users(safety)
             raise SauvegardeError(
                 "Restauration impossible. Les comptes administrateur ont été conservés."
