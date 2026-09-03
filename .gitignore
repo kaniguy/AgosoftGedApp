@@ -29,6 +29,8 @@ secrets.json
 # Notes et fichiers personnels
 NOTE.txt
 commande docker.txt
+docs/
+backend_ged/docs/
 *.code-workspace
 *.bat
 !backend_ged/scripts/envoyer_resume_periodique.bat
