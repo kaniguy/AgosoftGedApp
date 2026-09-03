@@ -12,7 +12,7 @@ from parametrage.models.plan_geographique import PlanGeographique
 
 
 class DocumentLocalite(models.Model):
-    """Document (PDF / image) rattaché à une localité du plan géographique."""
+    """Document (PDF / image) rattaché à une localité du plan de classement."""
 
     STATUT_BROUILLON = "brouillon"
     STATUT_EN_ATTENTE = "en_attente"

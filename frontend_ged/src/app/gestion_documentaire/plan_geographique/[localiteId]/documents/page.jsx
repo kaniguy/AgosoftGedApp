@@ -87,7 +87,7 @@ export default function DocumentsLocalitePage() {
           </button>
           <span className="text-slate-300">/</span>
           <button type="button" onClick={goToPlan} className="text-slate-500 hover:text-emerald-600 transition cursor-pointer">
-            Plan géographique
+            Plan de classement
           </button>
           <span className="text-slate-300">/</span>
           <span className="text-emerald-700 font-semibold">Documents</span>
@@ -111,7 +111,7 @@ export default function DocumentsLocalitePage() {
             onClick={goToPlan}
             className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 cursor-pointer"
           >
-            Retour au plan géographique
+            Retour au plan de classement
           </button>
         </div>
       )}

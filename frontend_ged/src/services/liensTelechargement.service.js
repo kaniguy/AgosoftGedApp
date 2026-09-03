@@ -39,9 +39,20 @@ export async function getPublicLienInfo(token) {
 }
 
 /** Télécharge via le lien public (sans connexion). */
-export async function downloadPublicLienFichier(token) {
+export async function downloadPublicLienFichier(token, password = "") {
+  const headers = {};
+  const pwd = String(password || "").trim();
+  const init = pwd
+    ? {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ password: pwd }),
+      }
+    : { method: "GET" };
+
   const res = await apiFetch(
-    `${getApiUrl()}/api/gestion-acces/telechargement/${token}/fichier/`
+    `${getApiUrl()}/api/gestion-acces/telechargement/${token}/fichier/`,
+    init
   );
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));
@@ -90,13 +101,22 @@ export const VALIDITY_HOUR_OPTIONS = [
 ];
 
 /** Crée un lien de téléchargement temporaire pour un ou plusieurs documents. */
-export const createLienTelechargement = async ({ documentIds, validityHours, recipientEmail }) => {
+export const createLienTelechargement = async ({
+  documentIds,
+  validityHours,
+  recipientEmail,
+  oneTime = true,
+  password = "",
+}) => {
   const body = {
     document_ids: documentIds,
     validity_hours: validityHours,
+    one_time: Boolean(oneTime),
   };
   const email = String(recipientEmail || "").trim();
   if (email) body.recipient_email = email;
+  const pwd = String(password || "").trim();
+  if (pwd) body.password = pwd;
 
   const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/liens-telechargement/`, {
     method: "POST",

@@ -21,11 +21,12 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# URL vue par le navigateur (hote Windows) — le proxy serveur utilise API_BACKEND_INTERNAL_URL
-ARG NEXT_PUBLIC_API_BACKEND_URL=http://127.0.0.1:9000
-ARG NEXT_PUBLIC_API_PORT=9000
+# Same-origin : pas d'URL backend publique dans le bundle
+ARG NEXT_PUBLIC_API_BACKEND_URL=
+ARG NEXT_PUBLIC_API_PORT=
 ENV NEXT_PUBLIC_API_BACKEND_URL=$NEXT_PUBLIC_API_BACKEND_URL \
-    NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT
+    NEXT_PUBLIC_API_PORT=$NEXT_PUBLIC_API_PORT \
+    NODE_ENV=production
 
 RUN npm run build
 
@@ -46,6 +47,7 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 COPY --from=builder /app/instrumentation.js ./instrumentation.js
 COPY --from=builder /app/src/lib ./src/lib
+COPY --from=builder /app/src/proxy.js ./src/proxy.js
 COPY --from=builder /app/scripts ./scripts
 
 USER nextjs

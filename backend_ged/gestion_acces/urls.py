@@ -21,11 +21,20 @@ from .views.configuration_email_view import (
     configuration_email_view,
     configuration_email_update_view,
 )
+from .views.guide_aide_view import GuideAideViewSet
 from .views.analytics_view import (
     analytics_administration_view,
     analytics_documents_geo_view,
     analytics_documents_view,
     analytics_meta_view,
+)
+from .views.sauvegarde_view import (
+    sauvegarde_export_view,
+    sauvegarde_job_download_view,
+    sauvegarde_job_view,
+    sauvegarde_reset_view,
+    sauvegarde_restore_view,
+    sauvegarde_status_view,
 )
 from .views.notification_view import (
     configuration_resume_view,
@@ -45,6 +54,7 @@ router.register(r"groups", GroupViewSet, basename="group")
 router.register(r"permissions", PermissionViewSet, basename="permission")
 router.register(r"liens-telechargement", LienTelechargementViewSet, basename="lien-telechargement")
 router.register(r"signatures", UserSignatureViewSet, basename="user-signature")
+router.register(r"guides-aide", GuideAideViewSet, basename="guide-aide")
 router.register(r"journal-activite", JournalActiviteViewSet, basename="journal-activite")
 
 urlpatterns = [
@@ -70,6 +80,12 @@ urlpatterns = [
     path("analytics/documents/", analytics_documents_view, name="analytics_documents"),
     path("analytics/documents/geo/", analytics_documents_geo_view, name="analytics_documents_geo"),
     path("analytics/administration/", analytics_administration_view, name="analytics_administration"),
+    path("sauvegarde/", sauvegarde_status_view, name="sauvegarde_status"),
+    path("sauvegarde/export/", sauvegarde_export_view, name="sauvegarde_export"),
+    path("sauvegarde/restaurer/", sauvegarde_restore_view, name="sauvegarde_restore"),
+    path("sauvegarde/reinitialiser/", sauvegarde_reset_view, name="sauvegarde_reset"),
+    path("sauvegarde/taches/<str:job_id>/fichier/", sauvegarde_job_download_view, name="sauvegarde_job_download"),
+    path("sauvegarde/taches/<str:job_id>/", sauvegarde_job_view, name="sauvegarde_job"),
     path("modules/", modules_list_view, name="modules_list"),
     path("localites/dernier-niveau/", localites_dernier_niveau_view, name="localites_dernier_niveau"),
     path("", include(router.urls)),

@@ -1,6 +1,7 @@
 import uuid
 
 from django.conf import settings
+from django.contrib.auth.hashers import check_password, make_password
 from django.db import models
 from django.utils import timezone
 
@@ -23,6 +24,13 @@ class LienTelechargement(models.Model):
     validity_hours = models.PositiveSmallIntegerField(choices=VALIDITY_HOURS_CHOICES)
     expires_at = models.DateTimeField(db_index=True)
     is_active = models.BooleanField(default=True, db_index=True)
+    # Sécurité : usage unique + mot de passe optionnel
+    one_time = models.BooleanField(
+        default=True,
+        help_text="Si vrai, le lien est désactivé après le premier téléchargement réussi.",
+    )
+    password_hash = models.CharField(max_length=128, blank=True, default="")
+    download_count = models.PositiveIntegerField(default=0)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -43,8 +51,32 @@ class LienTelechargement(models.Model):
     def document_count(self):
         return len(self.document_ids or [])
 
+    @property
+    def has_password(self):
+        return bool(self.password_hash)
+
+    def set_password(self, raw_password):
+        if raw_password:
+            self.password_hash = make_password(raw_password)
+        else:
+            self.password_hash = ""
+
+    def check_password(self, raw_password):
+        if not self.password_hash:
+            return True
+        return check_password(raw_password or "", self.password_hash)
+
     def is_expired(self):
         return timezone.now() >= self.expires_at
 
     def is_usable(self):
         return self.is_active and not self.is_expired()
+
+    def mark_downloaded(self):
+        """Incrémente le compteur ; désactive si one_time."""
+        self.download_count = (self.download_count or 0) + 1
+        updates = ["download_count"]
+        if self.one_time:
+            self.is_active = False
+            updates.append("is_active")
+        self.save(update_fields=updates)

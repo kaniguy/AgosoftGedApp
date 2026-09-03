@@ -3,10 +3,14 @@
 from __future__ import annotations
 
 import io
+import json
 import logging
 import os
 import re
 import threading
+import time
+import urllib.error
+import urllib.request
 import warnings
 from typing import BinaryIO
 
@@ -72,13 +76,110 @@ _ocr_unavailable_reason: str | None = None
 _ocr_lock = threading.Lock()
 
 
+def _use_remote_ocr() -> bool:
+    """True dans les workers Gunicorn : PaddleOCR tourne dans ocr_worker."""
+    if str(os.environ.get("OCR_IN_WORKER", "")).lower() in ("1", "true", "yes"):
+        return False
+    return bool((os.environ.get("OCR_WORKER_URL") or "").strip())
+
+
+def _ocr_worker_url() -> str:
+    return (os.environ.get("OCR_WORKER_URL") or "").rstrip("/")
+
+
+def _worker_is_up() -> bool:
+    url = _ocr_worker_url()
+    if not url:
+        return False
+    try:
+        with urllib.request.urlopen(f"{url}/health", timeout=2) as resp:
+            payload = json.loads(resp.read() or b"{}")
+        return bool(payload.get("ok"))
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError, OSError):
+        return False
+
+
 def is_ocr_available() -> bool:
+    if _use_remote_ocr():
+        return _worker_is_up()
     return _get_ocr_engine() is not None
 
 
 def get_ocr_unavailable_reason() -> str | None:
+    if _use_remote_ocr():
+        if _worker_is_up():
+            return None
+        return "processus OCR dédié injoignable"
     _get_ocr_engine()
     return _ocr_unavailable_reason
+
+
+def _ocr_lines_via_worker(image_np) -> list[dict]:
+    """Envoie une image au processus OCR (les workers HTTP restent libres)."""
+    fitz, np, Image = _ensure_image_deps()
+    buf = io.BytesIO()
+    Image.fromarray(image_np).save(buf, format="PNG")
+    png_bytes = buf.getvalue()
+    url = f"{_ocr_worker_url()}/predict"
+    timeout = int(os.environ.get("OCR_WORKER_TIMEOUT", "180"))
+    retries = int(os.environ.get("OCR_WORKER_RETRIES", "20"))
+
+    last_error = "OCR indisponible"
+    for attempt in range(max(1, retries)):
+        req = urllib.request.Request(
+            url,
+            data=png_bytes,
+            headers={"Content-Type": "image/png"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as resp:
+                payload = json.loads(resp.read() or b"{}")
+        except urllib.error.HTTPError as exc:
+            body = exc.read() if exc.fp else b"{}"
+            try:
+                payload = json.loads(body or b"{}")
+            except json.JSONDecodeError:
+                payload = {}
+            last_error = payload.get("error") or f"OCR HTTP {exc.code}"
+            if exc.code == 503 and attempt + 1 < retries:
+                time.sleep(1.5)
+                continue
+            raise RuntimeError(f"OCR indisponible : {last_error}") from exc
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            last_error = str(exc)
+            if attempt + 1 < retries:
+                time.sleep(2)
+                continue
+            raise RuntimeError(
+                "OCR indisponible : processus dédié injoignable"
+            ) from exc
+
+        if not payload.get("ok"):
+            last_error = payload.get("error") or "échec OCR"
+            raise RuntimeError(f"OCR indisponible : {last_error}")
+        return payload.get("lines") or []
+
+    raise RuntimeError(f"OCR indisponible : {last_error}")
+
+
+def _ocr_lines_local(image_np) -> list[dict]:
+    """Exécute PaddleOCR dans le process courant (ocr_worker ou runserver)."""
+    ocr_engine = _get_ocr_engine()
+    if ocr_engine is None:
+        reason = _ocr_unavailable_reason or "PaddleOCR non disponible"
+        raise RuntimeError(f"OCR indisponible : {reason}")
+    height, width = image_np.shape[:2]
+    result = ocr_engine.predict(image_np)
+    return _parse_ocr_result_detailed(result, width, height)
+
+
+def _ocr_lines_from_numpy(image_np) -> list[dict]:
+    if image_np is None or getattr(image_np, "size", 0) == 0:
+        return []
+    if _use_remote_ocr():
+        return _ocr_lines_via_worker(image_np)
+    return _ocr_lines_local(image_np)
 
 
 def _get_ocr_engine():
@@ -370,24 +471,9 @@ def run_ocr_on_pil_image(image) -> list[dict]:
     if width <= 0 or height <= 0:
         return []
 
-    ocr_engine = _get_ocr_engine()
-    if ocr_engine is None:
-        reason = get_ocr_unavailable_reason() or "PaddleOCR non disponible"
-        raise RuntimeError(f"OCR indisponible : {reason}")
-
     image_np = _pil_to_numpy(_resize_for_ocr(image))
-    fitz, np, Image = _ensure_image_deps()
-    resized_h, resized_w = image_np.shape[:2]
-    result = ocr_engine.predict(image_np)
-    lines = _parse_ocr_result_detailed(result, resized_w, resized_h)
-
-    # Reconvertit les coordonnées normalisées vers l'image d'origine
-    scale_x = width / resized_w if resized_w else 1.0
-    scale_y = height / resized_h if resized_h else 1.0
-    if scale_x != 1.0 or scale_y != 1.0:
-        for line in lines:
-            line["cx"] = line["cx"]  # already normalized 0-1 on resized image
-            line["cy"] = line["cy"]
+    lines = _ocr_lines_from_numpy(image_np)
+    # Coordonnées déjà normalisées 0–1 sur l'image redimensionnée (identique à l'origine).
     return lines
 
 
@@ -522,8 +608,7 @@ def _parse_ocr_result(result) -> list[dict]:
 
 
 def _run_ocr_on_image(ocr_engine, image) -> list[dict]:
-    result = ocr_engine.predict(image)
-    return _parse_ocr_result(result)
+    return _ocr_lines_from_numpy(image)
 
 
 def _dedupe_lines(lines: list[dict]) -> list[dict]:
@@ -552,11 +637,6 @@ def extract_text_from_file(file_obj: BinaryIO, filename: str = "") -> dict:
             logger.info("Extraction PDF native (%s caractères)", len(native_result["full_text"]))
             return native_result
 
-    ocr_engine = _get_ocr_engine()
-    if ocr_engine is None:
-        reason = get_ocr_unavailable_reason() or "PaddleOCR non disponible"
-        raise RuntimeError(f"OCR indisponible : {reason}")
-
     content_type = getattr(file_obj, "content_type", "") or ""
     if is_pdf or content_type == "application/pdf":
         images = _pdf_pages_to_images(file_bytes)
@@ -570,7 +650,7 @@ def extract_text_from_file(file_obj: BinaryIO, filename: str = "") -> dict:
 
     all_lines: list[dict] = []
     for image in images:
-        all_lines.extend(_run_ocr_on_image(ocr_engine, image))
+        all_lines.extend(_ocr_lines_from_numpy(image))
 
     deduped = _dedupe_lines(all_lines)
     full_text = "\n".join(line["text"] for line in deduped)
@@ -656,15 +736,7 @@ def run_ocr_on_pil_crop(crop, champ=None) -> tuple[str, float]:
     crop = _prepare_crop_for_ocr(crop)
     crop = _enhance_crop_image(crop)
     crop_np = _pil_to_numpy(_resize_for_ocr(crop))
-
-    ocr_engine = _get_ocr_engine()
-    if ocr_engine is None:
-        reason = get_ocr_unavailable_reason() or "PaddleOCR non disponible"
-        raise RuntimeError(f"OCR indisponible : {reason}")
-
-    crop_h, crop_w = crop_np.shape[:2]
-    result = ocr_engine.predict(crop_np)
-    lines = _parse_ocr_result_detailed(result, crop_w, crop_h)
+    lines = _ocr_lines_from_numpy(crop_np)
     if not lines:
         return "", 0.0
 
@@ -819,15 +891,7 @@ def extract_text_from_cropped_image(
     if enhance:
         crop = _enhance_crop_image(crop)
     crop_np = _pil_to_numpy(_resize_for_ocr(crop))
-
-    ocr_engine = _get_ocr_engine()
-    if ocr_engine is None:
-        reason = get_ocr_unavailable_reason() or "PaddleOCR non disponible"
-        raise RuntimeError(f"OCR indisponible : {reason}")
-
-    crop_h, crop_w = crop_np.shape[:2]
-    result = ocr_engine.predict(crop_np)
-    lines = _parse_ocr_result_detailed(result, crop_w, crop_h)
+    lines = _ocr_lines_from_numpy(crop_np)
     if not lines:
         return "", 0.0
 

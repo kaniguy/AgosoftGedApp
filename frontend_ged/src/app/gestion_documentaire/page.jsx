@@ -1,4 +1,4 @@
-// Page d'accueil du module : redirige vers le plan géographique (seul menu actif)
+// Page d'accueil du module : redirige vers le plan de classement (seul menu actif)
 "use client";
 
 import { useEffect } from "react";

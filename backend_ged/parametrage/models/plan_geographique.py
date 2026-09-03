@@ -43,8 +43,8 @@ class PlanGeographique(models.Model):
 
     class Meta:
         ordering = ["id"]
-        verbose_name = "plan géographique"
-        verbose_name_plural = "plans géographiques"
+        verbose_name = "plan de classement"
+        verbose_name_plural = "plans de classement"
 
     def __str__(self):
         return self.libelle

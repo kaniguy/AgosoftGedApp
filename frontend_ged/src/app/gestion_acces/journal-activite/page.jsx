@@ -25,6 +25,9 @@ const ACTION_OPTIONS = [
   { value: "commenter", label: "Note" },
   { value: "telecharger", label: "Téléchargement" },
   { value: "envoyer_email", label: "Envoi e-mail" },
+  { value: "exporter", label: "Export" },
+  { value: "restaurer", label: "Restauration" },
+  { value: "reinitialiser", label: "Réinitialisation" },
   { value: "autre", label: "Autre" },
 ];
 
@@ -39,6 +42,7 @@ const CATEGORIE_OPTIONS = [
   { value: "entreprise", label: "Entreprise" },
   { value: "configuration_email", label: "Configuration SMTP-mail" },
   { value: "journal", label: "Journal d'activité" },
+  { value: "base_donnees", label: "Base de données" },
   { value: "autre", label: "Autre" },
 ];
 
@@ -58,6 +62,9 @@ const ACTION_STYLES = {
   commenter: "bg-teal-50 text-teal-800 border-teal-200",
   telecharger: "bg-blue-50 text-blue-700 border-blue-200",
   envoyer_email: "bg-lime-50 text-lime-800 border-lime-200",
+  exporter: "bg-indigo-50 text-indigo-800 border-indigo-200",
+  restaurer: "bg-amber-50 text-amber-800 border-amber-200",
+  reinitialiser: "bg-rose-50 text-rose-800 border-rose-200",
   autre: "bg-violet-50 text-violet-700 border-violet-200",
 };
 

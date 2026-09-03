@@ -266,31 +266,29 @@ export const getDocumentLocalite = async (id) => {
   return res.json();
 };
 
-function getAuthHeaders() {
-  const headers = {};
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) {
-      headers.Authorization = `Token ${token}`;
-    }
-  }
-  return headers;
-}
-
-// Charge un fichier distant pour prévisualisation (avec authentification si nécessaire)
+// Charge un fichier distant pour prévisualisation (auth via cookie HttpOnly)
 export const fetchDocumentFileBlob = async (fileUrl) => {
   const url = resolveMediaUrl(fileUrl);
   if (!url) {
     throw new Error("Fichier indisponible");
   }
 
-  const res = await apiFetch(url, { headers: getAuthHeaders() });
+  const res = await apiFetch(url);
   if (!res.ok) {
     throw new Error("Impossible de charger l'aperçu du document");
   }
 
   const blob = await res.blob();
-  return { blob, blobUrl: URL.createObjectURL(blob) };
+  // Forcer le type PDF si le proxy / navigateur renvoie octet-stream ou type vide
+  const looksPdf =
+    blob.type === "application/pdf" ||
+    blob.type === "application/octet-stream" ||
+    !blob.type;
+  const typedBlob =
+    looksPdf && blob.type !== "application/pdf"
+      ? new Blob([blob], { type: "application/pdf" })
+      : blob;
+  return { blob: typedBlob, blobUrl: URL.createObjectURL(typedBlob) };
 };
 
 // Télécharge un fichier brut via son URL média (brouillons, versions archivées…)
@@ -301,7 +299,7 @@ export const downloadDocumentFile = async (fileUrl, filename = "document") => {
   }
 
   const bustUrl = `${url}${url.includes("?") ? "&" : "?"}_=${Date.now()}`;
-  const res = await apiFetch(bustUrl, { headers: getAuthHeaders() });
+  const res = await apiFetch(bustUrl);
   if (!res.ok) {
     throw new Error("Impossible de télécharger le fichier");
   }
@@ -332,7 +330,7 @@ export const downloadDocumentLocalite = async (doc, filename = "document", { ver
     url += `?version_id=${encodeURIComponent(versionId)}`;
   }
 
-  const res = await apiFetch(url, { headers: getAuthHeaders() });
+  const res = await apiFetch(url);
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}));

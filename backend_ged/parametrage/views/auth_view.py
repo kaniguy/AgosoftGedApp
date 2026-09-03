@@ -70,8 +70,9 @@ def login_view(request):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-    # Récupérer ou générer le jeton
-    token, created = Token.objects.get_or_create(user=user)
+    # Rotation du jeton à chaque connexion (invalide les sessions précédentes).
+    Token.objects.filter(user=user).delete()
+    token = Token.objects.create(user=user)
     user_data = UserSerializer(user, context={"request": request}).data
     access = get_user_access_payload(user)
 

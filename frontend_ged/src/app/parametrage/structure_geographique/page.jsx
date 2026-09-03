@@ -160,13 +160,12 @@ export default function StructureGeographiquePage() {
 
     try {
       if (!isBulk) {
-        const result = await createStructureGeographique({
+        await createStructureGeographique({
           ...formData,
           ordre: parseInt(formData.ordre, 10),
         });
-        console.log("Ajout réussi:", result);
         setShowAjouterModal(false);
-        showNotification("Structure géographique ajoutée avec succès", "success");
+        showNotification("Niveau de classement ajouté avec succès", "success");
       } else {
         const startOrdre = Number(formData.ordre) || getNextOrdre();
         const usedCodes = new Set(allData.map((item) => item.code?.toUpperCase()).filter(Boolean));
@@ -240,13 +239,12 @@ export default function StructureGeographiquePage() {
     }
     
     try {
-      const result = await updateStructureGeographique(selectedItem.id, {
+      await updateStructureGeographique(selectedItem.id, {
         ...formData,
         ordre: parseInt(formData.ordre, 10),
       });
-      console.log('Modification réussie:', result);
       setShowModifierModal(false);
-      showNotification("Structure géographique modifiée avec succès", "success");
+      showNotification("Niveau de classement modifié avec succès", "success");
       await load();
     } catch (error) {
       console.error('Erreur modification:', error);
@@ -262,7 +260,7 @@ export default function StructureGeographiquePage() {
     try {
       await deleteStructureGeographique(selectedItem.id);
       setShowSupprimerModal(false);
-      showNotification("Structure géographique supprimée avec succès", "success");
+      showNotification("Niveau de classement supprimé avec succès", "success");
       await load();
     } catch (error) {
       console.error('Erreur suppression:', error);
@@ -308,7 +306,7 @@ export default function StructureGeographiquePage() {
   const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {/* Notification Container */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
@@ -337,7 +335,7 @@ export default function StructureGeographiquePage() {
             <nav className="mt-2">
               <ol className="flex items-center gap-2 text-sm text-gray-500">
                 <li>
-                  <button onClick={() => router.push('/dashboard')} className="hover:text-blue-600 transition">
+                  <button type="button" onClick={() => router.push("/")} className="hover:text-blue-600 transition">
                     Accueil
                   </button>
                 </li>
@@ -418,13 +416,13 @@ export default function StructureGeographiquePage() {
                 <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <p className="text-gray-500">Aucune structure géographique trouvée.</p>
+                <p className="text-gray-500">Aucun niveau de classement trouvé.</p>
                 {canAdd && (
                 <button
                   onClick={openAjouterModal}
                   className="mt-4 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
-                  + Ajouter une structure géographique
+                  + Ajouter un niveau de classement
                 </button>
                 )}
               </div>
@@ -547,7 +545,7 @@ export default function StructureGeographiquePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000]">
           <div className="bg-white rounded-lg w-full max-w-md">
             <div className="bg-blue-600 text-white px-6 py-3 rounded-t-lg flex justify-between items-center">
-              <h5 className="text-lg font-semibold">Nouvelle structure géographique</h5>
+              <h5 className="text-lg font-semibold">Nouveau niveau de classement</h5>
               <button 
                 onClick={() => setShowAjouterModal(false)} 
                 className="text-white hover:text-red-500 transition-colors duration-200 text-2xl font-bold leading-none"
@@ -582,7 +580,7 @@ export default function StructureGeographiquePage() {
                       {formErrors.ordre}
                     </p>
                   )}
-                  <small className="text-xs text-gray-500">Définit la position hiérarchique (1 = racine du plan géographique)</small>
+                  <small className="text-xs text-gray-500">Définit la position hiérarchique (1 = racine du plan de classement)</small>
                 </div>
 
                 <div className="mb-4">
@@ -609,7 +607,7 @@ export default function StructureGeographiquePage() {
                       {formErrors.code}
                     </p>
                   )}
-                  <small className="text-xs text-gray-500">Code unique de la structure géographique (3-10 caractères)</small>
+                  <small className="text-xs text-gray-500">Code unique du niveau de classement (3-10 caractères)</small>
                 </div>
                 
                 <div className="mb-4">
@@ -658,7 +656,7 @@ export default function StructureGeographiquePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000]">
           <div className="bg-white rounded-lg w-full max-w-md">
             <div className="bg-green-600 text-white px-6 py-3 rounded-t-lg flex justify-between items-center">
-              <h5 className="text-lg font-semibold">Modifier structure géographique</h5>
+              <h5 className="text-lg font-semibold">Modifier niveau de classement</h5>
               <button 
                 onClick={() => setShowModifierModal(false)} 
                 className="text-white hover:text-red-500 transition-colors duration-200 text-2xl font-bold leading-none"
@@ -773,7 +771,7 @@ export default function StructureGeographiquePage() {
               </button>
             </div>
             <div className="p-6">
-              <p>Êtes-vous sûr de vouloir supprimer la structure géographique <strong>"{selectedItem.libelle}"</strong> ? Cette action est irréversible.</p>
+              <p>Êtes-vous sûr de vouloir supprimer le niveau de classement <strong>"{selectedItem.libelle}"</strong> ? Cette action est irréversible.</p>
             </div>
             <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
               <button onClick={() => setShowSupprimerModal(false)} className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">

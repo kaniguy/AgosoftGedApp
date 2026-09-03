@@ -1,4 +1,4 @@
-"""Services de calcul des droits d'accès (modules et plan géographique)."""
+"""Services de calcul des droits d'accès (modules et plan de classement)."""
 
 from gestion_acces.constants import VALID_MODULE_CODES, APP_MODULES
 from parametrage.models import PlanGeographique
@@ -58,18 +58,22 @@ def get_user_leaf_localite_ids(user):
 def get_allowed_plan_ids(user):
     """
     IDs autorisés dans le plan : ancêtres + localités feuilles assignées.
-    Permet de dérouler l'arbre du parent racine jusqu'à la localité.
+    Remonte les parents par lots (pas une requête par nœud).
     """
     leaf_ids = get_user_leaf_localite_ids(user)
     if leaf_ids is None:
         return None
 
-    allowed = set()
-    for localite in PlanGeographique.objects.filter(id__in=leaf_ids).select_related("niveau"):
-        for ancetre in localite.get_ancetres():
-            allowed.add(ancetre.id)
-        allowed.add(localite.id)
-
+    allowed = set(leaf_ids)
+    pending = set(leaf_ids)
+    while pending:
+        parent_ids = set(
+            PlanGeographique.objects.filter(id__in=pending)
+            .exclude(parent_id__isnull=True)
+            .values_list("parent_id", flat=True)
+        )
+        pending = parent_ids - allowed
+        allowed.update(pending)
     return allowed
 
 
@@ -115,7 +119,7 @@ def filter_type_document_queryset(queryset, user):
 
 def filter_plan_queryset(queryset, user):
     """
-    Restreint le plan géographique aux branches autorisées.
+    Restreint le plan de classement aux branches autorisées.
     Appliqué automatiquement dès qu'une localité feuille est assignée au groupe.
     """
     if user.is_superuser:

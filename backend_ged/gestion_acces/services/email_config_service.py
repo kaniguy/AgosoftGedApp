@@ -11,6 +11,8 @@ def get_configuration_email():
 
 def get_email_settings_dict():
     """Retourne uniquement la configuration saisie en base (pas de données .env)."""
+    from config.secret_box import decrypt_secret
+
     cfg = get_configuration_email()
     return {
         "EMAIL_BACKEND": cfg.email_backend
@@ -20,7 +22,7 @@ def get_email_settings_dict():
         "EMAIL_USE_TLS": bool(cfg.email_use_tls),
         "EMAIL_USE_SSL": bool(cfg.email_use_ssl),
         "EMAIL_HOST_USER": cfg.email_host_user or "",
-        "EMAIL_HOST_PASSWORD": cfg.email_host_password or "",
+        "EMAIL_HOST_PASSWORD": decrypt_secret(cfg.email_host_password or ""),
         "DEFAULT_FROM_EMAIL": cfg.default_from_email or cfg.email_host_user or "",
     }
 

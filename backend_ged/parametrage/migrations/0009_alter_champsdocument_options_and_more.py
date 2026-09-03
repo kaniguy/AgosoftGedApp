@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterModelOptions(
             name='plangeographique',
-            options={'ordering': ['id'], 'verbose_name': 'plan géographique', 'verbose_name_plural': 'plans géographiques'},
+            options={'ordering': ['id'], 'verbose_name': 'plan de classement', 'verbose_name_plural': 'plans de classement'},
         ),
         migrations.AlterModelOptions(
             name='reponsedocument',

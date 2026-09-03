@@ -147,7 +147,7 @@ class GroupSerializer(serializers.ModelSerializer):
         for loc in value:
             if loc.get_niveau_enfant() is not None:
                 errors.append(
-                    f"« {loc.libelle} » n'est pas au dernier niveau du plan géographique."
+                    f"« {loc.libelle} » n'est pas au dernier niveau du plan de classement."
                 )
         if errors:
             raise serializers.ValidationError(errors)

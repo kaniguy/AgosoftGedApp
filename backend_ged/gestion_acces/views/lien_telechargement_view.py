@@ -1,11 +1,12 @@
 from django.conf import settings
 from django.http import HttpResponseRedirect
 from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import action, api_view, permission_classes, renderer_classes
+from rest_framework.decorators import action, api_view, permission_classes, renderer_classes, throttle_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import JSONRenderer
 from rest_framework.response import Response
 
+from config.throttling import DownloadLinkRateThrottle
 from gestion_acces.models.lien_telechargement import LienTelechargement
 from gestion_acces.serializers.lien_telechargement_serializer import (
     LienTelechargementCreateSerializer,
@@ -15,6 +16,7 @@ from gestion_acces.services.lien_telechargement_service import (
     build_download_response,
     get_downloadable_documents,
     get_link_document_availability,
+    prefetch_links_document_data,
 )
 
 def _frontend_page_url(token):
@@ -28,12 +30,16 @@ def _link_public_status(link):
             "can_download": False,
             "status": "disabled",
             "message": "Ce lien de téléchargement a été désactivé.",
+            "requires_password": False,
+            "one_time": link.one_time,
         }
     if link.is_expired():
         return {
             "can_download": False,
             "status": "expired",
             "message": "Ce lien de téléchargement a expiré.",
+            "requires_password": False,
+            "one_time": link.one_time,
         }
     avail = get_link_document_availability(link.document_ids)
     if avail["downloadable"] == 0:
@@ -41,24 +47,40 @@ def _link_public_status(link):
             "can_download": False,
             "status": "unavailable",
             "message": "Les documents associés à ce lien ne sont plus disponibles.",
+            "requires_password": False,
+            "one_time": link.one_time,
         }
+    base = {
+        "can_download": True,
+        "requires_password": link.has_password,
+        "one_time": link.one_time,
+        "expires_at": link.expires_at.isoformat(),
+    }
     if avail["downloadable"] < avail["total"]:
         return {
-            "can_download": True,
+            **base,
             "status": "partial",
             "message": "Lien valide. Seuls les documents encore disponibles seront téléchargés.",
             "document_count": avail["downloadable"],
             "document_count_total": avail["total"],
             "is_archive": avail["downloadable"] > 1,
-            "expires_at": link.expires_at.isoformat(),
         }
     return {
-        "can_download": True,
+        **base,
         "status": "active",
-        "message": "Lien valide. Utilisez le bouton ci-dessous pour télécharger.",
+        "message": (
+            "Lien à usage unique. "
+            if link.one_time
+            else "Lien valide. "
+        )
+        + (
+            "Un mot de passe est requis. "
+            if link.has_password
+            else ""
+        )
+        + "Utilisez le bouton ci-dessous pour télécharger.",
         "document_count": avail["downloadable"],
         "is_archive": avail["downloadable"] > 1,
-        "expires_at": link.expires_at.isoformat(),
     }
 
 
@@ -69,8 +91,21 @@ def _get_link_or_none(token):
         return None
 
 
+def _extract_download_password(request):
+    if hasattr(request, "data") and isinstance(request.data, dict):
+        pwd = request.data.get("password")
+        if pwd is not None:
+            return str(pwd)
+    return (
+        request.headers.get("X-Download-Password")
+        or request.GET.get("password")
+        or ""
+    )
+
+
 @api_view(["GET"])
 @permission_classes([AllowAny])
+@throttle_classes([DownloadLinkRateThrottle])
 def telechargement_public_redirect_view(request, token):
     """Redirige vers la page publique frontend (évite l'interface API brute)."""
     return HttpResponseRedirect(_frontend_page_url(token))
@@ -79,6 +114,7 @@ def telechargement_public_redirect_view(request, token):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 @renderer_classes([JSONRenderer])
+@throttle_classes([DownloadLinkRateThrottle])
 def telechargement_info_view(request, token):
     """Métadonnées publiques du lien (sans téléchargement direct)."""
     link = _get_link_or_none(token)
@@ -88,6 +124,7 @@ def telechargement_info_view(request, token):
                 "can_download": False,
                 "status": "not_found",
                 "message": "Ce lien de téléchargement est invalide ou introuvable.",
+                "requires_password": False,
             },
             status=status.HTTP_404_NOT_FOUND,
         )
@@ -102,10 +139,11 @@ def telechargement_info_view(request, token):
     return Response(payload, status=http_status)
 
 
-@api_view(["GET"])
+@api_view(["GET", "POST"])
 @permission_classes([AllowAny])
+@throttle_classes([DownloadLinkRateThrottle])
 def telechargement_fichier_view(request, token):
-    """Téléchargement du fichier ou de l'archive (sans authentification)."""
+    """Téléchargement du fichier ou de l'archive (sans authentification session)."""
     link = _get_link_or_none(token)
     if not link:
         return Response({"detail": "Lien introuvable."}, status=status.HTTP_404_NOT_FOUND)
@@ -116,6 +154,19 @@ def telechargement_fichier_view(request, token):
     if link.is_expired():
         return Response({"detail": "Lien expiré."}, status=status.HTTP_410_GONE)
 
+    if link.has_password:
+        password = _extract_download_password(request)
+        if not password:
+            return Response(
+                {"detail": "Mot de passe requis.", "requires_password": True},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
+        if not link.check_password(password):
+            return Response(
+                {"detail": "Mot de passe incorrect."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
     documents = get_downloadable_documents(link.document_ids)
     if not documents:
         return Response(
@@ -124,7 +175,7 @@ def telechargement_fichier_view(request, token):
         )
 
     try:
-        return build_download_response(documents)
+        response = build_download_response(documents)
     except ValueError as exc:
         return Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
     except Exception:
@@ -132,6 +183,9 @@ def telechargement_fichier_view(request, token):
             {"detail": "Impossible de préparer le téléchargement."},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,
         )
+
+    link.mark_downloaded()
+    return response
 
 
 def _can_add_links(user):
@@ -160,7 +214,7 @@ class LienTelechargementViewSet(
 ):
     """Création et gestion des liens de téléchargement temporaires."""
 
-    queryset = LienTelechargement.objects.select_related("created_by").all()
+    queryset = LienTelechargement.objects.select_related("created_by").all().order_by("-created_at")
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
@@ -171,7 +225,8 @@ class LienTelechargementViewSet(
     def list(self, request):
         if not _can_view_links(request.user):
             return Response({"detail": "Permission refusée."}, status=status.HTTP_403_FORBIDDEN)
-        qs = self.get_queryset()
+        qs = list(self.get_queryset())
+        prefetch_links_document_data(qs, check_disk=False)
         serializer = LienTelechargementSerializer(qs, many=True, context={"request": request})
         return Response({"results": serializer.data})
 
@@ -187,9 +242,9 @@ class LienTelechargementViewSet(
         serializer.is_valid(raise_exception=True)
         try:
             link = serializer.save()
-        except Exception as exc:
+        except Exception:
             return Response(
-                {"detail": str(exc) or "Impossible d'envoyer l'e-mail."},
+                {"detail": "Impossible d'envoyer l'e-mail."},
                 status=status.HTTP_502_BAD_GATEWAY,
             )
         out = LienTelechargementSerializer(link, context={"request": request})

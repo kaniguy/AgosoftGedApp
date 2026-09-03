@@ -21,6 +21,9 @@ class JournalActivite(models.Model):
         COMMENTER = "commenter", "Note"
         TELECHARGER = "telecharger", "Téléchargement"
         ENVOYER_EMAIL = "envoyer_email", "Envoi e-mail"
+        EXPORTER = "exporter", "Export"
+        RESTAURER = "restaurer", "Restauration"
+        REINITIALISER = "reinitialiser", "Réinitialisation"
         AUTRE = "autre", "Autre"
 
     class Categorie(models.TextChoices):
@@ -33,6 +36,7 @@ class JournalActivite(models.Model):
         ENTREPRISE = "entreprise", "Entreprise"
         CONFIGURATION_EMAIL = "configuration_email", "Configuration e-mail"
         JOURNAL = "journal", "Journal d'activité"
+        BASE_DONNEES = "base_donnees", "Base de données"
         AUTRE = "autre", "Autre"
 
     utilisateur = models.ForeignKey(

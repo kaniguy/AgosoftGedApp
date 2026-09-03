@@ -150,7 +150,7 @@ function RattacherDocumentContent() {
             onClick={() => guardedNavigate(PLAN_GEO_RESTORE_PATH)}
             className="hover:text-emerald-600"
           >
-            Plan géographique
+            Plan de classement
           </button>
           <span>/</span>
           <span className="text-gray-700 font-medium">Rattacher un document</span>
@@ -174,7 +174,7 @@ function RattacherDocumentContent() {
             onClick={handleClose}
             className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
           >
-            Retour au plan géographique
+            Retour au plan de classement
           </button>
         </div>
       )}

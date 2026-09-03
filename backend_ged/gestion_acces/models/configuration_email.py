@@ -18,7 +18,7 @@ class ConfigurationEmail(models.Model):
     email_use_tls = models.BooleanField(default=True)
     email_use_ssl = models.BooleanField(default=False)
     email_host_user = models.EmailField(blank=True, default="")
-    email_host_password = models.CharField(max_length=255, blank=True, default="")
+    email_host_password = models.CharField(max_length=512, blank=True, default="")
     default_from_email = models.CharField(
         max_length=255,
         blank=True,

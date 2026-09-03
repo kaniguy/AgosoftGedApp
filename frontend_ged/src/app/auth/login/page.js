@@ -1,10 +1,11 @@
 "use client";
 
 import { Suspense, useState, useEffect } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { login } from "../../../services/auth.service";
 import { refreshEntreprise, getEntrepriseFromStorage } from "../../../services/entreprise.service";
 import { USER_ERRORS, toUserMessage } from "../../../utils/userError";
+import { APP_BACKGROUND_SRC, APP_LOGO_SRC } from "../../../assets/branding";
 
 const DEFAULT_BRANDING = {
   libelle: "AGOSOFT-GED",
@@ -16,7 +17,6 @@ const DEFAULT_BRANDING = {
 };
 
 function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const [branding, setBranding] = useState(DEFAULT_BRANDING);
   const [loginId, setLoginId] = useState("");
@@ -42,15 +42,21 @@ function LoginForm() {
   }, []);
 
   useEffect(() => {
+    // Toujours nettoyer une éventuelle session morte avant de se reconnecter
+    fetch("/api/session/clear", { method: "POST", credentials: "include" }).catch(
+      () => {},
+    );
+    localStorage.removeItem("token");
+
     if (searchParams.get("session") === "expired") {
       setError("Votre session a expiré. Veuillez vous reconnecter.");
-      localStorage.removeItem("token");
       localStorage.removeItem("user");
     }
   }, [searchParams]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     if (!loginId || !password) {
       setError("Veuillez remplir tous les champs.");
       return;
@@ -60,24 +66,36 @@ function LoginForm() {
     setLoading(true);
 
     try {
+      // Effacer l'ancien cookie avant login (évite "Jeton invalide" côté API)
+      await fetch("/api/session/clear", {
+        method: "POST",
+        credentials: "include",
+      }).catch(() => {});
+
       const result = await login(loginId, password);
       if (result.success) {
-        router.push("/");
-        router.refresh();
-      } else {
-        setError(toUserMessage(result.error, USER_ERRORS.auth));
+        const next = searchParams.get("next");
+        const target =
+          next && next.startsWith("/") && !next.startsWith("//") ? next : "/";
+        window.location.assign(target);
+        return;
       }
+      setError(toUserMessage(result.error, USER_ERRORS.auth));
+      setLoading(false);
     } catch (err) {
       setError(USER_ERRORS.network);
-    } finally {
       setLoading(false);
     }
   };
 
   const brandInitial = (branding.libelle || "A").charAt(0).toUpperCase();
+  const logoSrc = branding.logo || APP_LOGO_SRC;
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-slate-100 px-4 py-10">
+    <div
+      className="min-h-screen flex flex-col items-center justify-center bg-slate-100 bg-cover bg-center bg-no-repeat px-4 py-10"
+      style={{ backgroundImage: `url(${APP_BACKGROUND_SRC})` }}
+    >
       {/* Carte blanche rectangulaire */}
       <div className="w-full max-w-4xl bg-white rounded-lg shadow-[0_8px_30px_rgba(0,0,0,0.12)] overflow-hidden">
         <div className="flex flex-col md:flex-row min-h-[420px]">
@@ -85,10 +103,10 @@ function LoginForm() {
           <div className="md:w-[42%] flex flex-col justify-center px-8 py-10 md:py-12 md:px-10 bg-slate-50/80 border-b md:border-b-0 md:border-r border-slate-200">
             <div className="flex items-start gap-5">
               <div className="w-20 h-20 sm:w-24 sm:h-24 shrink-0 rounded-lg bg-white border border-slate-200 shadow-sm flex items-center justify-center overflow-hidden">
-                {branding.logo ? (
+                {logoSrc ? (
                   <img
-                    src={branding.logo}
-                    alt=""
+                    src={logoSrc}
+                    alt={branding.libelle || "AGOSOFT GED"}
                     className="w-full h-full object-contain p-2"
                   />
                 ) : (
@@ -245,11 +263,10 @@ function LoginForm() {
             </form>
           </div>
         </div>
+        <p className="text-center text-xs text-slate-500 border-t border-slate-200 px-8 py-3 bg-slate-50/80">
+          © {new Date().getFullYear()} AGOSOFT. Tous droits réservés.
+        </p>
       </div>
-
-      <p className="mt-8 text-center text-xs text-slate-500">
-        © {new Date().getFullYear()} AGOSOFT. Tous droits réservés.
-      </p>
     </div>
   );
 }
@@ -258,7 +275,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div
+          className="min-h-screen flex items-center justify-center bg-slate-100 bg-cover bg-center"
+          style={{ backgroundImage: `url(${APP_BACKGROUND_SRC})` }}
+        >
           <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
         </div>
       }

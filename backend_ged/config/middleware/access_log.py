@@ -20,8 +20,9 @@ class AccessLogMiddleware:
 
         protocol = request.META.get("SERVER_PROTOCOL", "HTTP/1.1")
         size = self._response_size(response)
+        # Path seul (sans query) : évite de journaliser tokens / secrets en query string.
         message = (
-            f'"{request.method} {request.get_full_path()} {protocol}" '
+            f'"{request.method} {request.path} {protocol}" '
             f"{response.status_code} {size}"
         )
         logger.info(message)

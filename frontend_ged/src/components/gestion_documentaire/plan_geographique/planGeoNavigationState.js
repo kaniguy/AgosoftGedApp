@@ -1,5 +1,5 @@
 /**
- * Persistance de l'état du plan géographique entre navigation.
+ * Persistance de l'état du plan de classement entre navigation.
  * Mémorise le chemin, les nœuds dépliés et la position de scroll avant d'ouvrir
  * la liste documents ou la page rattacher d'une localité.
  */

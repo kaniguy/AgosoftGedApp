@@ -174,6 +174,14 @@ export function isSuperuserFromStorage() {
   return Boolean(user?.is_superuser);
 }
 
+/** Indique si le module est assigné au groupe de l'utilisateur. */
+export function userHasModule(moduleCode) {
+  if (isSuperuserFromStorage()) return true;
+  const modules = getUserModulesFromStorage();
+  if (!modules || modules.length === 0) return true;
+  return modules.includes(moduleCode);
+}
+
 /** Lit les localités assignées depuis le localStorage. */
 export function getUserLocalitesFromStorage() {
   if (typeof window === "undefined") return [];

@@ -58,11 +58,56 @@ DOCUMENT_ENCRYPTION_KEY = require_env("DOCUMENT_ENCRYPTION_KEY")
 DEBUG = str(require_env("DEBUG")).lower() == "true"
 
 ALLOWED_HOSTS = [h.strip() for h in require_env("ALLOWED_HOSTS").split(",") if h.strip()]
+if "*" in ALLOWED_HOSTS:
+    raise ImproperlyConfigured(
+        "ALLOWED_HOSTS ne doit jamais contenir '*'. Listez les hôtes explicitement."
+    )
 
-# Le proxy Next.js envoie X-Forwarded-Host (IP LAN :3000) pour que
-# build_absolute_uri() ne génère pas http://127.0.0.1:9000/media/...
+# Durée de vie des jetons API (heures). 0 = pas d'expiration (déconseillé).
+TOKEN_TTL_HOURS = int(os.environ.get("TOKEN_TTL_HOURS", "12"))
+
+# URL publique de l'application frontend (liens de téléchargement temporaires)
+FRONTEND_URL = require_env("FRONTEND_URL")
+
+# Proxy Next.js / reverse-proxy : Host et schéma du client.
 USE_X_FORWARDED_HOST = True
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+
+# =================================================
+# SÉCURITÉ
+# =================================================
+def _env_flag(key, default=False):
+    raw = os.environ.get(key)
+    if raw is None:
+        return bool(default)
+    return str(raw).strip().lower() in ("1", "true", "yes")
+
+
+# Cookies Secure (CSRF + session) : True seulement en HTTPS.
+# En HTTP (ex. http://IP:3001) le navigateur ignore ces cookies → login cassé.
+_cookie_secure = _env_flag(
+    "COOKIE_SECURE",
+    default=FRONTEND_URL.lower().startswith("https://"),
+)
+SESSION_COOKIE_SECURE = _cookie_secure
+CSRF_COOKIE_SECURE = _cookie_secure
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SECURE_SSL_REDIRECT = False if DEBUG else _env_flag("SECURE_SSL_REDIRECT", default=False)
+
+if _cookie_secure and not DEBUG:
+    SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+_csrf = os.environ.get("CSRF_TRUSTED_ORIGINS", "") or FRONTEND_URL
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf.split(",") if o.strip()]
 
 
 # =================================================
@@ -86,12 +131,18 @@ INSTALLED_APPS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
-        "rest_framework.authentication.TokenAuthentication",
+        "config.authentication.ExpiringTokenAuthentication",
+    ],
+    # Toute vue sans permission explicite exige une authentification.
+    # Les endpoints publics (login, liens téléchargement…) gardent AllowAny.
+    "DEFAULT_PERMISSION_CLASSES": [
+        "rest_framework.permissions.IsAuthenticated",
     ],
     # Limitation ciblée sur le login uniquement (voir LoginRateThrottle).
     # Pas de throttle global : une SPA GED génère beaucoup d'appels légitimes.
     "DEFAULT_THROTTLE_RATES": {
         "login": require_env("THROTTLE_RATE_LOGIN"),
+        "download_link": os.environ.get("THROTTLE_RATE_DOWNLOAD_LINK", "30/hour"),
     },
 }
 
@@ -101,6 +152,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = int(require_env("FILE_UPLOAD_MAX_MEMORY_SIZE"))
 DATA_UPLOAD_MAX_NUMBER_FIELDS = int(require_env("DATA_UPLOAD_MAX_NUMBER_FIELDS"))
 MAX_IMAGE_UPLOAD_SIZE = int(require_env("MAX_IMAGE_UPLOAD_SIZE"))
 MAX_DOCUMENT_UPLOAD_SIZE = int(require_env("MAX_DOCUMENT_UPLOAD_SIZE"))
+MAX_VIDEO_UPLOAD_SIZE = int(
+    os.environ.get("MAX_VIDEO_UPLOAD_SIZE", str(100 * 1024 * 1024))
+)
 
 
 
@@ -124,17 +178,16 @@ MIDDLEWARE = [
 
 
 # =================================================
-# CORS CONFIG
+# CORS CONFIG — jamais CORS_ALLOW_ALL_ORIGINS (liste blanche uniquement)
 # =================================================
-
-# DEBUG=True : toutes les origines. DEBUG=False : liste blanche depuis .env.
 _cors_origins = [o.strip() for o in require_env("CORS_ALLOWED_ORIGINS").split(",") if o.strip()]
+if not _cors_origins or "*" in _cors_origins:
+    raise ImproperlyConfigured(
+        "CORS_ALLOWED_ORIGINS doit lister des origines explicites (pas '*')."
+    )
 
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
-else:
-    CORS_ALLOW_ALL_ORIGINS = False
-    CORS_ALLOWED_ORIGINS = _cors_origins
+CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOWED_ORIGINS = _cors_origins
 
 # Autorise les requêtes cross-origin avec cookies/headers si besoin
 CORS_ALLOW_HEADERS = [
@@ -154,9 +207,6 @@ CORS_EXPOSE_HEADERS = [
     "Content-Disposition",
     "Content-Type",
 ]
-
-# URL publique de l'application frontend (liens de téléchargement temporaires)
-FRONTEND_URL = require_env("FRONTEND_URL")
 
 # =================================================
 # E-MAIL (liens de téléchargement temporaires)
@@ -285,10 +335,61 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
 
-# =================================================
-# LOGS (dossier backend_ged/logs/ — monté par Docker)
-# =================================================
+# Fichiers logs_backend / logs_frontend : seulement si GED_FILE_LOGS=true dans le .env local
+from config.prepend_log import file_logs_enabled
+
 LOG_FILE = BASE_DIR / "logs" / "logs_backend"
+_LOG_LEVEL = "INFO" if DEBUG else "WARNING"
+_FILE_LOGS = file_logs_enabled()
+
+_handlers = {
+    "console": {
+        "class": "logging.StreamHandler",
+        "formatter": "verbose",
+    },
+    "console_access": {
+        "class": "logging.StreamHandler",
+        "formatter": "access",
+    },
+}
+_app_handlers = ["console"]
+_access_handlers = ["console_access"]
+
+if _FILE_LOGS:
+    if DEBUG:
+        _file_handler = {
+            "()": "config.prepend_log.PrependFileHandler",
+            "filename": str(LOG_FILE),
+            "formatter": "verbose",
+            "encoding": "utf-8",
+        }
+        _file_access_handler = {
+            "()": "config.prepend_log.PrependFileHandler",
+            "filename": str(LOG_FILE),
+            "formatter": "access",
+            "encoding": "utf-8",
+        }
+    else:
+        _file_handler = {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_FILE),
+            "formatter": "verbose",
+            "encoding": "utf-8",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+        }
+        _file_access_handler = {
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": str(LOG_FILE),
+            "formatter": "access",
+            "encoding": "utf-8",
+            "maxBytes": 5 * 1024 * 1024,
+            "backupCount": 5,
+        }
+    _handlers["file"] = _file_handler
+    _handlers["file_access"] = _file_access_handler
+    _app_handlers.append("file")
+    _access_handlers.append("file_access")
 
 LOGGING = {
     "version": 1,
@@ -305,50 +406,29 @@ LOGGING = {
             "datefmt": "%Y-%m-%d %H:%M:%S",
         },
     },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "verbose",
-        },
-        "console_access": {
-            "class": "logging.StreamHandler",
-            "formatter": "access",
-        },
-        "file": {
-            "()": "config.prepend_log.PrependFileHandler",
-            "filename": LOG_FILE,
-            "formatter": "verbose",
-            "encoding": "utf-8",
-        },
-        "file_access": {
-            "()": "config.prepend_log.PrependFileHandler",
-            "filename": LOG_FILE,
-            "formatter": "access",
-            "encoding": "utf-8",
-        },
-    },
+    "handlers": _handlers,
     "root": {
-        "handlers": ["console", "file"],
-        "level": "INFO",
+        "handlers": _app_handlers,
+        "level": _LOG_LEVEL,
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
+            "handlers": _app_handlers,
+            "level": _LOG_LEVEL,
             "propagate": False,
         },
         "django.request": {
-            "handlers": ["console", "file"],
+            "handlers": _app_handlers,
             "level": "WARNING",
             "propagate": False,
         },
         "django.server": {
-            "handlers": ["console_access", "file_access"],
+            "handlers": _access_handlers,
             "level": "INFO",
             "propagate": False,
         },
         "ged.access": {
-            "handlers": ["console_access", "file_access"],
+            "handlers": _access_handlers,
             "level": "INFO",
             "propagate": False,
         },

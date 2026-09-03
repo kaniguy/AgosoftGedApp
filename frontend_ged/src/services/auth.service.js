@@ -1,4 +1,4 @@
-import { getApiUrl, getHeaders, resolveMediaUrl, apiFetch, resetAuthRedirectState } from "./api";
+import { getApiUrl, resolveMediaUrl, apiFetch, resetAuthRedirectState, hasClientSession, clearAuthSession } from "./api";
 import { syncUserStorage } from "./profile.service";
 import { logError } from "../utils/logger";
 import { USER_ERRORS, toUserMessage } from "../utils/userError";
@@ -15,7 +15,7 @@ function buildUserFromAuthResponse(data) {
   };
 }
 
-// LOGIN
+// LOGIN — le jeton est posé en cookie HttpOnly par le proxy Next (jamais en localStorage)
 export const login = async (username, password) => {
   let res;
   try {
@@ -26,7 +26,6 @@ export const login = async (username, password) => {
     });
   } catch (err) {
     logError("auth.login", "Échec de connexion", {
-      username,
       cause: err?.message,
     });
     return {
@@ -37,14 +36,15 @@ export const login = async (username, password) => {
 
   const data = await res.json().catch(() => ({}));
 
-  if (!res.ok || !data.token) {
+  if (!res.ok) {
     return {
       success: false,
       error: toUserMessage(data.detail, USER_ERRORS.auth),
     };
   }
 
-  localStorage.setItem("token", data.token);
+  // Nettoyage d'anciens tokens éventuels
+  localStorage.removeItem("token");
   const user = buildUserFromAuthResponse(data);
   localStorage.setItem("user", JSON.stringify(user));
   resetAuthRedirectState();
@@ -55,32 +55,35 @@ export const login = async (username, password) => {
 
   return {
     success: true,
-    token: data.token,
     user,
+    // Navigation dure recommandée pour que le cookie HttpOnly soit pris en compte
+    redirectTo: "/",
   };
 };
 
-// LOGOUT
+// LOGOUT — le proxy efface les cookies
 export const logout = async () => {
   try {
     await apiFetch(`${getApiUrl()}/api/auth/logout/`, {
       method: "POST",
-      headers: getHeaders(),
+      headers: getHeadersSafe(),
     });
   } catch {
     // Backend injoignable : déconnexion locale quand même
   }
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-
+  clearAuthSession();
   return { success: true };
 };
+
+function getHeadersSafe() {
+  return { "Content-Type": "application/json" };
+}
 
 // ME — rafraîchit modules, localités et permissions depuis le serveur
 export async function getCurrentUser() {
   const res = await apiFetch(`${getApiUrl()}/api/auth/me/`, {
-    headers: getHeaders(),
+    headers: getHeadersSafe(),
     suppressAuthRedirect: true,
   });
 
@@ -99,12 +102,13 @@ export async function getCurrentUser() {
 
   const data = await res.json();
   resetAuthRedirectState();
+  localStorage.removeItem("token");
   return syncUserStorage(buildUserFromAuthResponse(data));
 }
 
-/** Rafraîchit les droits d'accès si un token est présent (silencieux en cas d'erreur). */
+/** Rafraîchit les droits d'accès si une session est présente (silencieux en cas d'erreur). */
 export const refreshUserAccess = async () => {
-  if (typeof window === "undefined" || !localStorage.getItem("token")) {
+  if (typeof window === "undefined" || !hasClientSession()) {
     return null;
   }
   try {

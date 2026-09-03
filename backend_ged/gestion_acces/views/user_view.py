@@ -3,6 +3,8 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from rest_framework.response import Response
 from django.contrib.auth.models import User
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from ..serializers.user_management_serializer import UserManagementSerializer
 
 
@@ -27,12 +29,14 @@ class UserViewSet(viewsets.ModelViewSet):
                 {"detail": "Le nouveau mot de passe est requis."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        if len(new_password) < 8:
+        user = self.get_object()
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as exc:
             return Response(
-                {"detail": "Le mot de passe doit comporter au moins 8 caractères."},
+                {"detail": " ".join(exc.messages)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        user = self.get_object()
         user.set_password(new_password)
         user.save()
         return Response({"detail": f"Mot de passe de « {user.username} » réinitialisé avec succès."})

@@ -8,7 +8,7 @@ export default function ControleQualiteLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-yellow-50/30">
+    <div className="min-h-screen bg-transparent">
       <div className="flex pt-16">
         <ControleQualiteSidebar
           isOpen={isSidebarOpen}

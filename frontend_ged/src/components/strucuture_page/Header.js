@@ -5,7 +5,9 @@ import { useRouter, usePathname } from "next/navigation";
 import { logout } from "../../services/auth.service";
 import { getProfile } from "../../services/profile.service";
 import { getEntrepriseFromStorage, refreshEntreprise } from "../../services/entreprise.service";
-import { resolveMediaUrl } from "../../services/api";
+import { resolveMediaUrl, hasClientSession } from "../../services/api";
+import { APP_LOGO_SRC } from "../../assets/branding";
+import ProfileModal from "./ProfileModal";
 
 const DEFAULT_BRANDING = {
   libelle: "AGOSOFT-GED",
@@ -15,15 +17,12 @@ const DEFAULT_BRANDING = {
 
 export default function Header() {
   const [open, setOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser] = useState(null);
   const [entreprise, setEntreprise] = useState(DEFAULT_BRANDING);
   const router = useRouter();
   const pathname = usePathname();
-
-  if (pathname?.startsWith("/telechargement/")) {
-    return null;
-  }
 
   // Charger l'utilisateur connecté (+ photo de profil) et le branding entreprise
   useEffect(() => {
@@ -45,7 +44,7 @@ export default function Header() {
     };
 
     const refreshProfile = async () => {
-      if (!localStorage.getItem("token")) return;
+      if (!hasClientSession()) return;
       try {
         const data = await getProfile();
         setUser(data);
@@ -105,12 +104,12 @@ export default function Header() {
     }
   };
 
-  if (pathname === "/auth/login") {
+  if (pathname?.startsWith("/telechargement/") || pathname === "/auth/login") {
     return null;
   }
 
   const photoUrl = resolveMediaUrl(user?.photo);
-  const logoUrl = entreprise.logo;
+  const logoUrl = entreprise.logo || APP_LOGO_SRC;
   const brandInitial = (entreprise.libelle || "A").charAt(0).toUpperCase();
 
   return (
@@ -127,11 +126,11 @@ export default function Header() {
             onClick={() => router.push("/")}
             className="flex items-center space-x-2 cursor-pointer group"
           >
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-800 rounded-lg flex items-center justify-center overflow-hidden shrink-0">
+            <div className="h-10 w-10 sm:h-12 sm:w-12 shrink-0 rounded-lg bg-white border border-slate-100 flex items-center justify-center overflow-hidden">
               {logoUrl ? (
-                <img src={logoUrl} alt="" className="w-full h-full object-contain p-0.5" />
+                <img src={logoUrl} alt={entreprise.libelle || "AGOSOFT GED"} className="h-full w-full object-contain p-0.5" />
               ) : (
-                <span className="text-white font-bold text-lg">{brandInitial}</span>
+                <span className="text-blue-700 font-bold text-lg">{brandInitial}</span>
               )}
             </div>
             <div>
@@ -209,7 +208,7 @@ export default function Header() {
                   <button 
                     onClick={() => {
                       setOpen(false);
-                      router.push("/gestion_acces/profil");
+                      setProfileOpen(true);
                     }}
                     className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3 cursor-pointer"
                   >
@@ -219,13 +218,13 @@ export default function Header() {
                     <span>Mon profil</span>
                   </button>
                   
-                  <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3">
+                  {/* <button className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center space-x-3">
                     <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     <span>Paramètres</span>
-                  </button>
+                  </button> */}
                 </div>
                 
                 <div className="border-t border-gray-100 py-2">
@@ -247,6 +246,7 @@ export default function Header() {
 
       {/* Barre de progression sous le header au scroll */}
       <div className={`h-0.5 bg-gradient-to-r from-blue-500 to-blue-600 transition-all duration-300 ${scrolled ? "w-full" : "w-0"}`} />
+      <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </header>
   );
 }

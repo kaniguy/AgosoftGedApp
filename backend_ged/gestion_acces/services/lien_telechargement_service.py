@@ -30,13 +30,13 @@ def _file_format_label(filename: str) -> str:
     return FORMAT_LABELS.get(ext, ext.upper())
 
 
-def build_document_summary(doc) -> dict:
+def build_document_summary(doc, check_disk=True) -> dict:
     """Résumé d'un document pour l'affichage dans la liste des liens."""
     raw = os.path.basename(doc.fichier.name) if doc.fichier and doc.fichier.name else ""
     filename = download_display_filename(raw) if raw else ""
     localite_label = doc.localite.libelle if getattr(doc, "localite", None) else "—"
     type_label = doc.type_document.libelle if getattr(doc, "type_document", None) else "—"
-    has_file = _document_has_file(doc)
+    has_file = _document_has_file(doc) if check_disk else bool(doc.fichier and doc.fichier.name)
     return {
         "id": doc.id,
         "type_document_libelle": type_label,
@@ -48,14 +48,16 @@ def build_document_summary(doc) -> dict:
     }
 
 
-def build_documents_summaries_map(document_ids):
+def build_documents_summaries_map(document_ids, docs_by_id=None, check_disk=True):
     """Map id → résumé pour une liste d'identifiants de documents."""
-    docs = resolve_documents_for_link(document_ids)
-    by_id = {doc.id: build_document_summary(doc) for doc in docs}
+    if docs_by_id is None:
+        docs = resolve_documents_for_link(document_ids)
+        docs_by_id = {doc.id: doc for doc in docs}
     ordered = []
     for doc_id in document_ids or []:
-        if doc_id in by_id:
-            ordered.append(by_id[doc_id])
+        doc = docs_by_id.get(doc_id)
+        if doc:
+            ordered.append(build_document_summary(doc, check_disk=check_disk))
         else:
             ordered.append(
                 {
@@ -69,6 +71,43 @@ def build_documents_summaries_map(document_ids):
                 }
             )
     return ordered
+
+
+def prefetch_links_document_data(links, check_disk=False):
+    """Une seule requête documents pour toute la liste (évite N+1 + exists() disque)."""
+    all_ids = []
+    for link in links:
+        all_ids.extend(link.document_ids or [])
+    unique_ids = list(dict.fromkeys(all_ids))
+    docs_by_id = {}
+    if unique_ids:
+        docs_by_id = {
+            doc.id: doc
+            for doc in DocumentLocalite.objects.filter(id__in=unique_ids)
+            .select_related("type_document", "localite")
+            .only(
+                "id",
+                "fichier",
+                "date_creation",
+                "type_document",
+                "localite",
+                "type_document__libelle",
+                "localite__libelle",
+            )
+        }
+    for link in links:
+        ids = list(link.document_ids or [])
+        summaries = build_documents_summaries_map(ids, docs_by_id=docs_by_id, check_disk=check_disk)
+        downloadable = sum(1 for item in summaries if item.get("is_available"))
+        found = sum(1 for item in summaries if item.get("id") in docs_by_id)
+        link._documents_summaries = summaries
+        link._availability_cache = {
+            "total": len(ids),
+            "found": found,
+            "downloadable": downloadable,
+            "missing": len(ids) - downloadable,
+        }
+    return links
 
 
 def build_download_response(documents):

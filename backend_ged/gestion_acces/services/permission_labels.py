@@ -8,6 +8,9 @@ ACTION_LABELS_FR = {
     "change": "Peut modifier",
     "delete": "Peut supprimer",
     "view": "Peut consulter",
+    "exporter": "Peut exporter",
+    "restaurer": "Peut restaurer",
+    "reinitialiser": "Peut réinitialiser",
 }
 
 # Applications Django → libellé module
@@ -30,8 +33,8 @@ MODEL_LABELS_FR = {
     "optionchamp": "option de champ",
     "reponsedocument": "réponse document",
     "valeurchamp": "valeur de champ",
-    "plangeographique": "plan géographique",
-    "structuregeographique": "structure géographique",
+    "plangeographique": "plan de classement",
+    "structuregeographique": "niveau de classement",
     "userprofile": "profil utilisateur",
     "groupprofile": "profil de groupe",
     "entreprise": "entreprise",
@@ -44,6 +47,9 @@ MODEL_LABELS_FR = {
     "preferencenotification": "préférence de notification",
     "notificationemaillog": "journal de notification e-mail",
     "usersignature": "signature utilisateur",
+    "guideaide": "guide d'aide",
+    "guideaidedocument": "document de guide d'aide",
+    "sauvegardebase": "base de données",
     "user": "utilisateur",
     "group": "groupe",
     "permission": "permission",
@@ -74,7 +80,9 @@ def format_permission_label_fr(permission: Permission) -> str:
     « Peut ajouter document localité » au lieu de « Can add document localité ».
     """
     codename = permission.codename or ""
-    for action, action_label in ACTION_LABELS_FR.items():
+    for action, action_label in sorted(
+        ACTION_LABELS_FR.items(), key=lambda item: len(item[0]), reverse=True
+    ):
         prefix = f"{action}_"
         if codename.startswith(prefix):
             model_key = codename[len(prefix) :]

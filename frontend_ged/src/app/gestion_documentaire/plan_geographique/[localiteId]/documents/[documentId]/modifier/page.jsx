@@ -99,7 +99,7 @@ export default function ModifierDocumentPage() {
             onClick={() => router.push(PLAN_GEO_RESTORE_PATH)}
             className="hover:text-emerald-600 cursor-pointer"
           >
-            Plan géographique
+            Plan de classement
           </button>
           <span>/</span>
           <button type="button" onClick={goBack} className="hover:text-emerald-600 cursor-pointer">

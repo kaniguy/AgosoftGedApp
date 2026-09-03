@@ -3,10 +3,45 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+const securityHeaders = [
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:",
+      "worker-src 'self' blob:",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob: https://i.ytimg.com https://img.youtube.com",
+      "font-src 'self' data:",
+      "media-src 'self' blob:",
+      "connect-src 'self' blob: data: https://www.youtube.com https://youtube.com",
+      "frame-src 'self' https://www.youtube.com https://youtube.com https://www.youtube-nocookie.com",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+    ].join("; "),
+  },
+];
+
 const nextConfig = {
-  allowedDevOrigins: ["127.0.0.1", "localhost", "192.168.1.24"],
   // Django exige les trailing slashes (/api/auth/login/) — ne pas les retirer avant le proxy
   skipTrailingSlashRedirect: true,
+  poweredByHeader: false,
+  experimental: {
+    proxyClientMaxBodySize: "2gb",
+  },
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: securityHeaders,
+      },
+    ];
+  },
   // Évite que Turbopack prenne C:\Users\HP\ comme racine (lockfile parasite)
   turbopack: {
     root: __dirname,

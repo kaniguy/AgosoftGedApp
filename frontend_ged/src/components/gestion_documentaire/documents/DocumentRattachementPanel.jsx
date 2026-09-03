@@ -1,6 +1,6 @@
 /**
  * DocumentRattachementPanel — Panneau principal de rattachement et de modification
- * d'un document sur une localité du plan géographique.
+ * d'un document sur une localité du plan de classement.
  *
  * Mode plein écran (fullPage) : layout Dockmee 3 panneaux (pages | aperçu | index),
  * identique au contrôle qualité.
@@ -1533,13 +1533,8 @@ export default function DocumentRattachementPanel({
   const fetchImageAsDataUrl = useCallback(async (url) => {
     if (!url) return null;
     if (url.startsWith("data:")) return url;
-    const headers = {};
-    if (typeof window !== "undefined") {
-      const token = localStorage.getItem("token");
-      if (token) headers.Authorization = `Token ${token}`;
-    }
     try {
-      const res = await apiFetch(url, { headers });
+      const res = await apiFetch(url);
       if (!res.ok) return null;
       const blob = await res.blob();
       return await new Promise((resolve, reject) => {
@@ -2670,7 +2665,7 @@ export default function DocumentRattachementPanel({
             type="button"
             onClick={handleRetour}
             className="flex items-center gap-2 px-3 py-2 rounded-lg transition text-sm hover:bg-emerald-700/80"
-            title={isEditMode ? "Retour à la liste" : "Retour au plan géographique"}
+            title={isEditMode ? "Retour à la liste" : "Retour au plan de classement"}
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

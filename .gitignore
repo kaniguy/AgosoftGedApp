@@ -1,28 +1,88 @@
-# Secrets / config locale
+# ============================================================
+# Secrets, données perso, artefacts locaux — ne pas commiter
+# ============================================================
+
+# Secrets / config machine (mots de passe, clés, IPs)
 .env
+.env.*
+*.env
 *.env.local
-backend_ged/config/.env
-frontend_ged/.env*
 !.env.example
 !**/.env.example
+backend_ged/config/.env
+frontend_ged/.env*
 
+# Clés, certificats, identifiants
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.jks
+id_rsa
+id_rsa.pub
+*.ppk
+credentials.json
+secrets.json
 
+# Notes et fichiers personnels
 NOTE.txt
 commande docker.txt
+*.code-workspace
+*.bat
+!backend_ged/scripts/envoyer_resume_periodique.bat
+
+# Documents utilisateurs et archives (fuite de contenu GED)
+backend_ged/media/
+backend_ged/media.rar
+frontend_ged/media/
+*.rar
+*.7z
+*.bak
+*.sql
+*.dump
+*.bacpac
+backend_ged/bd/
+
+# Sauvegardes appli (zip GEDBACKUP, dumps)
+**/GEDBACKUP*
+**/ged-backup-*
+**/sauvegardes/
+backend_ged/backups/
+
+# Journaux (IPs, logins, chemins documents) — jamais en Git, désactivés en prod
+backend_ged/logs/
+!backend_ged/logs/.gitkeep
+frontend_ged/logs/
+!frontend_ged/logs/.gitkeep
+backend_ged/logs_backend
+frontend_ged/logs_frontend
+*.log
+backend_ged/scripts/resume_periodique.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# Base locale
+db.sqlite3
+*.sqlite3
 
 # Python
 __pycache__/
-**/__pycache__/**
+**/__pycache__/
 *.py[cod]
-*.pyc
 *.egg-info/
 .venv/
 venv/
 django_env/
 backend_ged/python/
-
-# Cache Python des migrations (les fichiers *.py de migration restent versionnés dans Git)
-**/migrations/__pycache__/**
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Node / Next.js
 node_modules/
@@ -40,32 +100,25 @@ frontend_ged/build/
 frontend_ged/.vercel
 frontend_ged/next-env.d.ts
 *.tsbuildinfo
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-*.pem
-
-# Django / media / logs
-backend_ged/media/
-backend_ged/logs/*
-!backend_ged/logs/.gitkeep
-frontend_ged/logs/*
-!frontend_ged/logs/.gitkeep
-*.log
-db.sqlite3
 
 # IDE / OS
 .DS_Store
 .idea/
 .vscode/
-*.code-workspace
+.cursor/
 Thumbs.db
+desktop.ini
+ehthumbs.db
+*~
+*.orig
 
-# Docker
+# Docker local
 *.tar
 .agosoftged-arm
+docker-compose.override.yml
 
-# Backups SQL
-*.bacpac
-backend_ged/bd/
+# Fichiers temporaires
+tmp/
+temp/
+*.tmp
+*.swp

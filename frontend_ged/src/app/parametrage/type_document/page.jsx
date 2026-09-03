@@ -125,8 +125,7 @@ export default function TypeDocumentPage() {
 
     try {
       if (!isBulk) {
-        const result = await createTypeDocument(formData);
-        console.log("Ajout réussi:", result);
+        await createTypeDocument(formData);
         setShowAjouterModal(false);
         showNotification("Type de document ajouté avec succès", "success");
       } else {
@@ -193,8 +192,7 @@ export default function TypeDocumentPage() {
     }
     
     try {
-      const result = await updateTypeDocument(selectedItem.id, formData);
-      console.log('Modification réussie:', result);
+      await updateTypeDocument(selectedItem.id, formData);
       setShowModifierModal(false);
       showNotification("Type de document modifié avec succès", "success");
       await load();
@@ -254,7 +252,7 @@ export default function TypeDocumentPage() {
   const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {/* Notification Container */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
@@ -283,7 +281,7 @@ export default function TypeDocumentPage() {
             <nav className="mt-2">
               <ol className="flex items-center gap-2 text-sm text-gray-500">
                 <li>
-                  <button onClick={() => router.push('/dashboard')} className="hover:text-blue-600 transition">
+                  <button type="button" onClick={() => router.push("/")} className="hover:text-blue-600 transition">
                     Accueil
                   </button>
                 </li>

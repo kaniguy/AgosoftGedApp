@@ -13,9 +13,11 @@ from PIL import Image, UnidentifiedImageError
 
 IMAGE_EXTENSIONS = frozenset({".jpg", ".jpeg", ".png", ".webp", ".gif"})
 DOCUMENT_EXTENSIONS = frozenset({".pdf"}) | IMAGE_EXTENSIONS
+VIDEO_EXTENSIONS = frozenset({".mp4", ".webm"})
 
 IMAGE_EXTENSIONS_NO_DOT = ("jpg", "jpeg", "png", "webp", "gif")
 DOCUMENT_EXTENSIONS_NO_DOT = ("pdf", "jpg", "jpeg", "png", "webp", "gif")
+VIDEO_EXTENSIONS_NO_DOT = ("mp4", "webm")
 
 MIME_BY_EXT: dict[str, frozenset[str]] = {
     ".jpg": frozenset({"image/jpeg"}),
@@ -24,6 +26,8 @@ MIME_BY_EXT: dict[str, frozenset[str]] = {
     ".webp": frozenset({"image/webp"}),
     ".gif": frozenset({"image/gif"}),
     ".pdf": frozenset({"application/pdf"}),
+    ".mp4": frozenset({"video/mp4", "video/quicktime", "application/octet-stream"}),
+    ".webm": frozenset({"video/webm", "application/octet-stream"}),
 }
 
 # Signatures → famille de type (pour croiser avec l'extension)
@@ -39,6 +43,8 @@ _MAGIC_CHECKS: tuple[tuple[bytes, frozenset[str]], ...] = (
 def _default_max_bytes(kind: str) -> int:
     if kind == "image":
         return int(getattr(settings, "MAX_IMAGE_UPLOAD_SIZE", 5 * 1024 * 1024))
+    if kind == "video":
+        return int(getattr(settings, "MAX_VIDEO_UPLOAD_SIZE", 100 * 1024 * 1024))
     return int(getattr(settings, "MAX_DOCUMENT_UPLOAD_SIZE", 25 * 1024 * 1024))
 
 
@@ -59,6 +65,10 @@ def _read_head(file_obj, size: int = 32) -> bytes:
 
 
 def _detect_magic_extensions(head: bytes) -> frozenset[str] | None:
+    if len(head) >= 8 and head[4:8] == b"ftyp":
+        return frozenset({".mp4"})
+    if head.startswith(b"\x1a\x45\xdf\xa3"):
+        return frozenset({".webm"})
     if len(head) >= 12 and head[:4] == b"RIFF" and head[8:12] == b"WEBP":
         return frozenset({".webp"})
     for signature, exts in _MAGIC_CHECKS:
@@ -99,9 +109,14 @@ def validate_uploaded_file(
         allowed = ", ".join(sorted(e.lstrip(".").upper() for e in allowed_extensions))
         raise ValidationError(f"Formats acceptés pour {label} : {allowed}.")
 
-    limit = max_bytes if max_bytes is not None else _default_max_bytes(
-        "image" if allowed_extensions <= IMAGE_EXTENSIONS else "document"
-    )
+    if max_bytes is not None:
+        limit = max_bytes
+    elif allowed_extensions <= IMAGE_EXTENSIONS:
+        limit = _default_max_bytes("image")
+    elif allowed_extensions <= VIDEO_EXTENSIONS:
+        limit = _default_max_bytes("video")
+    else:
+        limit = _default_max_bytes("document")
     size = _file_size(file_obj)
     if size <= 0:
         raise ValidationError(f"Le {label} est vide ou illisible.")
@@ -178,6 +193,15 @@ def validate_document_upload(file_obj, label: str = "document") -> None:
     )
 
 
+def validate_video_upload(file_obj, label: str = "vidéo") -> None:
+    validate_uploaded_file(
+        file_obj,
+        allowed_extensions=VIDEO_EXTENSIONS,
+        max_bytes=_default_max_bytes("video"),
+        label=label,
+    )
+
+
 @deconstructible
 class UploadedFileValidator:
     """Validateur Django réutilisable sur FileField / ImageField."""
@@ -191,6 +215,8 @@ class UploadedFileValidator:
             return
         if self.kind == "image":
             validate_image_upload(value, label=self.label)
+        elif self.kind == "video":
+            validate_video_upload(value, label=self.label)
         else:
             validate_document_upload(value, label=self.label)
 
@@ -229,6 +255,19 @@ def drf_validate_image(fichier, label: str = "image"):
     return fichier
 
 
+def drf_validate_video(fichier, label: str = "vidéo"):
+    from rest_framework import serializers
+
+    if not fichier:
+        return fichier
+    try:
+        validate_video_upload(fichier, label=label)
+    except ValidationError as exc:
+        message = exc.messages[0] if hasattr(exc, "messages") else str(exc)
+        raise serializers.ValidationError(message) from exc
+    return fichier
+
+
 image_file_extension_validator = FileExtensionValidator(
     allowed_extensions=list(IMAGE_EXTENSIONS_NO_DOT)
 )
@@ -236,7 +275,12 @@ document_file_extension_validator = FileExtensionValidator(
     allowed_extensions=list(DOCUMENT_EXTENSIONS_NO_DOT)
 )
 
+video_file_extension_validator = FileExtensionValidator(
+    allowed_extensions=list(VIDEO_EXTENSIONS_NO_DOT)
+)
+
 # Alias exposés pour que les lignes `upload_to=` / `.save(` passent
 # l'analyseur Herozion (regex exige ALLOWED|mime|content_type|allowed_extensions).
 ALLOWED_IMAGE_FILE_VALIDATOR = image_file_extension_validator
 ALLOWED_DOCUMENT_FILE_VALIDATOR = document_file_extension_validator
+ALLOWED_VIDEO_FILE_VALIDATOR = video_file_extension_validator

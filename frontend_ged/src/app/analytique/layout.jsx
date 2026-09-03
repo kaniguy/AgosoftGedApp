@@ -9,7 +9,7 @@ function AnalytiqueLayoutInner({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-orange-50/30 analytique-module">
+    <div className="min-h-screen bg-transparent analytique-module">
       <div className="flex pt-16 print:pt-0">
         <div className="no-print">
           <AnalytiqueSidebar

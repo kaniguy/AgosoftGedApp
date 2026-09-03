@@ -2,6 +2,8 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from ..serializers.profile_serializer import UserSerializer
 from gestion_acces.services.access_service import get_user_access_payload
 
@@ -31,9 +33,11 @@ def user_profile_view(request):
                     {"detail": "L'ancien mot de passe est incorrect."},
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            if len(new_password) < 6:
+            try:
+                validate_password(new_password, user=user)
+            except ValidationError as exc:
                 return Response(
-                    {"detail": "Le nouveau mot de passe doit comporter au moins 6 caractères."},
+                    {"detail": " ".join(exc.messages)},
                     status=status.HTTP_400_BAD_REQUEST
                 )
             user.set_password(new_password)

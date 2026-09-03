@@ -1,6 +1,13 @@
 """Classes de permission DRF basées sur les droits Django (groupes + utilisateur)."""
 
-from rest_framework.permissions import DjangoModelPermissions, BasePermission
+from rest_framework.permissions import DjangoModelPermissions, BasePermission, SAFE_METHODS
+
+from gestion_acces.services.access_service import get_user_modules
+
+GUIDE_AIDE_VIEW = "gestion_acces.view_guideaide"
+GUIDE_AIDE_ADD = "gestion_acces.add_guideaide"
+GUIDE_AIDE_CHANGE = "gestion_acces.change_guideaide"
+GUIDE_AIDE_DELETE = "gestion_acces.delete_guideaide"
 
 
 class GedDjangoModelPermissions(DjangoModelPermissions):
@@ -46,3 +53,28 @@ class RequiresDjangoPerm(BasePermission):
         if not codename:
             return True
         return request.user.has_perm(codename)
+
+
+class GuideAidePermission(BasePermission):
+    """
+    Lecture : module Aide Vidéo ou permission de consultation.
+    Écriture : permissions Django add / change / delete.
+    """
+
+    message = "Vous n'avez pas accès aux guides d'aide."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        if user.is_superuser:
+            return True
+        if request.method in SAFE_METHODS:
+            return "aide_video" in get_user_modules(user) or user.has_perm(GUIDE_AIDE_VIEW)
+        needed = {
+            "POST": GUIDE_AIDE_ADD,
+            "PUT": GUIDE_AIDE_CHANGE,
+            "PATCH": GUIDE_AIDE_CHANGE,
+            "DELETE": GUIDE_AIDE_DELETE,
+        }.get(request.method)
+        return bool(needed and user.has_perm(needed))

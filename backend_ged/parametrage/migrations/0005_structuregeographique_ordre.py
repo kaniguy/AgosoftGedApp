@@ -40,8 +40,8 @@ class Migration(migrations.Migration):
             name='structuregeographique',
             options={
                 'ordering': ['ordre'],
-                'verbose_name': 'Structure géographique',
-                'verbose_name_plural': 'Structures géographiques',
+                'verbose_name': 'Niveau de classement',
+                'verbose_name_plural': 'Niveaux de classement',
             },
         ),
     ]

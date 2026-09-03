@@ -456,7 +456,7 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
               type="button"
               onClick={onClose}
               className="p-2.5 rounded-xl bg-white/15 hover:bg-white/25 transition cursor-pointer"
-              title="Retour au plan géographique"
+              title="Retour au plan de classement"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

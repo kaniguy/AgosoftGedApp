@@ -88,7 +88,7 @@ export default function Home() {
   return (
     <>
       <Header />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100 pt-16">
+      <div className="min-h-screen pt-16">
         
         {/* Header avec dégradé et effets modernes */}
         <div className="relative bg-white/80 backdrop-blur-sm border-b border-slate-200/60 shadow-sm">

@@ -52,7 +52,7 @@ export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
     
     {
       id: "plan-geographique",
-      name: "Plan géographique",
+      name: "Plan de classement",
       path: "/gestion_documentaire/plan_geographique",
       permission: PERMISSIONS.VIEW_PLAN_GEOGRAPHIQUE,
       icon: (

@@ -2,33 +2,31 @@
 import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { getCurrentUser } from "../../services/auth.service";
-import { clearAuthSession } from "../../services/api";
+import { clearAuthSession, hasClientSession } from "../../services/api";
 
 export default function AuthGuard({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  // null = vérification en cours, true = autorisé, false = refusé
   const [authorized, setAuthorized] = useState(null);
   const [backendError, setBackendError] = useState(false);
 
   const isLoginPage = pathname === "/auth/login";
   const isPublicDownloadPage = pathname?.startsWith("/telechargement/");
 
-  // Validation de session une seule fois au chargement (pas à chaque navigation).
   useEffect(() => {
     let cancelled = false;
 
     const validateSession = async () => {
-      const token = localStorage.getItem("token");
+      const hasSession = hasClientSession();
 
-      if (!token) {
+      if (!hasSession) {
         if (!cancelled) {
           setAuthorized(isLoginPage || isPublicDownloadPage);
         }
         return;
       }
 
-      if (isLoginPage) {
+      if (isLoginPage || isPublicDownloadPage) {
         if (!cancelled) {
           setAuthorized(true);
         }
@@ -44,9 +42,9 @@ export default function AuthGuard({ children }) {
       } catch (err) {
         if (cancelled) return;
         if (err?.status === 401) {
-          clearAuthSession();
+          await clearAuthSession();
           setAuthorized(false);
-          router.replace("/auth/login?session=expired");
+          window.location.replace("/auth/login?session=expired");
           return;
         }
         setBackendError(true);
@@ -59,43 +57,33 @@ export default function AuthGuard({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [isLoginPage, isPublicDownloadPage, router]);
+  }, [isLoginPage, isPublicDownloadPage, pathname]);
 
-  // Garde de route sans appel API : redirections locales uniquement.
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    const hasSession = hasClientSession();
 
-    if (!token && !isLoginPage && !isPublicDownloadPage) {
+    if (!hasSession && !isLoginPage && !isPublicDownloadPage) {
       setAuthorized(false);
-      router.push("/auth/login");
+      router.replace("/auth/login");
       return;
     }
 
-    if (token && isLoginPage) {
-      router.push("/");
-    }
+    // Ne pas auto-rediriger la page login ici : le formulaire gère la navigation
+    // après authentification (évite les courses avec le cookie).
   }, [pathname, router, isLoginPage, isPublicDownloadPage]);
 
-  // Affichage erreur serveur injoignable
   if (backendError && !isLoginPage && !isPublicDownloadPage) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="flex flex-col items-center space-y-5 max-w-sm text-center px-6">
-          <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center">
-            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-slate-800 font-semibold text-base">Serveur inaccessible</p>
-            <p className="text-slate-500 text-sm mt-1">
-              Impossible de contacter le serveur. Vérifiez votre connexion ou contactez l&apos;administrateur.
-            </p>
-          </div>
+      <div className="min-h-screen flex items-center justify-center p-6">
+        <div className="max-w-md text-center space-y-3">
+          <h1 className="text-xl font-semibold">Serveur inaccessible</h1>
+          <p className="text-sm text-gray-600">
+            Impossible de vérifier votre session. Réessayez dans quelques instants.
+          </p>
           <button
+            type="button"
+            className="px-4 py-2 rounded bg-gray-900 text-white text-sm"
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 transition-colors"
           >
             Réessayer
           </button>
@@ -104,24 +92,15 @@ export default function AuthGuard({ children }) {
     );
   }
 
-  // Vérification en cours (authorized === null)
   if (authorized === null && !isLoginPage && !isPublicDownloadPage) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
-        <div className="flex flex-col items-center space-y-4">
-          <div className="relative w-16 h-16">
-            <div className="absolute inset-0 rounded-full border-4 border-blue-500/20"></div>
-            <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
-          </div>
-          <p className="text-slate-600 text-sm font-semibold tracking-wide animate-pulse">
-            Vérification de session...
-          </p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <p className="text-sm text-gray-500">Vérification de la session…</p>
       </div>
     );
   }
 
-  if (!authorized && !isLoginPage && !isPublicDownloadPage) {
+  if (authorized === false && !isLoginPage && !isPublicDownloadPage) {
     return null;
   }
 

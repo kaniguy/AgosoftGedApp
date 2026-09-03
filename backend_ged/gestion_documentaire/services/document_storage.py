@@ -7,7 +7,8 @@ from django.utils.text import slugify
 
 ARCHIVE_ROOT = "archive_document"
 QC_ROOT = "controle_qualite"
-STORAGE_ROOTS = (ARCHIVE_ROOT, QC_ROOT)
+VERSIONS_ROOT = "versions_document"
+STORAGE_ROOTS = (ARCHIVE_ROOT, QC_ROOT, VERSIONS_ROOT)
 SEGMENT_MAX_LEN = 60
 FILENAME_BASE_MAX_LEN = 80
 
@@ -48,7 +49,7 @@ def get_storage_root_for_statut(statut_qualite):
 
 
 def _segment_libelle(node):
-    """Dossier nommé d'après le libellé du nœud du plan géographique."""
+    """Dossier nommé d'après le libellé du nœud du plan de classement."""
     label = (node.libelle or f"localite-{node.id}").strip()
     slug = slugify(label)[:SEGMENT_MAX_LEN]
     return slug or f"localite-{node.id}"
@@ -71,13 +72,18 @@ def build_localite_folder_path(localite, year=None, month=None, root=None):
 
 
 def parse_year_month_from_path(path):
-    """Extrait année et mois depuis un chemin .../YYYY/MM/fichier (archive ou QC)."""
+    """Extrait année et mois depuis un chemin .../YYYY/MM[/vN]/fichier."""
     if not path:
         return None, None
     parts = _normalize_path(path).split("/")
-    if len(parts) < 4:
+    if len(parts) < 3:
         return None, None
-    month, year = parts[-2], parts[-3]
+    segs = parts[:-1]
+    if segs and segs[-1][:1] == "v" and segs[-1][1:].isdigit():
+        segs = segs[:-1]
+    if len(segs) < 2:
+        return None, None
+    month, year = segs[-1], segs[-2]
     if len(year) == 4 and year.isdigit() and len(month) == 2 and month.isdigit():
         return year, month
     return None, None
@@ -314,8 +320,11 @@ def relocate_document_file(document):
 
 
 def relocate_documents_for_plan_node(plan_node):
-    """Déplace tous les documents des localités feuilles sous ce nœud."""
-    from gestion_documentaire.models import DocumentLocalite
+    """Déplace tous les documents et versions des localités feuilles sous ce nœud."""
+    from gestion_documentaire.models import DocumentLocalite, DocumentVersion
+    from gestion_documentaire.services.document_version_storage import (
+        relocate_document_version_file,
+    )
 
     descendant_ids = collect_descendant_ids(plan_node.id)
     documents = (
@@ -327,5 +336,14 @@ def relocate_documents_for_plan_node(plan_node):
     moved = 0
     for document in documents:
         if relocate_document_file(document):
+            moved += 1
+
+    versions = (
+        DocumentVersion.objects.filter(document__localite_id__in=descendant_ids)
+        .exclude(fichier="")
+        .select_related("document", "document__localite")
+    )
+    for version in versions:
+        if relocate_document_version_file(version):
             moved += 1
     return moved

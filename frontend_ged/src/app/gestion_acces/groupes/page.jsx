@@ -119,16 +119,29 @@ export default function GroupesPage() {
   const [loadingLocalites, setLoadingLocalites] = useState(false);
   const { notification, showNotif } = useNotification();
 
-  /** Permissions filtrées par la recherche textuelle. */
+  /** Permissions des modules cochés, puis filtre texte. */
   const filteredPerms = useMemo(
-    () =>
-      permissions.filter(
+    () => {
+      const selected = appModules.filter((m) => form.modules.includes(m.code));
+      const labels = new Set(selected.flatMap((m) => m.app_labels || []));
+      const extras = new Set(selected.flatMap((m) => m.extra_permission_codenames || []));
+      const scoped =
+        labels.size === 0 && extras.size === 0
+          ? permissions
+          : permissions.filter((p) => {
+              const full = `${p.app_label}.${p.codename}`;
+              return labels.has(p.app_label) || extras.has(full);
+            });
+      const q = permSearch.toLowerCase();
+      if (!q) return scoped;
+      return scoped.filter(
         (p) =>
-          p.name?.toLowerCase().includes(permSearch.toLowerCase()) ||
-          p.codename?.toLowerCase().includes(permSearch.toLowerCase()) ||
-          p.app_label?.toLowerCase().includes(permSearch.toLowerCase())
-      ),
-    [permissions, permSearch]
+          p.name?.toLowerCase().includes(q) ||
+          p.codename?.toLowerCase().includes(q) ||
+          p.app_label?.toLowerCase().includes(q)
+      );
+    },
+    [appModules, form.modules, permSearch, permissions]
   );
 
   /** Utilisateurs filtrés par la recherche textuelle. */
@@ -681,8 +694,8 @@ export default function GroupesPage() {
                 {activeTab === "permissions" && (
                   <div>
                     <p className="text-sm text-gray-600 mb-3">
-                      Attribuez les permissions Django du groupe (toutes les permissions
-                      disponibles sont listées ci-dessous).
+                      Permissions des modules cochés (Aide Vidéo, Paramétrage, etc.).
+                      Cochez d’abord les modules, puis les droits correspondants.
                     </p>
                     <div className="flex items-center gap-2 mb-3">
                           <input
@@ -700,7 +713,9 @@ export default function GroupesPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-1 max-h-[50vh] overflow-y-auto border rounded-lg p-3">
                           {filteredPerms.length === 0 ? (
                             <p className="col-span-2 text-sm text-gray-500 text-center py-6">
-                              Aucune permission trouvée.
+                              {form.modules.length === 0
+                                ? "Cochez au moins un module pour afficher ses permissions."
+                                : "Aucune permission trouvée."}
                             </p>
                           ) : (
                             filteredPerms.map((p) => (

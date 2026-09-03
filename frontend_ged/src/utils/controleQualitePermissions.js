@@ -111,7 +111,7 @@ export function canRedirectToControleQualiteAfterImport(localiteId) {
   return canAccessLocalite(localiteId);
 }
 
-/** URL de redirection après rattachement, ou null pour revenir au plan géographique. */
+/** URL de redirection après rattachement, ou null pour revenir au plan de classement. */
 export function getControleQualiteRedirectAfterImport(localiteId, documentResult) {
   if (!canRedirectToControleQualiteAfterImport(localiteId)) return null;
   const docId = documentResult?.id;

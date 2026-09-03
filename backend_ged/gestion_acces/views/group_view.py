@@ -55,7 +55,7 @@ def modules_list_view(request):
 @permission_classes([IsAuthenticated])
 def localites_dernier_niveau_view(request):
   """
-  Liste les localités du dernier niveau (feuilles du plan géographique).
+  Liste les localités du dernier niveau (feuilles du plan de classement).
   Paramètres :
     ?q= recherche
     ?filtrer_acces=1 localités assignées à l'utilisateur

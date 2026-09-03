@@ -41,11 +41,14 @@ COPY . .
 
 # Corrige les fins de ligne Windows (CRLF) qui provoquent :
 # "exec /app/scripts/docker-entrypoint.sh: no such file or directory"
-RUN sed -i 's/\r$//' /app/scripts/docker-entrypoint.sh \
-    && chmod +x /app/scripts/docker-entrypoint.sh \
-    && mkdir -p /app/media
+RUN sed -i 's/\r$//' /app/scripts/docker-entrypoint.sh /app/scripts/start-gunicorn.sh \
+    && chmod +x /app/scripts/docker-entrypoint.sh /app/scripts/start-gunicorn.sh \
+    && mkdir -p /app/media /app/logs
+
+# Note : USER non-root volontairement omis sous Docker Desktop Windows
+# (volumes media/logs montés). Sur Linux VPS : ajouter user appuser + chown.
 
 EXPOSE 9000
 
 ENTRYPOINT ["/app/scripts/docker-entrypoint.sh"]
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:9000", "--workers", "1", "--threads", "2", "--timeout", "300"]
+CMD ["/app/scripts/start-gunicorn.sh"]

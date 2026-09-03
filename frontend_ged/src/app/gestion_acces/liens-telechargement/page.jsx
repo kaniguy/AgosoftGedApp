@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   deleteLienTelechargement,
   getLiensTelechargement,
@@ -9,138 +9,96 @@ import {
 import { formatDisplayDateTime } from "../../../utils/dateFormat";
 import { hasPermission, PERMISSIONS, useCrudPermissions, MODELS } from "../../../utils/permissions";
 
+const ITEMS_PER_PAGE = 10;
+
+const STATUS_ORDER = [
+  "Actif",
+  "Partiellement indisponible",
+  "Expiré",
+  "Désactivé",
+  "Utilisé (usage unique)",
+  "Documents indisponibles",
+];
+
 const STATUS_STYLES = {
-  Actif: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  Expiré: "bg-amber-50 text-amber-800 border-amber-200",
-  Désactivé: "bg-slate-100 text-slate-600 border-slate-200",
-  "Documents indisponibles": "bg-red-50 text-red-700 border-red-200",
-  "Partiellement indisponible": "bg-orange-50 text-orange-800 border-orange-200",
+  Actif: "bg-green-100 text-green-700",
+  Expiré: "bg-amber-100 text-amber-800",
+  Désactivé: "bg-gray-100 text-gray-600",
+  "Utilisé (usage unique)": "bg-slate-100 text-slate-700",
+  "Documents indisponibles": "bg-red-100 text-red-700",
+  "Partiellement indisponible": "bg-orange-100 text-orange-800",
 };
 
-const FORMAT_STYLES = {
-  PDF: "bg-rose-50 text-rose-700 border-rose-200",
-  JPEG: "bg-sky-50 text-sky-700 border-sky-200",
-  PNG: "bg-indigo-50 text-indigo-700 border-indigo-200",
-  WEBP: "bg-violet-50 text-violet-700 border-violet-200",
-  GIF: "bg-pink-50 text-pink-700 border-pink-200",
-};
+function statusRank(label) {
+  const idx = STATUS_ORDER.indexOf(label);
+  return idx === -1 ? STATUS_ORDER.length : idx;
+}
 
 function StatusBadge({ link }) {
-  const tone = STATUS_STYLES[link.status_label] || "bg-slate-100 text-slate-600 border-slate-200";
-
+  const tone = STATUS_STYLES[link.status_label] || "bg-gray-100 text-gray-600";
   return (
-    <span className={`inline-flex px-2 py-0.5 rounded-md text-[11px] font-semibold border ${tone}`}>
+    <span className={`inline-flex px-2 py-1 rounded text-xs font-medium ${tone}`}>
       {link.status_label}
     </span>
   );
 }
 
-function DocumentLine({ doc }) {
-  if (doc.missing) {
-    return (
-      <li className="text-[11px] text-red-600 italic">
-        Document #{doc.id} — supprimé ou introuvable
-      </li>
-    );
-  }
-
-  const typeLabel = doc.type_document_code
-    ? `${doc.type_document_libelle} (${doc.type_document_code})`
-    : doc.type_document_libelle || "Type inconnu";
-  const localite = doc.localite_code
-    ? `${doc.localite_libelle} (${doc.localite_code})`
-    : doc.localite_libelle || "—";
-  const formatStyle = FORMAT_STYLES[doc.format] || "bg-slate-50 text-slate-600 border-slate-200";
-
-  return (
-    <li className="rounded-lg border border-slate-100 bg-slate-50/80 px-2.5 py-2 space-y-1">
-      <div className="flex flex-wrap items-center gap-1.5">
-        <span className="text-xs font-semibold text-slate-800">{typeLabel}</span>
-        {doc.format && doc.format !== "—" && (
-          <span className={`inline-flex px-1.5 py-0.5 rounded text-[10px] font-bold border ${formatStyle}`}>
-            {doc.format}
-          </span>
-        )}
-        {!doc.is_available && (
-          <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-orange-50 text-orange-700 border border-orange-200">
-            Fichier absent
-          </span>
-        )}
-      </div>
-      <p className="text-[11px] text-slate-500">
-        <span className="font-medium text-slate-600">Site :</span> {localite}
-      </p>
-      {doc.fichier_nom && (
-        <p className="text-[11px] text-slate-500 truncate max-w-[18rem]" title={doc.fichier_nom}>
-          <span className="font-medium text-slate-600">Fichier :</span> {doc.fichier_nom}
-        </p>
-      )}
-      {doc.date_creation && (
-        <p className="text-[10px] text-slate-400">
-          Enregistré le {formatDisplayDateTime(doc.date_creation)}
-        </p>
-      )}
-    </li>
-  );
+function documentSearchText(link) {
+  const docs = link.documents || [];
+  return docs
+    .map((doc) =>
+      [doc.type_document_libelle, doc.type_document_code, doc.fichier_nom, doc.localite_libelle]
+        .filter(Boolean)
+        .join(" ")
+    )
+    .join(" ");
 }
 
-function DocumentsCell({ link }) {
-  const [expanded, setExpanded] = useState(false);
-  const available = link.documents_available_count ?? link.document_count;
+function DocumentsSummary({ link, onOpen }) {
+  const available = link.documents_available_count ?? link.document_count ?? 0;
   const total = link.document_count ?? 0;
   const missing = link.documents_missing_count ?? 0;
-  const documents = link.documents || [];
-  const visibleLimit = 2;
-  const hasMore = documents.length > visibleLimit;
-  const visibleDocs = expanded ? documents : documents.slice(0, visibleLimit);
+  const firstName =
+    (link.documents || []).find((d) => d.fichier_nom)?.fichier_nom ||
+    (link.documents || []).find((d) => d.type_document_libelle)?.type_document_libelle ||
+    "";
 
   return (
-    <div className="min-w-[14rem] max-w-[22rem]">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="font-medium text-slate-800 tabular-nums">
-          {available}/{total} disponible{total > 1 ? "s" : ""}
-        </span>
-        {missing > 0 && (
-          <span
-            className="text-[10px] font-medium text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded"
-            title="Document supprimé ou fichier absent"
-          >
-            {missing} indisponible{missing > 1 ? "s" : ""}
-          </span>
-        )}
+    <button
+      type="button"
+      onClick={() => onOpen(link)}
+      className="text-left hover:text-purple-700"
+      title="Voir le détail des documents"
+    >
+      <div className="font-medium text-gray-800 tabular-nums">
+        {available}/{total} disponible{total > 1 ? "s" : ""}
       </div>
-
-      {documents.length > 0 ? (
-        <>
-          <ul className="space-y-1.5">
-            {visibleDocs.map((doc) => (
-              <DocumentLine key={doc.id} doc={doc} />
-            ))}
-          </ul>
-          {hasMore && (
-            <button
-              type="button"
-              onClick={() => setExpanded((v) => !v)}
-              className="mt-1.5 text-[11px] font-medium text-purple-700 hover:text-purple-900"
-            >
-              {expanded ? "Réduire" : `Voir les ${documents.length - visibleLimit} autre(s)`}
-            </button>
-          )}
-        </>
-      ) : (
-        <p className="text-[11px] text-slate-400 italic">Aucun détail document</p>
+      {firstName && (
+        <div className="text-xs text-gray-500 truncate max-w-[16rem]" title={firstName}>
+          {firstName}
+          {total > 1 ? ` (+${total - 1})` : ""}
+        </div>
       )}
-    </div>
+      {missing > 0 && (
+        <div className="text-[11px] text-orange-700">
+          {missing} indisponible{missing > 1 ? "s" : ""}
+        </div>
+      )}
+    </button>
   );
 }
 
 export default function LiensTelechargementPage() {
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [notification, setNotification] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [copiedId, setCopiedId] = useState(null);
+  const [detailLink, setDetailLink] = useState(null);
 
   const canManage = hasPermission(PERMISSIONS.VIEW_LIEN_TELECHARGEMENT);
   const { canChange, canDelete } = useCrudPermissions(MODELS.LIEN_TELECHARGEMENT);
@@ -170,6 +128,89 @@ export default function LiensTelechargementPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  const statusCounts = useMemo(() => {
+    const counts = {};
+    links.forEach((link) => {
+      const label = link.status_label || "Inconnu";
+      counts[label] = (counts[label] || 0) + 1;
+    });
+    return counts;
+  }, [links]);
+
+  const statusOptions = useMemo(() => {
+    const extra = Object.keys(statusCounts).filter((label) => !STATUS_ORDER.includes(label));
+    return [...STATUS_ORDER, ...extra.sort((a, b) => a.localeCompare(b, "fr"))].filter(
+      (label) => statusCounts[label]
+    );
+  }, [statusCounts]);
+
+  const filtered = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const next = links.filter((link) => {
+      if (statusFilter && link.status_label !== statusFilter) return false;
+      if (!q) return true;
+      const haystack = [
+        link.created_by_label,
+        link.created_by_username,
+        link.status_label,
+        link.download_url,
+        documentSearchText(link),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(q);
+    });
+    next.sort((a, b) => {
+      const rankDiff = statusRank(a.status_label) - statusRank(b.status_label);
+      if (rankDiff !== 0) return rankDiff;
+      return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+    });
+    return next;
+  }, [links, searchQuery, statusFilter]);
+
+  const totalCount = filtered.length;
+  const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
+  const safePage = Math.min(currentPage, totalPages);
+
+  const pageItems = useMemo(() => {
+    const start = (safePage - 1) * ITEMS_PER_PAGE;
+    return filtered.slice(start, start + ITEMS_PER_PAGE);
+  }, [filtered, safePage]);
+
+  const pageRows = useMemo(() => {
+    const rows = [];
+    let lastStatus = null;
+    pageItems.forEach((link, index) => {
+      const showGroup = !statusFilter && link.status_label !== lastStatus;
+      if (showGroup) {
+        rows.push({ type: "group", status: link.status_label, key: `group-${link.status_label}-${index}` });
+        lastStatus = link.status_label;
+      }
+      rows.push({ type: "link", link, index, key: `link-${link.id}` });
+    });
+    return rows;
+  }, [pageItems, statusFilter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const startIndex = totalCount === 0 ? 0 : (safePage - 1) * ITEMS_PER_PAGE + 1;
+  const endIndex = Math.min(safePage * ITEMS_PER_PAGE, totalCount);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    let start = Math.max(1, safePage - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start + 1 < maxVisible) {
+      start = Math.max(1, end - maxVisible + 1);
+    }
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  };
 
   const handleToggle = async (link) => {
     if (link.is_expired) {
@@ -219,117 +260,296 @@ export default function LiensTelechargementPage() {
 
   if (!canManage) {
     return (
-      <div className="p-8 text-center text-slate-500">
+      <div className="text-center py-12 text-gray-500">
         Vous n&apos;avez pas la permission de consulter les liens de téléchargement.
       </div>
     );
   }
 
   return (
-    <div className="p-6 max-w-[90rem] mx-auto">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">Liens de téléchargement</h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Liens temporaires générés depuis la recherche avancée — activation, désactivation et suivi.
-        </p>
-      </div>
-
+    <div>
       {notification && (
         <div
-          className={`mb-4 px-4 py-3 rounded-xl text-sm ${
-            notification.type === "error"
-              ? "bg-red-50 text-red-700 border border-red-200"
-              : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+          className={`fixed top-20 right-5 z-50 px-4 py-3 rounded-lg text-white shadow-lg ${
+            notification.type === "error" ? "bg-red-500" : "bg-green-500"
           }`}
         >
           {notification.message}
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="p-12 text-center text-slate-400">Chargement…</div>
-        ) : links.length === 0 ? (
-          <div className="p-12 text-center text-slate-400">Aucun lien généré pour le moment.</div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-max text-sm">
-              <thead className="bg-gradient-to-r from-purple-600 to-violet-600 text-white">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase">Généré le</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase">Utilisateur</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase min-w-[16rem]">
-                    Documents
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase">Validité</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase">Expire le</th>
-                  <th className="px-4 py-3 text-left text-xs font-bold uppercase">Statut</th>
-                  <th className="px-4 py-3 text-right text-xs font-bold uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {links.map((link) => (
-                  <tr key={link.id} className="hover:bg-slate-50/80 align-top">
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
-                      {formatDisplayDateTime(link.created_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-slate-800">{link.created_by_label}</div>
-                      <div className="text-xs text-slate-400">{link.created_by_username}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <DocumentsCell link={link} />
-                    </td>
-                    <td className="px-4 py-3 text-slate-600 whitespace-nowrap">{link.validity_hours} h</td>
-                    <td className="px-4 py-3 whitespace-nowrap text-slate-600">
-                      {formatDisplayDateTime(link.expires_at)}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge link={link} />
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap items-center justify-end gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(link)}
-                          className="text-xs font-medium px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50"
-                          title={link.download_url}
-                        >
-                          {copiedId === link.id ? "Copié !" : "Copier"}
-                        </button>
-                        {canChange && (
-                          <button
-                            type="button"
-                            disabled={togglingId === link.id || link.is_expired}
-                            onClick={() => handleToggle(link)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-purple-200 text-purple-800 hover:bg-purple-50 disabled:opacity-40"
-                          >
-                            {togglingId === link.id
-                              ? "…"
-                              : link.is_active
-                                ? "Désactiver"
-                                : "Réactiver"}
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            type="button"
-                            disabled={deletingId === link.id}
-                            onClick={() => handleDelete(link)}
-                            className="text-xs font-medium px-3 py-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 disabled:opacity-40"
-                          >
-                            {deletingId === link.id ? "…" : "Supprimer"}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Liens de téléchargement</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Liens temporaires générés depuis la recherche avancée
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="flex justify-between items-center mb-4 gap-4 flex-wrap">
+          <h2 className="font-semibold text-gray-800">
+            {totalCount === 0
+              ? "Liste (0)"
+              : `Affichage ${startIndex} à ${endIndex} sur ${totalCount}`}
+          </h2>
+          <div className="flex items-center gap-2 flex-wrap">
+            <input
+              type="text"
+              placeholder="Rechercher..."
+              value={searchQuery}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg w-64 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none"
+            />
+          </div>
+        </div>
+
+        {links.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              type="button"
+              onClick={() => {
+                setStatusFilter("");
+                setCurrentPage(1);
+              }}
+              className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                statusFilter === ""
+                  ? "bg-purple-600 text-white border-purple-600"
+                  : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              Tous ({links.length})
+            </button>
+            {statusOptions.map((label) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => {
+                  setStatusFilter(label);
+                  setCurrentPage(1);
+                }}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                  statusFilter === label
+                    ? `${STATUS_STYLES[label] || "bg-gray-100 text-gray-700"} border-current`
+                    : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {label} ({statusCounts[label]})
+              </button>
+            ))}
           </div>
         )}
+
+        {loading ? (
+          <div className="text-center py-12 text-gray-500">Chargement des liens…</div>
+        ) : totalCount === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            {searchQuery || statusFilter
+              ? "Aucun lien ne correspond aux filtres."
+              : "Aucun lien généré pour le moment."}
+          </div>
+        ) : (
+          <>
+            <div className="overflow-auto max-h-[500px] border border-gray-300 rounded-lg">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-gray-800 text-white sticky top-0 z-10">
+                  <tr>
+                    <th className="border border-gray-700 px-4 py-3 text-left w-[60px]">N°</th>
+                    <th className="border border-gray-700 px-4 py-3 text-left">Généré le</th>
+                    <th className="border border-gray-700 px-4 py-3 text-left">Utilisateur</th>
+                    <th className="border border-gray-700 px-4 py-3 text-left">Documents</th>
+                    <th className="border border-gray-700 px-4 py-3 text-left">Validité</th>
+                    <th className="border border-gray-700 px-4 py-3 text-left">Expire le</th>
+                    <th className="border border-gray-700 px-4 py-3 text-center">Statut</th>
+                    <th className="border border-gray-700 px-4 py-3 text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white">
+                  {pageRows.map((row) =>
+                    row.type === "group" ? (
+                      <tr key={row.key} className="bg-gray-50">
+                        <td
+                          colSpan={8}
+                          className="border border-gray-300 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-gray-600"
+                        >
+                          {row.status}
+                          {statusCounts[row.status] ? ` (${statusCounts[row.status]})` : ""}
+                        </td>
+                      </tr>
+                    ) : (
+                    <tr key={row.key} className="hover:bg-gray-50">
+                      <td className="border border-gray-300 px-4 py-3 text-gray-700">
+                        {startIndex + row.index}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-gray-700 whitespace-nowrap">
+                        {formatDisplayDateTime(row.link.created_at)}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3">
+                        <div className="font-medium text-gray-800">{row.link.created_by_label}</div>
+                        <div className="text-xs text-gray-500">{row.link.created_by_username}</div>
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3">
+                        <DocumentsSummary link={row.link} onOpen={setDetailLink} />
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-gray-700 whitespace-nowrap">
+                        {row.link.validity_hours} h
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-gray-700 whitespace-nowrap">
+                        {formatDisplayDateTime(row.link.expires_at)}
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3 text-center">
+                        <StatusBadge link={row.link} />
+                      </td>
+                      <td className="border border-gray-300 px-4 py-3">
+                        <div className="flex flex-wrap items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(row.link)}
+                            className="px-3 py-1 bg-gray-700 hover:bg-gray-800 text-white text-xs rounded"
+                            title={row.link.download_url}
+                          >
+                            {copiedId === row.link.id ? "Copié !" : "Copier"}
+                          </button>
+                          {canChange && (
+                            <button
+                              type="button"
+                              disabled={togglingId === row.link.id || row.link.is_expired}
+                              onClick={() => handleToggle(row.link)}
+                              className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded disabled:opacity-40"
+                            >
+                              {togglingId === row.link.id
+                                ? "…"
+                                : row.link.is_active
+                                  ? "Désactiver"
+                                  : "Réactiver"}
+                            </button>
+                          )}
+                          {canDelete && (
+                            <button
+                              type="button"
+                              disabled={deletingId === row.link.id}
+                              onClick={() => handleDelete(row.link)}
+                              className="px-3 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded disabled:opacity-40"
+                            >
+                              {deletingId === row.link.id ? "…" : "Supprimer"}
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                    )
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {totalPages > 1 && (
+              <nav className="mt-4">
+                <ul className="flex justify-center gap-2">
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                      disabled={safePage === 1}
+                      className={`px-3 py-1 border rounded-lg transition ${
+                        safePage === 1
+                          ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Précédent
+                    </button>
+                  </li>
+                  {getPageNumbers().map((num) => (
+                    <li key={num}>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentPage(num)}
+                        className={`px-3 py-1 border rounded-lg transition ${
+                          safePage === num
+                            ? "bg-purple-600 text-white border-purple-600"
+                            : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                        }`}
+                      >
+                        {num}
+                      </button>
+                    </li>
+                  ))}
+                  <li>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={safePage === totalPages}
+                      className={`px-3 py-1 border rounded-lg transition ${
+                        safePage === totalPages
+                          ? "border-gray-300 text-gray-400 cursor-not-allowed"
+                          : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                      }`}
+                    >
+                      Suivant
+                    </button>
+                  </li>
+                </ul>
+              </nav>
+            )}
+          </>
+        )}
       </div>
+
+      {detailLink && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-hidden">
+            <div className="bg-purple-600 text-white px-6 py-3 flex justify-between items-center">
+              <h3 className="font-semibold">Documents du lien</h3>
+              <button type="button" onClick={() => setDetailLink(null)} className="text-xl leading-none">
+                ×
+              </button>
+            </div>
+            <div className="p-4 overflow-y-auto max-h-[70vh] space-y-2">
+              {(detailLink.documents || []).length === 0 ? (
+                <p className="text-sm text-gray-500 italic">Aucun détail document</p>
+              ) : (
+                (detailLink.documents || []).map((doc) => (
+                  <div key={doc.id} className="border border-gray-200 rounded-lg p-3 text-sm">
+                    {doc.missing ? (
+                      <p className="text-red-600 italic">Document #{doc.id} — supprimé ou introuvable</p>
+                    ) : (
+                      <>
+                        <div className="font-medium text-gray-800">
+                          {doc.type_document_code
+                            ? `${doc.type_document_libelle} (${doc.type_document_code})`
+                            : doc.type_document_libelle || "Type inconnu"}
+                          {doc.format && doc.format !== "—" ? (
+                            <span className="ml-2 text-xs font-semibold text-purple-700">{doc.format}</span>
+                          ) : null}
+                          {!doc.is_available && (
+                            <span className="ml-2 text-xs text-orange-700">Fichier absent</span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">
+                          Site :{" "}
+                          {doc.localite_code
+                            ? `${doc.localite_libelle} (${doc.localite_code})`
+                            : doc.localite_libelle || "—"}
+                        </p>
+                        {doc.fichier_nom && (
+                          <p className="text-xs text-gray-500 truncate" title={doc.fichier_nom}>
+                            Fichier : {doc.fichier_nom}
+                          </p>
+                        )}
+                      </>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

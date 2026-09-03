@@ -44,7 +44,7 @@ export default function AnalytiqueDocumentsPage() {
     try {
       const statuts = data.kpis?.par_statut ?? data.documents_par_statut ?? [];
       let geoItems = [];
-      let geoSubtitle = "Vue racine du plan géographique";
+      let geoSubtitle = "Vue racine du plan de classement";
       try {
         const geo = await getAnalyticsDocumentsGeo(filters, "");
         geoSubtitle = `Niveau : ${geo?.niveau_label || "Racine"}`;
@@ -99,7 +99,7 @@ export default function AnalytiqueDocumentsPage() {
           {
             type: "chart",
             chart: "hbars",
-            title: "Plan géographique",
+            title: "Plan de classement",
             subtitle: geoSubtitle,
             items: geoItems,
           },
@@ -207,7 +207,7 @@ export default function AnalytiqueDocumentsPage() {
 
       <PageHeader
         title="Analytique — Documents"
-        subtitle="Répartition par statut qualité et exploration du plan géographique"
+        subtitle="Répartition par statut qualité et exploration du plan de classement"
         lastRefresh={lastRefresh}
         loading={refreshing || downloading}
         onRefresh={load}
@@ -259,8 +259,8 @@ export default function AnalytiqueDocumentsPage() {
             </div>
 
             <SectionCard
-              title="Plan géographique"
-              subtitle="Naviguez niveau par niveau dans la structure géographique"
+              title="Plan de classement"
+              subtitle="Naviguez niveau par niveau dans l'arborescence pour explorer les documents"
             >
               <DocumentsGeoExplorer />
             </SectionCard>

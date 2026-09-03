@@ -1,4 +1,4 @@
-// Page consultation du plan géographique (lecture seule, sans ajout / modification / suppression)
+// Page consultation du plan de classement (lecture seule, sans ajout / modification / suppression)
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -60,16 +60,23 @@ export default function PlanGeographiqueConsultationPage() {
     try {
       setLoading(true);
       setError(null);
-      const [plansRes, compteurRes, strucs] = await Promise.all([
-        getPlansGeographiques(0, PLAN_GEO_PAGE_SIZE, FILTER_ACCESS),
-        getPlanGeographiqueCompteur(FILTER_ACCESS),
-        getStructuresGeographiques(),
-      ]);
+      const plansRes = await getPlansGeographiques(0, PLAN_GEO_PAGE_SIZE, FILTER_ACCESS);
       setData(Array.isArray(plansRes?.results) ? plansRes.results : []);
       setRootsHasMore(Boolean(plansRes?.has_more));
-      setRootsTotal(compteurRes?.total_racines ?? plansRes?.total ?? 0);
-      setPlanTotal(compteurRes?.total ?? plansRes?.total ?? 0);
-      setStructures(Array.isArray(strucs) ? strucs.sort((a, b) => a.ordre - b.ordre) : []);
+      setRootsTotal(plansRes?.total ?? 0);
+      setPlanTotal(plansRes?.total ?? 0);
+      setLoading(false);
+      getStructuresGeographiques()
+        .then((strucs) => {
+          setStructures(Array.isArray(strucs) ? strucs.sort((a, b) => a.ordre - b.ordre) : []);
+        })
+        .catch(() => {});
+      getPlanGeographiqueCompteur(FILTER_ACCESS)
+        .then((compteurRes) => {
+          setRootsTotal(compteurRes?.total_racines ?? plansRes?.total ?? 0);
+          setPlanTotal(compteurRes?.total ?? plansRes?.total ?? 0);
+        })
+        .catch(() => {});
     } catch (err) {
       setError(err.message || "Erreur lors du chargement");
       showNotification(err.message || "Erreur lors du chargement", "error");
@@ -94,7 +101,7 @@ export default function PlanGeographiqueConsultationPage() {
     if (!pathIds.length) {
       const found = await getPlanRechercheById(targetId, FILTER_ACCESS);
       if (!found?.chemin?.length) {
-        throw new Error("Localité introuvable dans le plan géographique");
+        throw new Error("Localité introuvable dans le plan de classement");
       }
       pathIds = found.chemin.map((item) => Number(item.id));
     }
@@ -250,7 +257,7 @@ export default function PlanGeographiqueConsultationPage() {
         await applySavedTreeState(saved);
         router.replace(PLAN_GEO_PATH, { scroll: false });
       } catch (err) {
-        showNotification(err.message || "Impossible de restaurer le plan géographique", "error");
+        showNotification(err.message || "Impossible de restaurer le plan de classement", "error");
         router.replace(PLAN_GEO_PATH, { scroll: false });
       }
     })();
@@ -306,7 +313,7 @@ export default function PlanGeographiqueConsultationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
           <div
@@ -326,7 +333,7 @@ export default function PlanGeographiqueConsultationPage() {
       <div className="p-2">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Plan géographique</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Plan de classement</h1>
             <nav className="mt-2">
               <ol className="flex items-center gap-2 text-sm text-gray-500">
                 <li>
@@ -337,7 +344,7 @@ export default function PlanGeographiqueConsultationPage() {
                 <li><span>/</span></li>
                 <li className="text-gray-400">Gestion Documentaire</li>
                 <li><span>/</span></li>
-                <li className="text-gray-700 font-medium">Plan géographique</li>
+                <li className="text-gray-700 font-medium">Plan de classement</li>
               </ol>
             </nav>
             <p className="mt-2 text-sm text-gray-500">
@@ -385,7 +392,7 @@ export default function PlanGeographiqueConsultationPage() {
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
           <div className="p-6 border-b border-gray-100">
-            <h5 className="text-lg font-semibold text-gray-800">Plan Géographique</h5>
+            <h5 className="text-lg font-semibold text-gray-800">Plan de Classement</h5>
           </div>
 
           <div className="p-6">

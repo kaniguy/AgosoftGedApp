@@ -16,6 +16,8 @@ export const MODELS = {
   JOURNAL_ACTIVITE: "journal_activite",
   CONFIGURATION_EMAIL: "configuration_email",
   REGLE_NOTIFICATION: "regle_notification",
+  GUIDE_AIDE: "guide_aide",
+  SAUVEGARDE_BASE: "sauvegarde_base",
 };
 
 /** Permissions Django par modèle (view / add / change / delete). */
@@ -92,6 +94,18 @@ export const MODEL_PERMISSIONS = {
     change: "gestion_acces.change_reglenotification",
     delete: "gestion_acces.delete_reglenotification",
   },
+  [MODELS.GUIDE_AIDE]: {
+    view: "gestion_acces.view_guideaide",
+    add: "gestion_acces.add_guideaide",
+    change: "gestion_acces.change_guideaide",
+    delete: "gestion_acces.delete_guideaide",
+  },
+  [MODELS.SAUVEGARDE_BASE]: {
+    view: "gestion_acces.view_sauvegardebase",
+    add: "gestion_acces.exporter_sauvegardebase",
+    change: "gestion_acces.restaurer_sauvegardebase",
+    delete: "gestion_acces.reinitialiser_sauvegardebase",
+  },
 };
 
 /** Alias pour les menus (rétrocompatibilité). */
@@ -115,6 +129,14 @@ export const PERMISSIONS = {
   VIEW_REGLE_NOTIFICATION: "gestion_acces.view_reglenotification",
   CHANGE_REGLE_NOTIFICATION: "gestion_acces.change_reglenotification",
   VIEW_NOTIFICATION_EMAIL_LOG: "gestion_acces.view_notificationemaillog",
+  VIEW_GUIDE_AIDE: "gestion_acces.view_guideaide",
+  ADD_GUIDE_AIDE: "gestion_acces.add_guideaide",
+  CHANGE_GUIDE_AIDE: "gestion_acces.change_guideaide",
+  DELETE_GUIDE_AIDE: "gestion_acces.delete_guideaide",
+  VIEW_SAUVEGARDE_BASE: "gestion_acces.view_sauvegardebase",
+  EXPORTER_SAUVEGARDE_BASE: "gestion_acces.exporter_sauvegardebase",
+  RESTAURER_SAUVEGARDE_BASE: "gestion_acces.restaurer_sauvegardebase",
+  REINITIALISER_SAUVEGARDE_BASE: "gestion_acces.reinitialiser_sauvegardebase",
   QC_SOUMETTRE: "gestion_documentaire.qc_soumettre",
   QC_VALIDER: "gestion_documentaire.qc_valider",
   QC_REJETER: "gestion_documentaire.qc_rejeter",
@@ -160,6 +182,27 @@ export function hasPermission(codename) {
 export function hasAnyPermission(codenames = []) {
   if (!codenames.length) return true;
   return codenames.some((c) => hasPermission(c));
+}
+
+export function canManageGuideAide() {
+  return hasAnyPermission([
+    PERMISSIONS.ADD_GUIDE_AIDE,
+    PERMISSIONS.CHANGE_GUIDE_AIDE,
+    PERMISSIONS.DELETE_GUIDE_AIDE,
+  ]);
+}
+
+export function canAccessSauvegardeBase() {
+  return hasAnyPermission([
+    PERMISSIONS.VIEW_SAUVEGARDE_BASE,
+    PERMISSIONS.EXPORTER_SAUVEGARDE_BASE,
+    PERMISSIONS.RESTAURER_SAUVEGARDE_BASE,
+    PERMISSIONS.REINITIALISER_SAUVEGARDE_BASE,
+  ]);
+}
+
+export function canAccessGuideAideAdmin() {
+  return hasPermission(PERMISSIONS.VIEW_GUIDE_AIDE) || canManageGuideAide();
 }
 
 /** Droits CRUD pour un modèle donné. */

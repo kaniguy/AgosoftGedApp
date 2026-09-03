@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
+
+
+def file_logs_enabled() -> bool:
+    return str(os.environ.get("GED_FILE_LOGS", "")).strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
 _lock = threading.Lock()
 
 
 def prepend_to_file(path: Path | str, message: str) -> None:
+    if not file_logs_enabled():
+        return
     target = Path(path)
     line = message if message.endswith("\n") else f"{message}\n"
     with _lock:

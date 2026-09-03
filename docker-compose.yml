@@ -17,12 +17,22 @@ services:
       DB_DRIVER: "ODBC Driver 18 for SQL Server"
       DB_TRUSTED_CONNECTION: "no"
       DB_TRUST_SERVER_CERTIFICATE: "yes"
-      ALLOWED_HOSTS: "127.0.0.1,localhost,192.168.1.24,backend,agosoftged-backend,*"
+      TOKEN_TTL_HOURS: "12"
+      GUNICORN_WORKERS: "auto"
+      GUNICORN_THREADS: "auto"
+      GUNICORN_TIMEOUT: "180"
+      OCR_MAX_PARALLEL: "auto"
+      OCR_WORKER_THREADS: "auto"
     extra_hosts:
       - "host.docker.internal:host-gateway"
-    ports:
-      - "9000:9000"
+    # 9000 interne, pas publié
+    expose:
+      - "9000"
     volumes:
+      - ./backend_ged/parametrage:/app/parametrage
+      - ./backend_ged/gestion_acces:/app/gestion_acces
+      - ./backend_ged/gestion_documentaire:/app/gestion_documentaire
+      - ./backend_ged/config:/app/config
       - ./backend_ged/media:/app/media
       - ./backend_ged/logs:/app/logs
     networks:
@@ -33,18 +43,19 @@ services:
       context: ./frontend_ged
       dockerfile: Dockerfile
       args:
-        NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
-        NEXT_PUBLIC_API_PORT: "9000"
+        NEXT_PUBLIC_API_BACKEND_URL: ""
+        NEXT_PUBLIC_API_PORT: ""
     image: kaniguy/agosoftged-frontend:latest
     platform: linux/amd64
     container_name: agosoftged-frontend
     restart: unless-stopped
+    env_file:
+      - ./backend_ged/config/.env
     environment:
       API_BACKEND_INTERNAL_URL: http://backend:9000
-      NEXT_PUBLIC_API_BACKEND_URL: http://127.0.0.1:9000
-      NEXT_PUBLIC_API_PORT: "9000"
-    ports:
-      - "3001:3000"
+      NODE_ENV: production
+    expose:
+      - "3000"
     volumes:
       - ./frontend_ged/logs:/app/logs
     depends_on:
@@ -52,6 +63,27 @@ services:
     networks:
       - ged-net
 
+  caddy:
+    image: caddy:2.8-alpine
+    platform: linux/amd64
+    container_name: agosoftged-caddy
+    restart: unless-stopped
+    ports:
+      # port public: port actuelle 3001
+      - "3001:3001"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - frontend
+    networks:
+      - ged-net
+
 networks:
   ged-net:
     driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

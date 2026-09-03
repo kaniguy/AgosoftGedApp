@@ -7,7 +7,7 @@ export default function GestionAccesLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-slate-100">
+    <div className="min-h-screen bg-transparent">
       <div className="flex pt-16">
         <GestionAccesSidebar
           isOpen={isSidebarOpen}

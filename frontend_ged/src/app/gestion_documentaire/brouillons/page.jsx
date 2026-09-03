@@ -158,14 +158,14 @@ export default function BrouillonsPage() {
                 </div>
                 <p className="text-slate-700 font-medium">Aucun brouillon en cours</p>
                 <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
-                  Les lots importés sur le plan géographique sont enregistrés automatiquement pendant
+                  Les lots importés sur le plan de classement sont enregistrés automatiquement pendant
                   votre saisie.
                 </p>
                 <Link
                   href="/gestion_documentaire/plan_geographique"
                   className="inline-block mt-6 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
                 >
-                  Ouvrir le plan géographique
+                  Ouvrir le plan de classement
                 </Link>
               </div>
             ) : (

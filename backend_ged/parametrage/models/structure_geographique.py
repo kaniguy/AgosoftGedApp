@@ -21,5 +21,5 @@ class StructureGeographique(models.Model):
 
     class Meta:
         ordering = ['ordre']
-        verbose_name = "Structure géographique"
-        verbose_name_plural = "Structures géographiques"
+        verbose_name = "Niveau de classement"
+        verbose_name_plural = "Niveaux de classement"

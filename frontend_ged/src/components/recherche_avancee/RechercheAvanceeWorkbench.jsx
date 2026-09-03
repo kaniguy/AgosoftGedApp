@@ -423,7 +423,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
   useEffect(() => {
     getStructuresGeographiques()
       .then(setStructures)
-      .catch((err) => notify(err.message || "Erreur chargement plan géographique", "error"));
+      .catch((err) => notify(err.message || "Erreur chargement plan de classement", "error"));
   }, [notify]);
 
   useEffect(() => {

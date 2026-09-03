@@ -56,11 +56,13 @@ class ConfigurationEmailSerializer(serializers.ModelSerializer):
         return attrs
 
     def update(self, instance, validated_data):
+        from config.secret_box import encrypt_secret
+
         password = validated_data.pop("email_host_password", None)
         for field, value in validated_data.items():
             setattr(instance, field, value)
-        # Mot de passe : ne pas écraser si champ laissé vide
+        # Mot de passe : ne pas écraser si champ laissé vide ; chiffrer au repos
         if password is not None and str(password).strip() != "":
-            instance.email_host_password = password
+            instance.email_host_password = encrypt_secret(str(password).strip())
         instance.save()
         return instance

@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from django.contrib.auth.models import User, Group, Permission
+from django.contrib.auth.password_validation import validate_password
 
 
 class UserManagementSerializer(serializers.ModelSerializer):
@@ -44,6 +45,12 @@ class UserManagementSerializer(serializers.ModelSerializer):
         if request and not request.user.is_superuser:
             attrs.pop("is_superuser", None)
             attrs.pop("is_staff", None)
+        password = attrs.get("password")
+        if password:
+            user = self.instance or User(
+                **{k: v for k, v in attrs.items() if k not in ("password", "groups", "user_permissions")}
+            )
+            validate_password(password, user=user)
         return attrs
 
     def validate_username(self, value):

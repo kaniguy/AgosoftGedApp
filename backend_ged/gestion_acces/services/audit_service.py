@@ -6,11 +6,16 @@ from gestion_acces.models.journal_activite import JournalActivite
 
 
 def get_client_ip(request):
+    """IP client : X-Forwarded-For uniquement si le proxy est de confiance (USE_X_FORWARDED_HOST)."""
     if not request:
         return None
-    forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
-    if forwarded:
-        return forwarded.split(",")[0].strip() or None
+    from django.conf import settings
+
+    if getattr(settings, "USE_X_FORWARDED_HOST", False):
+        forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
+        if forwarded:
+            # Premier hop = client (ajouté par le proxy Next de confiance)
+            return forwarded.split(",")[0].strip() or None
     return request.META.get("REMOTE_ADDR") or None
 
 
@@ -81,6 +86,7 @@ def mark_request_audited(request):
 CHEMINS_EXCLUS_JOURNAL = (
     re.compile(r"/documents/extract-fields/?$", re.I),
     re.compile(r"/lots-brouillon/sync/?$", re.I),
+    re.compile(r"/sauvegarde/", re.I),
 )
 
 ANNOTATION_DRAW_TYPES = {"highlight", "rect", "text", "pen"}
@@ -472,6 +478,8 @@ def categorie_depuis_chemin(path):
     p = (path or "").lower()
     if "/auth/" in p:
         return JournalActivite.Categorie.AUTHENTIFICATION
+    if "/sauvegarde" in p:
+        return JournalActivite.Categorie.BASE_DONNEES
     if "/configuration-email" in p:
         return JournalActivite.Categorie.CONFIGURATION_EMAIL
     if "/journal-activite" in p:

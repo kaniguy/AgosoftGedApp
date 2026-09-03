@@ -9,7 +9,7 @@ APP_MODULES = [
     {
         "code": "gestion_documentaire",
         "label": "Gestion Documentaire",
-        "description": "Plan géographique et documents",
+        "description": "Plan de classement et documents",
         "app_labels": ["gestion_documentaire"],
         "extra_permission_codenames": [
             "gestion_documentaire.annoter_document",
@@ -38,6 +38,11 @@ APP_MODULES = [
         "label": "Analytique & Rapports",
         "description": "Tableaux de bord et rapports",
         "app_labels": [],
+        "extra_permission_codenames": [
+            "gestion_documentaire.view_documentlocalite",
+            "auth.view_user",
+            "auth.view_group",
+        ],
     },
     {
         "code": "gestion_acces",
@@ -50,6 +55,12 @@ APP_MODULES = [
         "label": "Aide Vidéo",
         "description": "Tutoriels et guides",
         "app_labels": [],
+        "extra_permission_codenames": [
+            "gestion_acces.view_guideaide",
+            "gestion_acces.add_guideaide",
+            "gestion_acces.change_guideaide",
+            "gestion_acces.delete_guideaide",
+        ],
     },
     {
         "code": "a_propos",

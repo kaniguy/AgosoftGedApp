@@ -66,16 +66,21 @@ export default function PlanGeographiquePage() {
         setLoading(true);
       }
       setError(null);
-      const [plansRes, compteurRes, strucs] = await Promise.all([
+      const [plansRes, strucs] = await Promise.all([
         getPlansGeographiques(0),
-        getPlanGeographiqueCompteur(),
         getStructuresGeographiques(),
       ]);
       setData(Array.isArray(plansRes?.results) ? plansRes.results : []);
       setRootsHasMore(Boolean(plansRes?.has_more));
-      setRootsTotal(compteurRes?.total_racines ?? plansRes?.total ?? 0);
-      setPlanTotal(compteurRes?.total ?? plansRes?.total ?? 0);
+      setRootsTotal(plansRes?.total ?? 0);
+      setPlanTotal(plansRes?.total ?? 0);
       setStructures(Array.isArray(strucs) ? strucs.sort((a, b) => a.ordre - b.ordre) : []);
+      getPlanGeographiqueCompteur()
+        .then((compteurRes) => {
+          setRootsTotal(compteurRes?.total_racines ?? plansRes?.total ?? 0);
+          setPlanTotal(compteurRes?.total ?? plansRes?.total ?? 0);
+        })
+        .catch(() => {});
     } catch (err) {
       setError(err.message || "Erreur lors du chargement");
       if (!silent) {
@@ -357,7 +362,7 @@ export default function PlanGeographiquePage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-transparent">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
           <div
@@ -384,18 +389,18 @@ export default function PlanGeographiquePage() {
       <div className="p-8">
         <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-4 mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-800">Plan géographique</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Plan de classement</h1>
             <nav className="mt-2">
               <ol className="flex items-center gap-2 text-sm text-gray-500">
                 <li>
-                  <button onClick={() => router.push("/dashboard")} className="hover:text-blue-600 transition">
+                  <button type="button" onClick={() => router.push("/")} className="hover:text-blue-600 transition">
                     Accueil
                   </button>
                 </li>
                 <li><span>/</span></li>
                 <li className="text-gray-400">Paramétrage</li>
                 <li><span>/</span></li>
-                <li className="text-gray-700 font-medium">Plan géographique</li>
+                <li className="text-gray-700 font-medium">Plan de classement</li>
               </ol>
             </nav>
           </div>
@@ -439,7 +444,7 @@ export default function PlanGeographiquePage() {
 
         {!premierNiveau && !loading && (
           <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-sm">
-            Aucune structure géographique configurée.{" "}
+            Aucun niveau de classement configuré.{" "}
             <button
               onClick={() => router.push("/parametrage/structure_geographique")}
               className="underline font-medium hover:text-amber-900"

@@ -45,7 +45,7 @@ export function buildSearchableFields(
     key: col.key,
     label: col.label,
     typeChamp: "texte",
-    group: "Plan géographique",
+    group: "Plan de classement",
     isGeo: col.isGeo,
   }));
 

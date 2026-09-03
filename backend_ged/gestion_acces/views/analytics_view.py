@@ -148,7 +148,7 @@ def _geo_explorer_payload(request, qs):
         )
         breadcrumb = []
         first = nodes.first()
-        niveau_label = first.niveau.libelle if first else "Plan géographique"
+        niveau_label = first.niveau.libelle if first else "Plan de classement"
         parent_for_back = None
 
     items = []
@@ -323,7 +323,7 @@ def analytics_documents_view(request):
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def analytics_documents_geo_view(request):
-    """Exploration hiérarchique du plan géographique (drill-down)."""
+    """Exploration hiérarchique du plan de classement (drill-down)."""
     qs = _document_queryset(request)
     return Response(_geo_explorer_payload(request, qs))
 
@@ -332,6 +332,8 @@ def analytics_documents_geo_view(request):
 @permission_classes([IsAuthenticated])
 def analytics_administration_view(request):
     """Statistiques d'administration (utilisateurs, accès, workflow QC, partage)."""
+    if not (request.user.is_staff or request.user.is_superuser):
+        return Response({"detail": "Permission refusée."}, status=403)
     now = timezone.now()
     thirty_days_ago = now - timedelta(days=30)
     date_debut, date_fin, periode = _parse_period(request)

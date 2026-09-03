@@ -52,24 +52,13 @@ function detectPreviewKind({ file, previewUrl, previewFileName, blobType }) {
 async function fetchImageAsDataUrl(url) {
   if (!url) return null;
   if (url.startsWith("data:")) return url;
-  const headers = {};
-  if (typeof window !== "undefined") {
-    const token = localStorage.getItem("token");
-    if (token) headers.Authorization = `Token ${token}`;
-  }
   try {
-    const res = await apiFetch(url, { headers });
+    const res = await apiFetch(url);
     if (res.ok) return blobToDataUrl(await res.blob());
   } catch {
-    // retry sans auth
+    // ignore
   }
-  try {
-    const fallback = await fetch(url);
-    if (!fallback.ok) return null;
-    return blobToDataUrl(await fallback.blob());
-  } catch {
-    return null;
-  }
+  return null;
 }
 
 function blobToDataUrl(blob) {

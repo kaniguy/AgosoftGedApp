@@ -27,8 +27,8 @@ class Migration(migrations.Migration):
                 ('updated_by', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='structures_geographiques_modifiees', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'verbose_name': 'Structure géographique',
-                'verbose_name_plural': 'Structures géographiques',
+                'verbose_name': 'Niveau de classement',
+                'verbose_name_plural': 'Niveaux de classement',
                 'ordering': ['code'],
             },
         ),

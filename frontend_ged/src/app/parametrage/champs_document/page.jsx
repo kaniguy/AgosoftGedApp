@@ -364,7 +364,7 @@ export default function ChampsDocumentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
+    <div className="min-h-screen bg-transparent pb-12">
       {/* Notification */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
@@ -393,7 +393,7 @@ export default function ChampsDocumentPage() {
             <nav className="mt-2">
               <ol className="flex items-center gap-2 text-sm text-gray-500">
                 <li>
-                  <button onClick={() => router.push('/dashboard')} className="hover:text-blue-600 transition">
+                  <button type="button" onClick={() => router.push("/")} className="hover:text-blue-600 transition">
                     Accueil
                   </button>
                 </li>

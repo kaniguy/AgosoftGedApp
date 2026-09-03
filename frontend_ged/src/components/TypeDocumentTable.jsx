@@ -12,7 +12,6 @@ export default function TypeDocumentTable() {
 
   async function load() {
     const result = await getTypeDocuments();
-    console.log("API RESULT =", result);
     setData(result);
   }
 
