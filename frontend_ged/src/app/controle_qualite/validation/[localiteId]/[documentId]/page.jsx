@@ -16,6 +16,7 @@ import {
   getDefaultStatutMenu,
 } from "../../../../../utils/controleQualitePermissions";
 import { ControleQualiteStatutGate } from "../../../../../components/controle_qualite/ControleQualiteAccessGate";
+import { STATUT_BROUILLON } from "../../../../../utils/documentStatutQualite";
 
 function ControleQualiteValidationContent() {
   const router = useRouter();
@@ -58,10 +59,11 @@ function ControleQualiteValidationContent() {
         setLocalite(localiteData);
         setDocument(doc);
         const docStatut = doc.statut_qualite || statut;
-        if (
-          !canViewStatutMenu(docStatut) ||
-          !canOpenDocumentQc(docStatut)
-        ) {
+        if (docStatut === STATUT_BROUILLON) {
+          setError(
+            "Ce document est encore en brouillon : il n'a pas été soumis au contrôle qualité. Utilisez « Soumettre au contrôle qualité » lors du rattachement, ou « Envoyer au QC » depuis la liste des brouillons."
+          );
+        } else if (!canViewStatutMenu(docStatut) || !canOpenDocumentQc(docStatut)) {
           setError("Vous n'avez pas les droits pour ouvrir ce document en contrôle qualité.");
         }
       } catch (err) {
@@ -238,6 +240,15 @@ function ControleQualiteValidationContent() {
           >
             Retour à la liste
           </button>
+          {document?.statut_qualite === STATUT_BROUILLON && (
+            <button
+              type="button"
+              onClick={() => router.push("/gestion_documentaire/brouillons")}
+              className="mt-4 ml-2 px-4 py-2 border border-yellow-400 text-yellow-800 bg-white rounded-lg text-sm hover:bg-yellow-50"
+            >
+              Liste des brouillons
+            </button>
+          )}
         </div>
       )}
 

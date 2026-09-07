@@ -14,13 +14,12 @@ import {
   soumettreControleQualite,
 } from "../../../services/documentLocalite.service";
 import {
+  canSoumettreDocumentQualite,
   getModelCrudPermissions,
-  hasPermission,
   MODELS,
-  MODEL_PERMISSIONS,
-  PERMISSIONS,
 } from "../../../utils/permissions";
 import { STATUT_BADGE_CLASS, STATUT_BROUILLON, getStatutLabel } from "../../../utils/documentStatutQualite";
+import { getControleQualiteRedirectAfterImport } from "../../../utils/controleQualitePermissions";
 import EmptyListState from "../../../components/ui/EmptyListState";
 
 const PAGE_SIZE = 15;
@@ -40,9 +39,7 @@ function formatDraftDate(timestamp) {
 export default function BrouillonsPage() {
   const router = useRouter();
   const { canView, canAdd, canChange, canDelete } = getModelCrudPermissions(MODELS.DOCUMENT_LOCALITE);
-  const canSoumettre =
-    hasPermission(PERMISSIONS.QC_SOUMETTRE) ||
-    hasPermission(MODEL_PERMISSIONS[MODELS.DOCUMENT_LOCALITE].add);
+  const canSoumettre = canSoumettreDocumentQualite();
 
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -116,7 +113,12 @@ export default function BrouillonsPage() {
     if (row.kind !== "document") return;
     setBusyId(row.id);
     try {
-      await soumettreControleQualite(row.documentId);
+      const submitted = await soumettreControleQualite(row.documentId);
+      const qcPath = getControleQualiteRedirectAfterImport(row.localiteId, submitted);
+      if (qcPath) {
+        router.push(qcPath);
+        return;
+      }
       await loadDrafts({ silent: true });
     } catch (err) {
       setError(err.message || "Impossible d'envoyer au contrôle qualité.");

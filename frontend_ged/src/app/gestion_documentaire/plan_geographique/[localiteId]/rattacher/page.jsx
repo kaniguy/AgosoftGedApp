@@ -96,20 +96,25 @@ function RattacherDocumentContent() {
     [requestNavigation, router]
   );
 
-  const handleSaved = (result) => {
-    const qcPath = getControleQualiteRedirectAfterImport(localiteId, result);
-    if (qcPath) {
-      router.push(qcPath);
+  const handleSaved = (result, options = {}) => {
+    const submitted = Boolean(options.submitted) || result?.statut_qualite === "en_attente";
+    if (submitted) {
+      const qcPath = getControleQualiteRedirectAfterImport(localiteId, result);
+      if (qcPath) {
+        router.push(qcPath);
+        return;
+      }
+      const params = new URLSearchParams({
+        docSaved: "1",
+        localiteId: String(localiteId),
+      });
+      if (!canRedirectToControleQualiteAfterImport(localiteId)) {
+        params.set("qcAccessDenied", "1");
+      }
+      router.push(`/gestion_documentaire/plan_geographique?${params}`);
       return;
     }
-    const params = new URLSearchParams({
-      docSaved: "1",
-      localiteId: String(localiteId),
-    });
-    if (!canRedirectToControleQualiteAfterImport(localiteId)) {
-      params.set("qcAccessDenied", "1");
-    }
-    router.push(`/gestion_documentaire/plan_geographique?${params}`);
+    router.push("/gestion_documentaire/brouillons");
   };
 
   const handleResumeDetectedDraft = () => {

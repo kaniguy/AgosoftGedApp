@@ -7,6 +7,7 @@ import { getPlanGeographique } from "@/services/planGeographique.service";
 import { getDocumentLocalite } from "@/services/documentLocalite.service";
 import DocumentRattachementPanel from "@/components/gestion_documentaire/documents/DocumentRattachementPanel";
 import { PLAN_GEO_RESTORE_PATH } from "@/components/gestion_documentaire/plan_geographique/planGeoNavigationState";
+import { getControleQualiteRedirectAfterImport } from "@/utils/controleQualitePermissions";
 
 export default function ModifierDocumentPage() {
   const router = useRouter();
@@ -71,6 +72,22 @@ export default function ModifierDocumentPage() {
     }
     router.push(`/gestion_documentaire/plan_geographique/${localiteId}/documents`);
   }, [router, localiteId]);
+
+  const handleSaved = useCallback(
+    (result, options = {}) => {
+      if (options.submitted) {
+        const qcPath = getControleQualiteRedirectAfterImport(localiteId, result);
+        if (qcPath) {
+          router.push(qcPath);
+          return;
+        }
+        router.push("/gestion_documentaire/brouillons");
+        return;
+      }
+      goBack();
+    },
+    [goBack, localiteId, router]
+  );
 
   return (
     <div className="flex flex-col h-[calc(100vh-7.5rem)] -mx-2 min-h-0">
@@ -139,7 +156,7 @@ export default function ModifierDocumentPage() {
             documentToEdit={document}
             fullPage
             onClose={goBack}
-            onSaved={goBack}
+            onSaved={handleSaved}
             onNotify={showNotification}
           />
         </div>

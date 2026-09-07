@@ -205,6 +205,14 @@ export function canAccessSauvegardeBase() {
   return Boolean(getStoredUser()?.is_superuser);
 }
 
+/** Même règle que le backend CanSoumettreDocumentQualite : qc_soumettre ou add_documentlocalite. */
+export function canSoumettreDocumentQualite() {
+  return (
+    hasPermission(PERMISSIONS.QC_SOUMETTRE) ||
+    hasPermission(MODEL_PERMISSIONS[MODELS.DOCUMENT_LOCALITE].add)
+  );
+}
+
 export function canAccessGuideAideAdmin() {
   return hasPermission(PERMISSIONS.VIEW_GUIDE_AIDE) || canManageGuideAide();
 }

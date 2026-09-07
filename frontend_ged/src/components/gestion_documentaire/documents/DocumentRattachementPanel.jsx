@@ -14,6 +14,7 @@ import {
   createDocumentLocalite,
   fetchDocumentFileBlob,
   getDocumentVersions,
+  soumettreControleQualite,
   updateDocumentLocalite,
 } from "../../../services/documentLocalite.service";
 import { extractDocumentFields } from "../../../services/ocr.service";
@@ -63,7 +64,8 @@ import {
   mergeChampsWithZoneOverrides,
   zoneOverridesToPayload,
 } from "@/utils/captureZoneUtils";
-import { hasPermission, PERMISSIONS } from "@/utils/permissions";
+import { canSoumettreDocumentQualite, hasPermission, PERMISSIONS } from "@/utils/permissions";
+import { canSoumettreValidation } from "@/utils/documentStatutQualite";
 
 const ACCEPTED_FILES = ".pdf,.jpg,.jpeg,.png,.webp,.gif,image/*,application/pdf";
 
@@ -1728,10 +1730,40 @@ export default function DocumentRattachementPanel({
     ]
   );
 
-  const handleSubmit = async (e, andNext = false) => {
+  const persistNewDocument = async ({ fileToSend, valeurs, asDraft }) => {
+    const created = await createDocumentLocalite({
+      localiteId: localite.id,
+      typeDocumentId: Number(selectedTypeId),
+      fichier: fileToSend,
+      valeurs,
+    });
+    const docId = created?.id;
+    if (!docId) {
+      throw new Error("Document créé mais identifiant manquant.");
+    }
+    if (asDraft) {
+      return { document: created, submitted: false };
+    }
+    try {
+      const submittedDoc = await soumettreControleQualite(docId);
+      return { document: submittedDoc || created, submitted: true };
+    } catch (err) {
+      onNotify?.(
+        err.message
+          ? `Document enregistré en brouillon, mais la soumission a échoué : ${err.message}`
+          : "Document enregistré en brouillon, mais la soumission au contrôle qualité a échoué.",
+        "warning"
+      );
+      return { document: created, submitted: false };
+    }
+  };
+
+  const handleSubmit = async (e, options = {}) => {
     e?.preventDefault?.();
+    const andNext = options === true || options.andNext === true;
+    let asDraft = options === true || options.asDraft === true;
     if (isBatchMode) {
-      await handleSubmitBatch(e);
+      await handleSubmitBatch(e, { asDraft });
       return;
     }
     if (!selectedTypeId) {
@@ -1765,19 +1797,20 @@ export default function DocumentRattachementPanel({
 
       const filePayload = fullPage ? fichier : importedFile || undefined;
 
-      const created = await createDocumentLocalite({
-        localiteId: localite.id,
-        typeDocumentId: Number(selectedTypeId),
-        fichier: filePayload,
+      const { document: created, submitted } = await persistNewDocument({
+        fileToSend: filePayload,
         valeurs,
+        asDraft,
       });
-      const docId = created?.id;
-      if (!docId) {
-        throw new Error("Document créé mais identifiant manquant.");
-      }
+      asDraft = !submitted;
 
       if (andNext) {
-        onNotify?.("Brouillon enregistré — rattachez le suivant (même type conservé).", "success");
+        onNotify?.(
+          asDraft
+            ? "Brouillon enregistré — rattachez le suivant (même type conservé)."
+            : "Document soumis — rattachez le suivant (même type conservé).",
+          "success"
+        );
         await clearDraft();
         await resetForNextDocument(keepTypeId);
         return;
@@ -1785,9 +1818,12 @@ export default function DocumentRattachementPanel({
 
       await clearDraft();
       if (onSaved) {
-        onSaved(created);
+        onSaved(created, { submitted });
       } else {
-        onNotify?.("Document enregistré en brouillon", "success");
+        onNotify?.(
+          submitted ? "Document soumis au contrôle qualité" : "Document enregistré en brouillon",
+          "success"
+        );
       }
     } catch (err) {
       onNotify?.(err.message || "Erreur lors de l'enregistrement", "error");
@@ -1796,8 +1832,9 @@ export default function DocumentRattachementPanel({
     }
   };
 
-  const handleSubmitBatch = async (e) => {
+  const handleSubmitBatch = async (e, options = {}) => {
     e?.preventDefault?.();
+    const asDraft = options.asDraft === true;
     if (!selectedTypeId || !batchItems?.length) return;
 
     const updated = getPersistedBatchItems();
@@ -1805,7 +1842,7 @@ export default function DocumentRattachementPanel({
     if (!toSubmit.length) {
       onNotify?.("Tous les documents du lot sont déjà soumis.", "info");
       await clearDraft();
-      if (onSaved) onSaved(null);
+      if (onSaved) onSaved(null, { submitted: !asDraft });
       return;
     }
 
@@ -1836,6 +1873,7 @@ export default function DocumentRattachementPanel({
 
     setSubmitting(true);
     let lastResult = null;
+    let lastSubmitted = false;
     let successCount = 0;
     const finalItems = [...updated];
 
@@ -1851,29 +1889,27 @@ export default function DocumentRattachementPanel({
           valeur: String(item.fieldValues[champ.id] ?? ""),
         }));
 
-        const created = await createDocumentLocalite({
-          localiteId: localite.id,
-          typeDocumentId: Number(selectedTypeId),
-          fichier: item.file,
+        const { document: created, submitted } = await persistNewDocument({
+          fileToSend: item.file,
           valeurs,
+          asDraft,
         });
-        const docId = created?.id;
-        if (!docId) {
-          throw new Error(`Document ${index + 1} : identifiant manquant après création.`);
-        }
         lastResult = created;
+        lastSubmitted = submitted;
         finalItems[index] = { ...item, status: "submitted" };
         successCount += 1;
       }
 
       setBatchItems(finalItems);
       onNotify?.(
-        `Lot enregistré — ${successCount} document${successCount > 1 ? "s" : ""} en brouillon.`,
+        lastSubmitted
+          ? `Lot soumis — ${successCount} document${successCount > 1 ? "s" : ""} envoyé${successCount > 1 ? "s" : ""} au contrôle qualité.`
+          : `Lot enregistré — ${successCount} document${successCount > 1 ? "s" : ""} en brouillon.`,
         "success"
       );
       await clearDraft();
       if (onSaved) {
-        onSaved(lastResult);
+        onSaved(lastResult, { submitted: lastSubmitted });
       }
     } catch (err) {
       setBatchItems(finalItems);
@@ -1885,8 +1921,30 @@ export default function DocumentRattachementPanel({
     }
   };
 
+  const handleSoumettreExisting = async () => {
+    if (!documentToEdit?.id) return;
+    if (hasEditChanges) {
+      onNotify?.("Enregistrez d'abord les modifications avant de soumettre.", "info");
+      return;
+    }
+    try {
+      setSubmitting(true);
+      const submitted = await soumettreControleQualite(documentToEdit.id);
+      if (onSaved) {
+        onSaved(submitted, { submitted: true });
+      } else {
+        onNotify?.("Document soumis au contrôle qualité", "success");
+      }
+    } catch (err) {
+      onNotify?.(err.message || "Erreur lors de la soumission", "error");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   if (!localite) return null;
 
+  const canSoumettreDoc = canSoumettreDocumentQualite();
   const formColumnCount = formPanelWidth >= 680 ? 3 : formPanelWidth >= 420 ? 2 : 1;
   const showOcrLoading = ocrLoading && !isEditMode && Boolean(activeFile) && Boolean(selectedTypeId);
   const busy = processing || loadingFile || submitting || ocrLoading;
@@ -2671,7 +2729,10 @@ export default function DocumentRattachementPanel({
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <form
+        onSubmit={(e) => handleSubmit(e, { asDraft: !canSoumettreDoc })}
+        className="flex flex-col flex-1 min-h-0 overflow-hidden"
+      >
         {fullPage ? (
           <div className="flex flex-1 min-h-0 overflow-hidden">
             <aside className="w-56 shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col min-h-0">
@@ -2817,10 +2878,40 @@ export default function DocumentRattachementPanel({
             <button
               type="button"
               disabled={busy || !selectedTypeId || !activeFile}
-              onClick={(e) => handleSubmit(e, true)}
+              onClick={(e) => handleSubmit(e, { andNext: true, asDraft: true })}
               className="px-4 py-2 border border-emerald-400 text-emerald-800 bg-emerald-50 rounded-lg text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50"
             >
               {submitting ? "Enregistrement…" : "Enregistrer et passer au suivant"}
+            </button>
+          )}
+          {!isEditMode && canSoumettreDoc && (
+            <button
+              type="button"
+              disabled={
+                busy ||
+                !selectedTypeId ||
+                !activeFile ||
+                (isBatchMode && pendingBatchCount === 0)
+              }
+              onClick={(e) => handleSubmit(e, { asDraft: true })}
+              className="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-lg text-sm font-medium hover:bg-slate-50 transition disabled:opacity-50"
+            >
+              {submitting
+                ? "Enregistrement…"
+                : isBatchMode
+                  ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
+                  : "Enregistrer en brouillon"}
+            </button>
+          )}
+          {isEditMode && canSoumettreDoc && canSoumettreValidation(documentToEdit?.statut_qualite) && (
+            <button
+              type="button"
+              disabled={busy || hasEditChanges}
+              title={hasEditChanges ? "Enregistrez d'abord les modifications" : undefined}
+              onClick={handleSoumettreExisting}
+              className="px-5 py-2 disabled:opacity-50 text-white rounded-lg text-sm font-medium transition bg-indigo-600 hover:bg-indigo-700"
+            >
+              {submitting ? "Soumission…" : "Soumettre au contrôle qualité"}
             </button>
           )}
           <button
@@ -2842,14 +2933,20 @@ export default function DocumentRattachementPanel({
               : batchSubmitProgress
                 ? `Enregistrement ${batchSubmitProgress.current}/${batchSubmitProgress.total}…`
                 : submitting
-                  ? "Enregistrement…"
+                  ? canSoumettreDoc && !isEditMode
+                    ? "Soumission…"
+                    : "Enregistrement…"
                   : processing
                     ? "Traitement…"
                     : isEditMode
                       ? "Enregistrer les modifications"
-                      : isBatchMode
-                        ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
-                        : "Enregistrer en brouillon"}
+                      : canSoumettreDoc
+                        ? isBatchMode
+                          ? `Soumettre le lot au contrôle qualité (${pendingBatchCount})`
+                          : "Soumettre au contrôle qualité"
+                        : isBatchMode
+                          ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
+                          : "Enregistrer en brouillon"}
           </button>
         </div>
       </form>
