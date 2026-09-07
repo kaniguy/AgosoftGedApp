@@ -6,11 +6,6 @@ const STATUT_STYLES = {
     value: "text-orange-800",
     badge: "bg-orange-200 text-orange-900",
   },
-  brouillon: {
-    bg: "bg-slate-50 border-slate-200",
-    value: "text-slate-700",
-    badge: "bg-slate-200 text-slate-700",
-  },
   en_attente: {
     bg: "bg-amber-50 border-amber-200",
     value: "text-amber-800",
@@ -29,7 +24,6 @@ const STATUT_STYLES = {
 };
 
 const DEFAULT_STATUTS = [
-  { statut: "brouillon", label: "Brouillon", count: 0, taux: 0 },
   { statut: "en_attente", label: "En attente", count: 0, taux: 0 },
   { statut: "valide", label: "Validé", count: 0, taux: 0 },
   { statut: "rejete", label: "Rejeté", count: 0, taux: 0 },
@@ -61,9 +55,9 @@ export default function StatutKpiGrid({ total = 0, parStatut = [], activeStatut 
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
       {cards.map((card) => {
-        const style = STATUT_STYLES[card.key] || STATUT_STYLES.brouillon;
+        const style = STATUT_STYLES[card.key] || STATUT_STYLES.total;
         const isActive = card.statut && activeStatut === card.statut;
         const Tag = card.statut ? "button" : "div";
 

@@ -25,6 +25,7 @@ const EVENT_ORDER = [
   "validation",
   "rejet",
   "resoumission",
+  "identifiants",
   "resume_periodique",
 ];
 
@@ -183,8 +184,8 @@ export default function NotificationsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">Notifications du workflow</h1>
         <p className="text-sm text-gray-500 mt-1">
-          E-mails automatiques lors des soumissions, validations et rejets — règles,
-          contenus et résumé périodique entièrement paramétrables.
+          E-mails automatiques (workflow qualité, identifiants de connexion, résumé périodique)
+          — règles et contenus entièrement paramétrables.
         </p>
       </div>
 
@@ -280,6 +281,13 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
           </div>
 
           <div className="mt-4 space-y-4">
+            {regle.event_type === "identifiants" ? (
+              <p className="text-xs text-gray-500 leading-relaxed rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                Destinataire : le compte créé (son adresse e-mail). Cet e-mail n&apos;est
+                envoyé que si aucun mot de passe n&apos;a été saisi à la création, que le
+                SMTP est configuré et que cette règle est activée.
+              </p>
+            ) : (
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">
                 Destinataires
@@ -300,8 +308,10 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
                 {CIBLES.find((c) => c.value === regle.recipient_target)?.description}
               </p>
             </div>
+            )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className={`grid grid-cols-1 ${regle.event_type === "identifiants" ? "" : "md:grid-cols-2"} gap-4`}>
+              {regle.event_type !== "identifiants" && (
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                 <ToggleSwitch
                   checked={regle.exclude_actor}
@@ -310,6 +320,7 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
                   label="Ne pas notifier l'auteur de l'action"
                 />
               </div>
+              )}
               <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
                 <ToggleSwitch
                   checked={regle.respecter_preferences}
@@ -356,6 +367,12 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
           utilisé pour composer le message. Les variables{" "}
           <code>{"{{...}}"}</code> sont remplacées automatiquement (voir onglet
           Modèles d&apos;e-mail).
+        </p>
+        <p>
+          <strong>Envoi du mot de passe :</strong> uniquement à la création d&apos;un
+          compte <em>sans</em> mot de passe saisi. Si l&apos;administrateur renseigne
+          un mot de passe, aucun e-mail n&apos;est envoyé, même si le SMTP et cette
+          règle sont actifs.
         </p>
         <p>Les utilisateurs sans adresse e-mail sont ignorés et tracés dans le journal.</p>
       </div>
@@ -506,7 +523,9 @@ function ModelesTab({ config, setConfig, canChange, notify }) {
             remplacées par la valeur réelle au moment de l&apos;envoi.
           </p>
           <ul className="space-y-2">
-            {config.variables.map((v) => (
+            {(config.variables || [])
+              .filter((v) => !v.events?.length || v.events.includes(selectedCode))
+              .map((v) => (
               <li key={v.nom} className="text-xs text-gray-600">
                 <code className="bg-gray-100 px-1 py-0.5 rounded text-purple-700 font-medium">
                   {v.nom}
@@ -875,6 +894,7 @@ function JournalTab() {
           <option value="validation">Validation</option>
           <option value="rejet">Rejet</option>
           <option value="resoumission">Resoumission</option>
+          <option value="identifiants">Mot de passe / identifiants</option>
           <option value="resume_periodique">Résumé périodique</option>
         </select>
         <select

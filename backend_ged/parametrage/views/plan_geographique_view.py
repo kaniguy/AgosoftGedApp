@@ -1,12 +1,11 @@
-from django.shortcuts import get_object_or_404
 from django.db.models import Count, Q
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-from rest_framework.exceptions import ValidationError, PermissionDenied
-from gestion_acces.permissions import GedDjangoModelPermissions
+from rest_framework.exceptions import ValidationError, PermissionDenied, NotFound
+from gestion_acces.permissions import CanReadPlanGeographique
 from ..models import PlanGeographique, StructureGeographique
 from ..serializers import PlanGeographiqueSerializer
 from gestion_acces.services.access_service import filter_plan_queryset, get_allowed_plan_ids, get_user_type_document_ids
@@ -71,7 +70,7 @@ def _normalize_plan_fields(data):
 class PlanGeographiqueViewSet(ModelViewSet):
     queryset = PlanGeographique.objects.all()
     serializer_class = PlanGeographiqueSerializer
-    permission_classes = [IsAuthenticated, GedDjangoModelPermissions]
+    permission_classes = [IsAuthenticated, CanReadPlanGeographique]
 
     def _apply_access_filter(self, qs):
         """Restreint le queryset aux branches autorisées pour l'utilisateur."""
@@ -122,7 +121,9 @@ class PlanGeographiqueViewSet(ModelViewSet):
         queryset = self._apply_access_filter(self._base_queryset())
         lookup_url_kwarg = self.lookup_url_kwarg or self.lookup_field
         filter_kwargs = {self.lookup_field: self.kwargs[lookup_url_kwarg]}
-        obj = get_object_or_404(queryset, **filter_kwargs)
+        obj = queryset.filter(**filter_kwargs).first()
+        if not obj:
+            raise NotFound("Cette localité n'existe pas ou vous n'y avez pas accès.")
         self.check_object_permissions(self.request, obj)
         return obj
 

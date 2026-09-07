@@ -28,6 +28,12 @@ const PREFERENCES = [
     description: "Recevoir un e-mail quand un document rejeté est corrigé puis resoumis.",
   },
   {
+    key: "notif_identifiants",
+    label: "Identifiants de connexion",
+    description:
+      "Recevoir un e-mail lorsqu'un mot de passe est généré pour votre compte. Sans effet si l'administrateur a déjà saisi un mot de passe à la création.",
+  },
+  {
     key: "resume_periodique",
     label: "Résumé périodique",
     description: "Recevoir le récapitulatif des documents en attente de contrôle.",

@@ -8,6 +8,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 const COLORS = {
   brouillon: "#94a3b8",
@@ -28,11 +29,7 @@ export default function DocumentsParStatutChart({
   }));
 
   if (chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   return (

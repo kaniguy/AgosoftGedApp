@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 const COLORS = ["#6366f1", "#10b981", "#f59e0b", "#f43f5e", "#8b5cf6", "#06b6d4"];
 
@@ -22,11 +23,7 @@ const EVENT_TO_STATUT = {
 
 export default function WorkflowNotificationsChart({ data = [], onEventClick }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune notification enregistrée
-      </div>
-    );
+    return <ChartEmpty title="Aucune notification enregistrée" />;
   }
 
   return (

@@ -15,7 +15,10 @@ def user_profile_view(request):
     if request.method == "GET":
         serializer = UserSerializer(user, context={"request": request})
         access = get_user_access_payload(user)
-        return Response({**serializer.data, **access})
+        response = Response({**serializer.data, **access})
+        response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+        response["Pragma"] = "no-cache"
+        return response
         
     elif request.method in ["PUT", "PATCH"]:
         # Changement de mot de passe si fournis
@@ -42,6 +45,8 @@ def user_profile_view(request):
                 )
             user.set_password(new_password)
             user.save()
+            from gestion_acces.services.user_credentials_service import mark_password_prompt
+            mark_password_prompt(user, enabled=False)
 
         serializer = UserSerializer(user, data=request.data, partial=True, context={"request": request})
         if serializer.is_valid():

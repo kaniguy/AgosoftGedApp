@@ -208,12 +208,16 @@ async function deleteLocalDraftsForLocalite(localiteId) {
 // --- API publique ---
 
 export async function listRattachementDrafts() {
+  const server = await listServerRattachementDrafts();
+  let local = [];
   try {
-    return await listServerRattachementDrafts();
+    local = await listLocalDrafts();
   } catch {
-    const local = await listLocalDrafts();
-    return local.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+    local = [];
   }
+  const serverIds = new Set(server.map((d) => String(d.id)));
+  const extraLocal = local.filter((d) => !serverIds.has(String(d.id)));
+  return [...server, ...extraLocal].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 }
 
 export async function getRattachementDraft(draftId, options) {

@@ -28,19 +28,27 @@ from gestion_acces.services.notifications.registre import reset_template_to_defa
 
 TEMPLATE_VARIABLES = [
     {
+        "nom": "{{recipient_name}}",
+        "description": "Prénom et nom du destinataire de l'e-mail (personnalisation).",
+        "events": [],
+    },
+    {
         "nom": "{{document_label}}",
         "description": (
             "Intitulé complet du document : type documentaire et localité "
             "(ex. « Facture — Casier A »)."
         ),
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{document_type}}",
         "description": "Libellé du type documentaire seul (ex. « Facture fournisseur »).",
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{localite}}",
         "description": "Libellé de la localité (casier) où le document est rangé.",
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{actor_name}}",
@@ -48,10 +56,7 @@ TEMPLATE_VARIABLES = [
             "Nom de l'utilisateur qui a déclenché l'action "
             "(soumission, validation ou rejet)."
         ),
-    },
-    {
-        "nom": "{{recipient_name}}",
-        "description": "Prénom et nom du destinataire de l'e-mail (personnalisation).",
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{rejection_reason}}",
@@ -59,10 +64,12 @@ TEMPLATE_VARIABLES = [
             "Motif saisi lors du rejet. Vide ou « Non précisé » si absent "
             "(événement rejet uniquement)."
         ),
+        "events": ["rejet"],
     },
     {
         "nom": "{{action_date}}",
         "description": "Date et heure de l'action, au format français (jj/mm/aaaa à hh:mm).",
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{document_url}}",
@@ -70,6 +77,7 @@ TEMPLATE_VARIABLES = [
             "Lien direct vers la page de contrôle ou de consultation du document "
             "dans l'application."
         ),
+        "events": ["soumission", "validation", "rejet", "resoumission"],
     },
     {
         "nom": "{{pending_count}}",
@@ -77,6 +85,7 @@ TEMPLATE_VARIABLES = [
             "Nombre de documents en attente dans le périmètre du destinataire "
             "(résumé périodique uniquement)."
         ),
+        "events": ["resume_periodique"],
     },
     {
         "nom": "{{pending_list}}",
@@ -84,6 +93,32 @@ TEMPLATE_VARIABLES = [
             "Liste textuelle des documents en attente, une ligne par document "
             "(résumé périodique uniquement). Le détail complet est en pièce jointe PDF."
         ),
+        "events": ["resume_periodique"],
+    },
+    {
+        "nom": "{{username}}",
+        "description": "Identifiant de connexion du compte créé.",
+        "events": ["identifiants"],
+    },
+    {
+        "nom": "{{password}}",
+        "description": "Mot de passe généré (uniquement si aucun mot de passe n'a été saisi à la création).",
+        "events": ["identifiants"],
+    },
+    {
+        "nom": "{{login_url}}",
+        "description": "Lien vers la page de connexion de l'application.",
+        "events": ["identifiants"],
+    },
+    {
+        "nom": "{{groupes}}",
+        "description": "Groupes attribués au compte, séparés par des virgules.",
+        "events": ["identifiants"],
+    },
+    {
+        "nom": "{{modules}}",
+        "description": "Modules d'accès issus des groupes du compte.",
+        "events": ["identifiants"],
     },
 ]
 
@@ -98,6 +133,11 @@ _SAMPLE_CONTEXT = {
     "document_url": "http://localhost:3000/controle_qualite/validation/12/345",
     "pending_count": "4",
     "pending_list": "- Facture fournisseur — Abidjan Plateau (depuis le 15/07/2026)\n- Bordereau — Yopougon (depuis le 16/07/2026)",
+    "username": "jkouassi",
+    "password": "ExemPle12",
+    "login_url": "http://localhost:3001/auth/login",
+    "groupes": "Contrôle qualité, Consultation",
+    "modules": "Gestion documentaire, Contrôle qualité",
 }
 
 

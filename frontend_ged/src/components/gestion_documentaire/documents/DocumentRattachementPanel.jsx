@@ -14,7 +14,6 @@ import {
   createDocumentLocalite,
   fetchDocumentFileBlob,
   getDocumentVersions,
-  soumettreControleQualite,
   updateDocumentLocalite,
 } from "../../../services/documentLocalite.service";
 import { extractDocumentFields } from "../../../services/ocr.service";
@@ -1774,14 +1773,11 @@ export default function DocumentRattachementPanel({
       });
       const docId = created?.id;
       if (!docId) {
-        throw new Error(
-          "Document créé mais identifiant manquant — impossible de soumettre à validation."
-        );
+        throw new Error("Document créé mais identifiant manquant.");
       }
-      const result = await soumettreControleQualite(docId, { valeurs });
 
       if (andNext) {
-        onNotify?.("Document soumis — rattachez le suivant (même type conservé).", "success");
+        onNotify?.("Brouillon enregistré — rattachez le suivant (même type conservé).", "success");
         await clearDraft();
         await resetForNextDocument(keepTypeId);
         return;
@@ -1789,9 +1785,9 @@ export default function DocumentRattachementPanel({
 
       await clearDraft();
       if (onSaved) {
-        onSaved(result);
+        onSaved(created);
       } else {
-        onNotify?.("Document soumis au contrôle qualité", "success");
+        onNotify?.("Document enregistré en brouillon", "success");
       }
     } catch (err) {
       onNotify?.(err.message || "Erreur lors de l'enregistrement", "error");
@@ -1865,14 +1861,14 @@ export default function DocumentRattachementPanel({
         if (!docId) {
           throw new Error(`Document ${index + 1} : identifiant manquant après création.`);
         }
-        lastResult = await soumettreControleQualite(docId, { valeurs });
+        lastResult = created;
         finalItems[index] = { ...item, status: "submitted" };
         successCount += 1;
       }
 
       setBatchItems(finalItems);
       onNotify?.(
-        `Lot soumis — ${successCount} document${successCount > 1 ? "s" : ""} envoyé${successCount > 1 ? "s" : ""} au contrôle qualité.`,
+        `Lot enregistré — ${successCount} document${successCount > 1 ? "s" : ""} en brouillon.`,
         "success"
       );
       await clearDraft();
@@ -1882,7 +1878,7 @@ export default function DocumentRattachementPanel({
     } catch (err) {
       setBatchItems(finalItems);
       await persistNow();
-      onNotify?.(err.message || "Erreur lors de la soumission du lot", "error");
+      onNotify?.(err.message || "Erreur lors de l'enregistrement du lot", "error");
     } finally {
       setSubmitting(false);
       setBatchSubmitProgress(null);
@@ -2824,7 +2820,7 @@ export default function DocumentRattachementPanel({
               onClick={(e) => handleSubmit(e, true)}
               className="px-4 py-2 border border-emerald-400 text-emerald-800 bg-emerald-50 rounded-lg text-sm font-medium hover:bg-emerald-100 transition disabled:opacity-50"
             >
-              {submitting ? "Enregistrement…" : "Soumettre et passer au suivant"}
+              {submitting ? "Enregistrement…" : "Enregistrer et passer au suivant"}
             </button>
           )}
           <button
@@ -2844,7 +2840,7 @@ export default function DocumentRattachementPanel({
             {ocrLoading
               ? `Analyse ${ocrProgress}%`
               : batchSubmitProgress
-                ? `Soumission ${batchSubmitProgress.current}/${batchSubmitProgress.total}…`
+                ? `Enregistrement ${batchSubmitProgress.current}/${batchSubmitProgress.total}…`
                 : submitting
                   ? "Enregistrement…"
                   : processing
@@ -2852,8 +2848,8 @@ export default function DocumentRattachementPanel({
                     : isEditMode
                       ? "Enregistrer les modifications"
                       : isBatchMode
-                        ? `Soumettre le lot à validation (${pendingBatchCount})`
-                        : "Soumettre à validation"}
+                        ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
+                        : "Enregistrer en brouillon"}
           </button>
         </div>
       </form>

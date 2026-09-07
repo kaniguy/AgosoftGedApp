@@ -12,10 +12,15 @@ APP_MODULES = [
         "description": "Plan de classement et documents",
         "app_labels": ["gestion_documentaire"],
         "extra_permission_codenames": [
+            "parametrage.view_plangeographique",
+            "parametrage.view_typedocument",
+            "parametrage.view_champsdocument",
+            "parametrage.view_structuregeographique",
             "gestion_documentaire.annoter_document",
             "gestion_documentaire.tamponner_document",
             "gestion_documentaire.signer_document",
             "gestion_documentaire.commenter_document",
+            "gestion_documentaire.telecharger_document",
         ],
     },
     {
@@ -25,6 +30,11 @@ APP_MODULES = [
         "app_labels": ["gestion_documentaire"],
         "extra_permission_codenames": [
             "gestion_acces.add_lientelechargement",
+            "gestion_documentaire.telecharger_document",
+            "parametrage.view_typedocument",
+            "parametrage.view_champsdocument",
+            "parametrage.view_plangeographique",
+            "parametrage.view_structuregeographique",
         ],
     },
     {
@@ -32,6 +42,12 @@ APP_MODULES = [
         "label": "Contrôle qualité",
         "description": "Buckets par localité du dernier niveau",
         "app_labels": ["gestion_documentaire"],
+        "extra_permission_codenames": [
+            "parametrage.view_typedocument",
+            "parametrage.view_champsdocument",
+            "parametrage.view_plangeographique",
+            "parametrage.view_structuregeographique",
+        ],
     },
     {
         "code": "analytique",
@@ -74,6 +90,51 @@ VALID_MODULE_CODES = {m["code"] for m in APP_MODULES}
 
 # Association module applicatif → apps Django (permissions filtrées par app_label)
 MODULE_APP_LABELS = {m["code"]: m.get("app_labels", []) for m in APP_MODULES}
+
+# Droits de consultation minimum si le groupe a le module mais aucune permission cochée
+MODULE_DEFAULT_VIEW_PERMISSIONS = {
+    "parametrage": [
+        "parametrage.view_typedocument",
+        "parametrage.view_champsdocument",
+        "parametrage.view_structuregeographique",
+        "parametrage.view_plangeographique",
+    ],
+    "gestion_documentaire": [
+        "gestion_documentaire.view_documentlocalite",
+        "parametrage.view_plangeographique",
+        "parametrage.view_typedocument",
+        "parametrage.view_champsdocument",
+        "parametrage.view_structuregeographique",
+    ],
+    "recherche_avancee": [
+        "gestion_documentaire.view_documentlocalite",
+        "parametrage.view_typedocument",
+        "parametrage.view_champsdocument",
+        "parametrage.view_plangeographique",
+        "parametrage.view_structuregeographique",
+    ],
+    "controle_qualite": [
+        "gestion_documentaire.view_documentlocalite",
+        "gestion_documentaire.qc_menu_en_attente",
+        "gestion_documentaire.qc_menu_rejete",
+        "gestion_documentaire.qc_menu_valide",
+        "parametrage.view_typedocument",
+        "parametrage.view_champsdocument",
+        "parametrage.view_plangeographique",
+        "parametrage.view_structuregeographique",
+    ],
+    "analytique": [
+        "gestion_documentaire.view_documentlocalite",
+        "auth.view_user",
+        "auth.view_group",
+    ],
+    "gestion_acces": [
+        "auth.view_user",
+        "auth.view_group",
+    ],
+    "aide_video": [],
+    "a_propos": [],
+}
 
 
 def get_app_labels_for_modules(module_codes):

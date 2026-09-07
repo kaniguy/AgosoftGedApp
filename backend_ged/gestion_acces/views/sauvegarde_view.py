@@ -49,8 +49,9 @@ def _confirm_from_request(request):
     )
 
 
-def _has(user, perm):
-    return bool(user and user.is_authenticated and (user.is_superuser or user.has_perm(perm)))
+def _has(user, perm=None):
+    """Sauvegarde / restauration : réservé aux superutilisateurs."""
+    return bool(user and user.is_authenticated and user.is_superuser)
 
 
 def _forbidden(message="Vous n'avez pas la permission d'effectuer cette action."):

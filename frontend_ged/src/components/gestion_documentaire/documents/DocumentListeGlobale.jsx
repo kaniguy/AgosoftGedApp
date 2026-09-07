@@ -30,7 +30,8 @@ import {
 import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationDateChamp } from "../../../utils/dateFormat";
 import { getFileFormat } from "../../../utils/documentFileFormat";
 import ChampCellValue from "./ChampCellValue";
-import { useCrudPermissions, MODELS } from "../../../utils/permissions";
+import EmptyListState from "../../ui/EmptyListState";
+import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../../utils/permissions";
 import { STATUT_VALIDE } from "../../../utils/documentStatutQualite";
 
 const FORMAT_OPTIONS = [
@@ -128,6 +129,7 @@ function ActionButton({ onClick, disabled, variant, title, children }) {
 
 export default function DocumentListeGlobale({ onNotify }) {
   const { canChange, canDelete } = useCrudPermissions(MODELS.DOCUMENT_LOCALITE);
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
   const router = useRouter();
   const tableScrollRef = useRef(null);
   const searchDebounceRef = useRef(null);
@@ -716,7 +718,11 @@ export default function DocumentListeGlobale({ onNotify }) {
         <DocumentListSplitView
           previewDoc={previewDoc}
           onClosePreview={() => setPreviewDoc(null)}
-          onDownload={(doc, previewSource) => handleDownload(doc, getFilename, notifyUser, previewSource)}
+          onDownload={
+            canDownload
+              ? (doc, previewSource) => handleDownload(doc, getFilename, notifyUser, previewSource)
+              : undefined
+          }
           getFilename={getFilename}
           listScrollRef={tableScrollRef}
         >
@@ -731,21 +737,20 @@ export default function DocumentListeGlobale({ onNotify }) {
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="text-center py-20 px-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <p className="text-gray-600 font-medium">
-                {hasActiveFilters ? "Aucun document ne correspond aux filtres" : "Aucun document enregistré"}
-              </p>
-            </div>
+            <EmptyListState
+              icon={hasActiveFilters ? "search" : "document"}
+              tone="emerald"
+              title={
+                hasActiveFilters
+                  ? "Aucun document ne correspond aux filtres"
+                  : "Aucun document enregistré"
+              }
+              description={
+                hasActiveFilters
+                  ? "Modifiez ou réinitialisez les filtres pour élargir la recherche."
+                  : "Les documents validés du plan de classement apparaîtront ici."
+              }
+            />
           ) : (
             <table className="min-w-full w-max text-sm border-collapse">
               <DocumentTableHead
@@ -852,6 +857,7 @@ export default function DocumentListeGlobale({ onNotify }) {
                           >
                             Voir
                           </ActionButton>
+                          {canDownload && (
                           <ActionButton
                             variant="download"
                             title="Télécharger"
@@ -860,6 +866,7 @@ export default function DocumentListeGlobale({ onNotify }) {
                           >
                             Télécharger
                           </ActionButton>
+                          )}
                           {canChange && (
                           <ActionButton variant="edit" title="Modifier" onClick={() => goToEdit(doc)}>
                             Modifier

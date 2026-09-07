@@ -22,6 +22,10 @@ class UserProfile(models.Model):
         null=True,
         blank=True,
     )
+    suggest_password_change = models.BooleanField(
+        default=False,
+        help_text="Proposer (sans forcer) un changement de mot de passe à la connexion.",
+    )
 
     class Meta:
         verbose_name = "profil utilisateur"
@@ -39,6 +43,8 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 
 @receiver(post_save, sender=User)
-def save_user_profile(sender, instance, **kwargs):
-    profile, created = UserProfile.objects.get_or_create(user=instance)
-    profile.save()  # ALLOWED — no file upload on User post_save
+def save_user_profile(sender, instance, created=False, **kwargs):
+    """Assure l'existence du profil sans re-sauvegarder les FileField à chaque User.save()."""
+    if created:
+        return
+    UserProfile.objects.get_or_create(user=instance)

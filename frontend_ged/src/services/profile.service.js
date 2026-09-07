@@ -12,6 +12,15 @@ export function syncUserStorage(userData) {
     photo: photo || null,
     signature: signature || null,
   };
+  if (Array.isArray(userData?.modules)) {
+    updated.modules = userData.modules;
+  }
+  if (Array.isArray(userData?.permissions) || userData?.permissions === null) {
+    updated.permissions = userData.permissions;
+  }
+  if (Array.isArray(userData?.localites)) {
+    updated.localites = userData.localites;
+  }
 
   localStorage.setItem("user", JSON.stringify(updated));
   window.dispatchEvent(new CustomEvent("user-profile-updated"));
@@ -21,6 +30,7 @@ export function syncUserStorage(userData) {
 export const getProfile = async () => {
   const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/profile/`, {
     headers: getHeaders(),
+    cache: "no-store",
   });
 
   if (!res.ok) {

@@ -19,7 +19,6 @@ from parametrage.models.plan_geographique import PlanGeographique
 User = get_user_model()
 
 STATUT_LABELS = {
-    "brouillon": "Brouillon",
     "en_attente": "En attente",
     "valide": "Validé",
     "rejete": "Rejeté",
@@ -47,7 +46,7 @@ def _parse_period(request):
 
 
 def _document_queryset(request):
-    qs = DocumentLocalite.objects.all()
+    qs = DocumentLocalite.objects.exclude(statut_qualite="brouillon")
     params = request.query_params
 
     statut = (params.get("statut") or "").strip()
@@ -255,13 +254,14 @@ def analytics_documents_view(request):
         if key not in evolution_map:
             evolution_map[key] = {
                 "mois": key,
-                "brouillon": 0,
                 "en_attente": 0,
                 "valide": 0,
                 "rejete": 0,
                 "total": 0,
             }
         statut = row["statut_qualite"]
+        if statut not in STATUT_LABELS:
+            continue
         evolution_map[key][statut] = row["count"]
         evolution_map[key]["total"] += row["count"]
     evolution_mensuelle = list(evolution_map.values())
@@ -423,6 +423,7 @@ def analytics_administration_view(request):
         "localites", "types_documents"
     )[:15]:
         couverture.append({
+            "id": profile.group.id,
             "groupe": profile.group.name,
             "membres": profile.group.user_set.count(),
             "localites": profile.localites.count(),

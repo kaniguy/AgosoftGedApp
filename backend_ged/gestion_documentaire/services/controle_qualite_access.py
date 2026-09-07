@@ -65,8 +65,8 @@ def user_can_view_statut_qualite(user, statut):
 
 
 def user_can_filter_documents_by_statut(user, statut):
-    """Filtre API liste documents : archives validées visibles avec view_documentlocalite."""
-    if statut == DocumentLocalite.STATUT_VALIDE:
+    """Filtre API liste documents : archives validées et brouillons GD visibles avec view_documentlocalite."""
+    if statut in (DocumentLocalite.STATUT_VALIDE, DocumentLocalite.STATUT_BROUILLON):
         return user_has_perm(user, PERM_VIEW)
     return user_can_view_menu_statut(user, statut)
 

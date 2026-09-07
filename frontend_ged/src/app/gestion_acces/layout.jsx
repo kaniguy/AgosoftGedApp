@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import GestionAccesSidebar from "./sidebar";
 
 export default function GestionAccesLayout({ children }) {
@@ -20,7 +20,9 @@ export default function GestionAccesLayout({ children }) {
             ${isSidebarOpen ? "ml-64" : "ml-20"}
           `}
         >
-          <div className="p-6">{children}</div>
+          <div className="p-6">
+            <Suspense fallback={<p className="text-slate-500">Chargement…</p>}>{children}</Suspense>
+          </div>
         </main>
       </div>
     </div>

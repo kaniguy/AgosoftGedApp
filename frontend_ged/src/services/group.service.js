@@ -15,8 +15,9 @@ async function handleResponse(res) {
   return data;
 }
 
-export const getGroups = async () => {
-  const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/groups/`, {
+export const getGroups = async ({ lite = false } = {}) => {
+  const qs = lite ? "?lite=1" : "";
+  const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/groups/${qs}`, {
     headers: getHeaders(),
   });
   return handleResponse(res);
@@ -34,6 +35,20 @@ export const createGroup = async (data) => {
 export const updateGroup = async (id, data) => {
   const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/groups/${id}/`, {
     method: "PUT",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+};
+
+export const patchGroup = async (id, data) => {
+  const activation =
+    data && Object.keys(data).length === 1 && Object.prototype.hasOwnProperty.call(data, "is_active");
+  const url = activation
+    ? `${getApiUrl()}/api/gestion-acces/groups/${id}/activation/`
+    : `${getApiUrl()}/api/gestion-acces/groups/${id}/`;
+  const res = await apiFetch(url, {
+    method: "PATCH",
     headers: getHeaders(),
     body: JSON.stringify(data),
   });

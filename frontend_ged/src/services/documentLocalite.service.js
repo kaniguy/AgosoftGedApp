@@ -147,6 +147,7 @@ export const getDocuments = async (query = {}) => {
   const params = buildDocumentSearchParams(query);
   const res = await apiFetch(`${getApiUrl()}/api/gestion-documentaire/documents/?${params}`, {
     headers: getHeaders(),
+    cache: "no-store",
   });
   if (!res.ok) {
     throw new Error("Impossible de charger les documents");

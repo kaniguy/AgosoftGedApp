@@ -7,6 +7,7 @@ import {
 } from "../../../services/journalActivite.service";
 import { formatDisplayDateTime } from "../../../utils/dateFormat";
 import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
+import EmptyListState from "../../../components/ui/EmptyListState";
 
 const ACTION_OPTIONS = [
   { value: "", label: "Toutes les actions" },
@@ -313,9 +314,12 @@ export default function JournalActivitePage() {
         {loading ? (
           <div className="text-center py-12 text-gray-500">Chargement...</div>
         ) : rows.length === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            Aucun événement enregistré pour ces filtres.
-          </div>
+          <EmptyListState
+            icon="inbox"
+            tone="purple"
+            title="Aucun événement"
+            description="Aucun événement n’est enregistré pour ces filtres."
+          />
         ) : (
           <div className="overflow-auto max-h-[560px] border rounded-lg">
             <table className="w-full text-sm">

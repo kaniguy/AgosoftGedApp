@@ -8,6 +8,7 @@ from gestion_acces.models.notification import (
 )
 
 from . import (
+    notification_identifiants,
     notification_rejet,
     notification_resoumission,
     notification_resume_periodique,
@@ -20,6 +21,7 @@ TYPE_MODULES = {
     notification_resoumission.EVENT_TYPE: notification_resoumission,
     notification_validation.EVENT_TYPE: notification_validation,
     notification_rejet.EVENT_TYPE: notification_rejet,
+    notification_identifiants.EVENT_TYPE: notification_identifiants,
     notification_resume_periodique.EVENT_TYPE: notification_resume_periodique,
 }
 
@@ -51,8 +53,11 @@ def get_or_create_regle(event_type) -> RegleNotification:
     regle, created = RegleNotification.objects.get_or_create(
         event_type=event_type,
         defaults={
-            "is_enabled": False,
+            "is_enabled": getattr(module, "DEFAULT_ENABLED", False),
             "recipient_target": module.DEFAULT_TARGET,
+            "respecter_preferences": getattr(
+                module, "DEFAULT_RESPECTER_PREFERENCES", True
+            ),
         },
     )
     if created or not regle.modele_id:

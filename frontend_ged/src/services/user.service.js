@@ -39,6 +39,15 @@ export const updateUser = async (id, data) => {
   return handleResponse(res);
 };
 
+export const patchUser = async (id, data) => {
+  const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/users/${id}/`, {
+    method: "PATCH",
+    headers: getHeaders(),
+    body: JSON.stringify(data),
+  });
+  return handleResponse(res);
+};
+
 export const deleteUser = async (id) => {
   const res = await apiFetch(`${getApiUrl()}/api/gestion-acces/users/${id}/`, {
     method: "DELETE",

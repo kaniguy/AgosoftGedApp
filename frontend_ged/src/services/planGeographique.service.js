@@ -18,7 +18,13 @@ async function handleResponse(res) {
     } catch {
       message = res.statusText || message;
     }
-    throw new Error(message);
+    if (
+      typeof message === "string" &&
+      /No PlanGeographique matches the given query/i.test(message)
+    ) {
+      message = "Cette localité n'existe pas ou vous n'y avez pas accès.";
+    }
+    throw new Error(typeof message === "string" ? message : "Une erreur est survenue");
   }
   if (res.status === 204) return { success: true };
   return res.json();

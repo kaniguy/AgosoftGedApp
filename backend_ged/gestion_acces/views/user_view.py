@@ -6,6 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
 from ..serializers.user_management_serializer import UserManagementSerializer
+from gestion_acces.services.user_credentials_service import mark_password_prompt
 
 
 class IsStaffOrSuperuser(IsAdminUser):
@@ -19,6 +20,20 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         return [IsAuthenticated(), IsStaffOrSuperuser()]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        data = dict(serializer.data)
+        result = getattr(serializer.instance, "_credential_result", None)
+        if result:
+            data["password_delivery"] = result.status
+            data["password_delivery_detail"] = result.detail
+            if result.generated_password and result.status != "emailed":
+                data["generated_password"] = result.generated_password
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
 
     @action(detail=True, methods=["post"], url_path="reset-password")
     def reset_password(self, request, pk=None):
@@ -39,4 +54,5 @@ class UserViewSet(viewsets.ModelViewSet):
             )
         user.set_password(new_password)
         user.save()
+        mark_password_prompt(user, enabled=True)
         return Response({"detail": f"Mot de passe de « {user.username} » réinitialisé avec succès."})

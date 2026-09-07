@@ -10,6 +10,7 @@ import {
   PERMISSIONS,
   canAccessGuideAideAdmin,
   canAccessSauvegardeBase,
+  canViewGedPlanClassement,
   hasAnyPermission,
   hasPermission,
 } from "../utils/permissions";
@@ -31,7 +32,7 @@ function checkPlanClassementPath(pathname) {
   if (pathname.includes("/documents")) {
     return hasPermission(PERMISSIONS.VIEW_DOCUMENT_LOCALITE);
   }
-  return hasPermission(PERMISSIONS.VIEW_PLAN_GEOGRAPHIQUE);
+  return canViewGedPlanClassement();
 }
 
 /**
@@ -192,4 +193,55 @@ export function canAccessPath(pathname) {
   if (rule.anyPermission && !hasAnyPermission(rule.anyPermission)) return false;
   if (rule.check && !rule.check(pathname)) return false;
   return true;
+}
+
+/** Pages d'entrée par module, du plus utile au repli. */
+export const MODULE_LANDING_CANDIDATES = {
+  parametrage: [
+    "/parametrage/type_document",
+    "/parametrage/champs_document",
+    "/parametrage/structure_geographique",
+    "/parametrage/plan_geographique",
+  ],
+  gestion_documentaire: [
+    "/gestion_documentaire/plan_geographique",
+    "/gestion_documentaire/documents",
+    "/gestion_documentaire/brouillons",
+  ],
+  recherche_avancee: ["/recherche_avancee"],
+  controle_qualite: ["/controle_qualite"],
+  analytique: ["/analytique/documents", "/analytique/administration"],
+  gestion_acces: [
+    "/gestion_acces/utilisateurs",
+    "/gestion_acces/groupes",
+    "/gestion_acces/permissions",
+    "/gestion_acces/liens-telechargement",
+    "/gestion_acces/journal-activite",
+    "/gestion_acces/entreprise",
+    "/gestion_acces/base-de-donnees",
+    "/gestion_acces/aide-video",
+    "/gestion_acces/configuration-email",
+    "/gestion_acces/notifications",
+  ],
+  aide_video: ["/aide-video"],
+};
+
+export const MODULE_ROOT_PATHS = {
+  parametrage: "/parametrage",
+  gestion_documentaire: "/gestion_documentaire",
+  recherche_avancee: "/recherche_avancee",
+  controle_qualite: "/controle_qualite",
+  analytique: "/analytique",
+  gestion_acces: "/gestion_acces",
+  aide_video: "/aide-video",
+};
+
+/** Première URL réellement accessible pour un module, ou null. */
+export function getModuleEntryPath(moduleCode) {
+  const candidates = MODULE_LANDING_CANDIDATES[moduleCode] || [];
+  const page = candidates.find((path) => canAccessPath(path));
+  if (page) return page;
+  const root = MODULE_ROOT_PATHS[moduleCode];
+  if (root && canAccessPath(root)) return root;
+  return null;
 }

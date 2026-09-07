@@ -27,6 +27,10 @@ class GroupProfile(models.Model):
         related_name="groupes_acces",
         help_text="Types de documents accessibles via ce groupe (vide = tous)",
     )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Si désactivé, le groupe n'accorde plus de droits (les membres sont conservés).",
+    )
 
     def __str__(self):
         return f"Profil accès — {self.group.name}"

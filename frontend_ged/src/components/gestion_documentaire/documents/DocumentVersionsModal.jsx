@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { downloadDocumentLocalite } from "../../../services/documentLocalite.service";
+import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
 import { normalizeAnnotations } from "@/utils/pdfAnnotationUtils";
 import DocumentPreview from "./DocumentPreview";
 
@@ -25,9 +26,10 @@ export function DocumentVersionsPanel({
   onViewVersion,
 }) {
   const [downloadingId, setDownloadingId] = useState(null);
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
 
   const handleDownload = async (version) => {
-    if (!documentId || !version?.id) return;
+    if (!canDownload || !documentId || !version?.id) return;
     setDownloadingId(version.id);
     try {
       await downloadDocumentLocalite(
@@ -72,6 +74,7 @@ export function DocumentVersionsPanel({
                       >
                         Voir
                       </button>
+                      {canDownload && (
                       <button
                         type="button"
                         onClick={() => handleDownload(v)}
@@ -80,6 +83,7 @@ export function DocumentVersionsPanel({
                       >
                         {downloadingId === v.id ? "…" : "Télécharger"}
                       </button>
+                      )}
                     </div>
                   ) : null}
                 </div>
@@ -96,6 +100,7 @@ export function DocumentVersionsPanel({
 
 /** Modal d'aperçu d'une version archivée. */
 export function DocumentVersionPreviewModal({ open, version, documentId, onClose }) {
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
   if (!open || !version) return null;
 
   const filename = `document-v${version.version_number}.pdf`;
@@ -114,7 +119,7 @@ export function DocumentVersionPreviewModal({ open, version, documentId, onClose
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {documentId && version.id ? (
+            {canDownload && documentId && version.id ? (
               <button
                 type="button"
                 onClick={() =>

@@ -6,6 +6,7 @@ services:
       context: ./backend_ged
       dockerfile: Dockerfile
     image: kaniguy/agosoftged-backend:latest
+    pull_policy: missing
     platform: linux/amd64
     container_name: agosoftged-backend
     restart: unless-stopped
@@ -46,6 +47,7 @@ services:
         NEXT_PUBLIC_API_BACKEND_URL: ""
         NEXT_PUBLIC_API_PORT: ""
     image: kaniguy/agosoftged-frontend:latest
+    pull_policy: missing
     platform: linux/amd64
     container_name: agosoftged-frontend
     restart: unless-stopped
@@ -65,6 +67,7 @@ services:
 
   caddy:
     image: caddy:2.8-alpine
+    pull_policy: missing
     platform: linux/amd64
     container_name: agosoftged-caddy
     restart: unless-stopped

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { canAccessPath } from "../../constants/routeAccess";
+import { getStoredUser } from "../../utils/permissions";
 
 export default function RouteAccessGuard({ children }) {
   const pathname = usePathname();
@@ -15,8 +16,18 @@ export default function RouteAccessGuard({ children }) {
     return () => window.removeEventListener("user-profile-updated", onUpdate);
   }, []);
 
-  if (accessVersion >= 0 && canAccessPath(pathname)) {
+  const allowed = accessVersion >= 0 && canAccessPath(pathname);
+
+  if (allowed) {
     return children;
+  }
+
+  if (!getStoredUser()) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm text-slate-500">Vérification des droits…</p>
+      </div>
+    );
   }
 
   return (

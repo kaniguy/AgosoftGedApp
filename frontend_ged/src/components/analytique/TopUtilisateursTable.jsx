@@ -1,12 +1,10 @@
 "use client";
 
+import { ChartEmpty } from "./AnalytiqueShared";
+
 export default function TopUtilisateursTable({ data = [] }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-32 text-slate-400 text-sm">
-        Aucune activité enregistrée
-      </div>
-    );
+    return <ChartEmpty title="Aucune activité enregistrée" />;
   }
 
   const max = Math.max(...data.map((d) => d.count), 1);

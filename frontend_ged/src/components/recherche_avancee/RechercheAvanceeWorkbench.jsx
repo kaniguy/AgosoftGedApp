@@ -32,12 +32,13 @@ import DocumentPreview from "../gestion_documentaire/documents/DocumentPreview";
 import DocumentPreviewVersionSelect from "../gestion_documentaire/documents/DocumentPreviewVersionSelect";
 import { useDocumentPreviewVersions } from "../../hooks/useDocumentPreviewVersions";
 import DocumentColumnVisibilityMenu from "../gestion_documentaire/documents/DocumentColumnVisibilityMenu";
+import EmptyListState from "../ui/EmptyListState";
 import ChampCellValue from "../gestion_documentaire/documents/ChampCellValue";
 import LienTelechargementModal from "./LienTelechargementModal";
 import SearchableSelect from "../ui/SearchableSelect";
 import ResizableThreePane from "../ui/ResizableThreePane";
 import { getCheminEntry, getLeafLocaliteLabel } from "../../utils/documentGeoColumns";
-import { useCrudPermissions, MODELS } from "../../utils/permissions";
+import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../utils/permissions";
 import { STATUT_VALIDE } from "../../utils/documentStatutQualite";
 
 let criterionId = 0;
@@ -356,10 +357,11 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
   const [visibleColumns, setVisibleColumns] = useState({});
   const filterDebounceRef = useRef(null);
   const { canAdd: canCreateDownloadLink } = useCrudPermissions(MODELS.LIEN_TELECHARGEMENT);
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
 
   const typesMap = useMemo(() => {
     const map = {};
-    types.forEach((t) => {
+    (Array.isArray(types) ? types : []).forEach((t) => {
       map[t.id] = t;
     });
     return map;
@@ -416,13 +418,13 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
 
   useEffect(() => {
     getTypesAvecDocuments(null, { statutQualite: STATUT_VALIDE })
-      .then(setTypes)
+      .then((data) => setTypes(Array.isArray(data) ? data : []))
       .catch((err) => notify(err.message || "Erreur chargement types", "error"));
   }, [notify]);
 
   useEffect(() => {
     getStructuresGeographiques()
-      .then(setStructures)
+      .then((data) => setStructures(Array.isArray(data) ? data : []))
       .catch((err) => notify(err.message || "Erreur chargement plan de classement", "error"));
   }, [notify]);
 
@@ -665,6 +667,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
   const selectedDocs = documents.filter((d) => selectedDocIds.has(d.id));
 
   const handleBulkDownload = async () => {
+    if (!canDownload) return;
     if (!selectedDocs.length) {
       notify("Sélectionnez au moins un document.", "error");
       return;
@@ -933,6 +936,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
                     </p>
                   </div>
                 </div>
+                {canDownload && (
                 <button
                   type="button"
                   title="Télécharger"
@@ -945,6 +949,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                   </svg>
                 </button>
+                )}
               </div>
               <div className="flex-1 min-h-0 overflow-hidden bg-slate-50">
                 <DocumentPreview
@@ -965,18 +970,22 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
                       />
                     ) : null
                   }
-                  onDownload={() => {
-                    if (
-                      previewSource?.downloadMode === "archived" &&
-                      previewSource.archivedVersionId
-                    ) {
-                      downloadDocumentLocalite(previewDoc, getFilename(previewDoc), {
-                        versionId: previewSource.archivedVersionId,
-                      });
-                      return;
-                    }
-                    downloadDocumentLocalite(previewDoc, getFilename(previewDoc));
-                  }}
+                  onDownload={
+                    canDownload
+                      ? () => {
+                          if (
+                            previewSource?.downloadMode === "archived" &&
+                            previewSource.archivedVersionId
+                          ) {
+                            downloadDocumentLocalite(previewDoc, getFilename(previewDoc), {
+                              versionId: previewSource.archivedVersionId,
+                            });
+                            return;
+                          }
+                          downloadDocumentLocalite(previewDoc, getFilename(previewDoc));
+                        }
+                      : undefined
+                  }
                   onClose={() => setPreviewDoc(null)}
                 />
               </div>
@@ -1016,6 +1025,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
                 </svg>
               </button>
               )}
+              {canDownload && (
               <button
                 type="button"
                 title={selectedDocIds.size > 1 ? "Télécharger l'archive RAR" : "Télécharger la sélection"}
@@ -1031,6 +1041,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
                   </svg>
                 )}
               </button>
+              )}
               <button
                 type="button"
                 title="Exporter CSV"
@@ -1053,10 +1064,12 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
               )}
 
               {documents.length === 0 && !loading ? (
-                <div className="flex-1 flex flex-col items-center justify-center p-8 text-slate-400">
-                  <p className="font-medium">Aucun document ne correspond</p>
-                  <p className="text-sm mt-1">Modifiez les types ou les critères de filtre</p>
-                </div>
+                <EmptyListState
+                  icon="search"
+                  tone="cyan"
+                  title="Aucun document ne correspond"
+                  description="Modifiez les types ou les critères de filtre pour afficher des résultats."
+                />
               ) : (
                 <>
                   <div className="flex-1 overflow-auto min-h-0">

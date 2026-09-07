@@ -16,6 +16,7 @@ import {
   canOpenDocumentQc,
   getQcActionLabel,
 } from "../../utils/controleQualitePermissions";
+import EmptyListState from "../ui/EmptyListState";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -109,9 +110,12 @@ export default function ControleQualiteListeDetaillee({
 
   if (!documents.length) {
     return (
-      <p className="px-5 py-12 text-sm text-slate-400 text-center">
-        Aucun document ne correspond aux filtres.
-      </p>
+      <EmptyListState
+        icon="search"
+        tone="amber"
+        title="Aucun document"
+        description="Aucun document ne correspond aux filtres."
+      />
     );
   }
 

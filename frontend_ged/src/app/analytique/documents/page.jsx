@@ -42,7 +42,9 @@ export default function AnalytiqueDocumentsPage() {
     if (!data || downloading) return;
     setDownloading(true);
     try {
-      const statuts = data.kpis?.par_statut ?? data.documents_par_statut ?? [];
+      const statuts = (data.kpis?.par_statut ?? data.documents_par_statut ?? []).filter(
+        (s) => s.statut !== "brouillon"
+      );
       let geoItems = [];
       let geoSubtitle = "Vue racine du plan de classement";
       try {
@@ -57,7 +59,7 @@ export default function AnalytiqueDocumentsPage() {
         geoItems = [];
       }
 
-      const funnelColors = ["#94a3b8", "#f59e0b", "#10b981", "#f43f5e"];
+      const funnelColors = ["#f59e0b", "#10b981", "#f43f5e"];
 
       downloadAnalytiqueReport({
         title: "Rapport analytique — Documents",
@@ -90,7 +92,9 @@ export default function AnalytiqueDocumentsPage() {
             type: "chart",
             chart: "bars",
             title: "Entonnoir contrôle qualité",
-            items: (data.funnel_qc ?? []).map((f, i) => ({
+            items: (data.funnel_qc ?? [])
+              .filter((f) => f.statut !== "brouillon")
+              .map((f, i) => ({
               label: f.etape,
               value: f.count,
               color: funnelColors[i % funnelColors.length],
@@ -136,7 +140,6 @@ export default function AnalytiqueDocumentsPage() {
             title: "Évolution mensuelle",
             subtitle: "Documents créés par mois, ventilés par statut",
             series: [
-              { key: "brouillon", label: "Brouillon", color: STATUT_COLORS.brouillon },
               { key: "en_attente", label: "En attente", color: STATUT_COLORS.en_attente },
               { key: "valide", label: "Validé", color: STATUT_COLORS.valide },
               { key: "rejete", label: "Rejeté", color: STATUT_COLORS.rejete },
@@ -144,7 +147,6 @@ export default function AnalytiqueDocumentsPage() {
             rows: (data.evolution_mensuelle ?? []).map((m) => ({
               label: formatMoisReport(m.mois),
               values: {
-                brouillon: m.brouillon,
                 en_attente: m.en_attente,
                 valide: m.valide,
                 rejete: m.rejete,
@@ -192,7 +194,9 @@ export default function AnalytiqueDocumentsPage() {
     );
   }
 
-  const parStatut = data?.kpis?.par_statut ?? data?.documents_par_statut ?? [];
+  const parStatut = (data?.kpis?.par_statut ?? data?.documents_par_statut ?? []).filter(
+    (s) => s.statut !== "brouillon"
+  );
   const total = data?.kpis?.total_documents ?? 0;
 
   return (
@@ -223,7 +227,7 @@ export default function AnalytiqueDocumentsPage() {
       <ErrorBanner error={error} />
 
       {initialLoading && !data ? (
-        <LoadingSkeleton kpiCount={5} chartCount={4} />
+        <LoadingSkeleton kpiCount={4} chartCount={4} />
       ) : (
         <RefreshOverlay show={refreshing}>
           <div className="space-y-6">
@@ -251,7 +255,7 @@ export default function AnalytiqueDocumentsPage() {
                 subtitle="Volume à chaque étape du parcours documentaire"
               >
                 <FunnelQCChart
-                  data={data?.funnel_qc ?? []}
+                  data={(data?.funnel_qc ?? []).filter((f) => f.statut !== "brouillon")}
                   activeStatut={filters.statut}
                   onStatutClick={(statut) => toggleFilter("statut", statut)}
                 />

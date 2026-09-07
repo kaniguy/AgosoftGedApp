@@ -6,10 +6,22 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   deleteRattachementDraft,
-  listRattachementDrafts,
   RATTACHEMENT_DRAFTS_UPDATED,
 } from "../../../utils/rattachementDraftStore";
-import { getModelCrudPermissions, MODELS } from "../../../utils/permissions";
+import { listAllVisibleBrouillons } from "../../../utils/brouillonsList";
+import {
+  deleteDocumentLocalite,
+  soumettreControleQualite,
+} from "../../../services/documentLocalite.service";
+import {
+  getModelCrudPermissions,
+  hasPermission,
+  MODELS,
+  MODEL_PERMISSIONS,
+  PERMISSIONS,
+} from "../../../utils/permissions";
+import { STATUT_BADGE_CLASS, STATUT_BROUILLON, getStatutLabel } from "../../../utils/documentStatutQualite";
+import EmptyListState from "../../../components/ui/EmptyListState";
 
 const PAGE_SIZE = 15;
 
@@ -27,12 +39,15 @@ function formatDraftDate(timestamp) {
 
 export default function BrouillonsPage() {
   const router = useRouter();
-  const { canView, canAdd, canDelete } = getModelCrudPermissions(MODELS.DOCUMENT_LOCALITE);
+  const { canView, canAdd, canChange, canDelete } = getModelCrudPermissions(MODELS.DOCUMENT_LOCALITE);
+  const canSoumettre =
+    hasPermission(PERMISSIONS.QC_SOUMETTRE) ||
+    hasPermission(MODEL_PERMISSIONS[MODELS.DOCUMENT_LOCALITE].add);
 
   const [drafts, setDrafts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [deletingId, setDeletingId] = useState(null);
+  const [busyId, setBusyId] = useState(null);
   const [page, setPage] = useState(1);
 
   const loadDrafts = useCallback(async (options = {}) => {
@@ -40,8 +55,9 @@ export default function BrouillonsPage() {
     if (!silent) setLoading(true);
     setError("");
     try {
-      const list = await listRattachementDrafts();
-      setDrafts(list);
+      const { drafts: merged, loadError } = await listAllVisibleBrouillons();
+      setDrafts(merged);
+      setError(merged.length ? "" : loadError);
     } catch (err) {
       setError(err.message || "Impossible de charger les brouillons.");
       setDrafts([]);
@@ -76,19 +92,36 @@ export default function BrouillonsPage() {
     return drafts.slice(start, start + PAGE_SIZE);
   }, [drafts, page]);
 
-  const handleDelete = async (draftId) => {
+  const handleDelete = async (row) => {
     if (!window.confirm("Supprimer ce brouillon ? Cette action est irréversible.")) return;
-    setDeletingId(draftId);
+    setBusyId(row.id);
     try {
-      await deleteRattachementDraft(draftId);
-      const nextTotal = drafts.filter((d) => d.id !== draftId).length;
+      if (row.kind === "document") {
+        await deleteDocumentLocalite(row.documentId);
+      } else {
+        await deleteRattachementDraft(row.id);
+      }
+      const nextTotal = drafts.filter((d) => d.id !== row.id).length;
       const nextTotalPages = Math.max(1, Math.ceil(nextTotal / PAGE_SIZE));
       if (page > nextTotalPages) setPage(nextTotalPages);
       await loadDrafts({ silent: true });
     } catch (err) {
       setError(err.message || "Suppression impossible.");
     } finally {
-      setDeletingId(null);
+      setBusyId(null);
+    }
+  };
+
+  const handleSoumettre = async (row) => {
+    if (row.kind !== "document") return;
+    setBusyId(row.id);
+    try {
+      await soumettreControleQualite(row.documentId);
+      await loadDrafts({ silent: true });
+    } catch (err) {
+      setError(err.message || "Impossible d'envoyer au contrôle qualité.");
+    } finally {
+      setBusyId(null);
     }
   };
 
@@ -122,8 +155,8 @@ export default function BrouillonsPage() {
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Brouillons de rattachement</h1>
               <p className="text-emerald-100 mt-1.5 text-sm max-w-2xl">
-                Lots non soumis à validation — visibles par tous les utilisateurs autorisés sur la
-                localité.
+                Documents enregistrés en <strong>brouillon</strong> et saisies en cours sur les
+                localités et types de documents autorisés pour votre groupe.
               </p>
             </div>
             <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/20 text-white text-sm font-bold shadow-md">
@@ -145,29 +178,20 @@ export default function BrouillonsPage() {
                 <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
               </div>
             ) : total === 0 ? (
-              <div className="text-center py-20 px-6">
-                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                  <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                    />
-                  </svg>
-                </div>
-                <p className="text-slate-700 font-medium">Aucun brouillon en cours</p>
-                <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
-                  Les lots importés sur le plan de classement sont enregistrés automatiquement pendant
-                  votre saisie.
-                </p>
-                <Link
-                  href="/gestion_documentaire/plan_geographique"
-                  className="inline-block mt-6 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
-                >
-                  Ouvrir le plan de classement
-                </Link>
-              </div>
+              <EmptyListState
+                icon="inbox"
+                tone="emerald"
+                title="Aucun brouillon en cours"
+                description="Les lots importés sur le plan de classement sont enregistrés automatiquement pendant votre saisie."
+                action={
+                  <Link
+                    href="/gestion_documentaire/plan_geographique"
+                    className="inline-block px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
+                  >
+                    Ouvrir le plan de classement
+                  </Link>
+                }
+              />
             ) : (
               <table className="w-full min-w-[880px] text-sm text-left">
                 <thead className="sticky top-0 z-10 bg-emerald-50/95 backdrop-blur border-b border-emerald-100">
@@ -180,6 +204,9 @@ export default function BrouillonsPage() {
                     </th>
                     <th className="px-4 py-3 font-semibold text-emerald-900 whitespace-nowrap">
                       Type de document
+                    </th>
+                    <th className="px-4 py-3 font-semibold text-emerald-900 whitespace-nowrap">
+                      Statut
                     </th>
                     <th className="px-4 py-3 font-semibold text-emerald-900 whitespace-nowrap text-center">
                       Documents
@@ -210,6 +237,21 @@ export default function BrouillonsPage() {
                       <td className="px-4 py-3 text-slate-700">
                         {draft.typeLibelle || "—"}
                       </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        {draft.kind === "document" ? (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                              STATUT_BADGE_CLASS[STATUT_BROUILLON]
+                            }`}
+                          >
+                            {getStatutLabel(STATUT_BROUILLON)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
+                            Saisie en cours
+                          </span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800">
                           {draft.pendingCount}
@@ -226,7 +268,28 @@ export default function BrouillonsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap items-center justify-end gap-2">
-                          {canAdd ? (
+                          {draft.kind === "document" ? (
+                            <>
+                              {canChange && (
+                                <Link
+                                  href={`/gestion_documentaire/plan_geographique/${draft.localiteId}/documents/${draft.documentId}/modifier`}
+                                  className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
+                                >
+                                  Modifier
+                                </Link>
+                              )}
+                              {canSoumettre && (
+                                <button
+                                  type="button"
+                                  disabled={busyId === draft.id}
+                                  onClick={() => handleSoumettre(draft)}
+                                  className="px-3 py-1.5 text-xs font-medium border border-indigo-200 text-indigo-700 rounded-lg hover:bg-indigo-50 transition disabled:opacity-50"
+                                >
+                                  {busyId === draft.id ? "Envoi…" : "Envoyer au QC"}
+                                </button>
+                              )}
+                            </>
+                          ) : canAdd ? (
                             <Link
                               href={`/gestion_documentaire/plan_geographique/${draft.localiteId}/rattacher?draft=${draft.id}`}
                               className="px-3 py-1.5 text-xs font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition"
@@ -239,11 +302,11 @@ export default function BrouillonsPage() {
                           {canDelete && (
                             <button
                               type="button"
-                              disabled={deletingId === draft.id}
-                              onClick={() => handleDelete(draft.id)}
+                              disabled={busyId === draft.id}
+                              onClick={() => handleDelete(draft)}
                               className="px-3 py-1.5 text-xs border border-red-200 text-red-700 rounded-lg hover:bg-red-50 transition disabled:opacity-50"
                             >
-                              {deletingId === draft.id ? "Suppression…" : "Supprimer"}
+                              {busyId === draft.id ? "Suppression…" : "Supprimer"}
                             </button>
                           )}
                         </div>

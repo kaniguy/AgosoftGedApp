@@ -37,7 +37,8 @@ export function hasModule(moduleCode) {
   const user = getStoredUser();
   if (!user) return false;
   if (user.is_superuser) return true;
-  if (!user.modules?.length) return true;
+  if (!Array.isArray(user.modules)) return true;
+  if (user.modules.length === 0) return false;
   return user.modules.includes(moduleCode);
 }
 

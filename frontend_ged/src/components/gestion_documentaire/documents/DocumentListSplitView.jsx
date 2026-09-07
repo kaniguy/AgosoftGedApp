@@ -7,6 +7,7 @@ import DocumentPreviewVersionSelect from "./DocumentPreviewVersionSelect";
 import ResizableSplitPane from "./ResizableSplitPane";
 import { useDocumentPreviewVersions } from "../../../hooks/useDocumentPreviewVersions";
 import { downloadDocumentLocalite } from "../../../services/documentLocalite.service";
+import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
 
 export default function DocumentListSplitView({
   previewDoc,
@@ -78,8 +79,10 @@ export default function DocumentListSplitView({
   }
 
   const filename = getFilename(previewDoc);
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
 
   const handleDownload = () => {
+    if (!canDownload) return;
     if (onDownload) {
       onDownload(previewDoc, previewSource);
       return;
@@ -120,7 +123,7 @@ export default function DocumentListSplitView({
               />
             ) : null
           }
-          onDownload={handleDownload}
+          onDownload={canDownload ? handleDownload : undefined}
           onClose={onClosePreview}
         />
       </div>

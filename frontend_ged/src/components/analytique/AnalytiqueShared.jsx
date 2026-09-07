@@ -1,5 +1,14 @@
 "use client";
 
+import EmptyListState from "../ui/EmptyListState";
+
+export function ChartEmpty({
+  title = "Aucune donnée disponible",
+  tone = "orange",
+}) {
+  return <EmptyListState compact tone={tone} title={title} />;
+}
+
 export function SectionCard({ title, subtitle, children }) {
   return (
     <div className="bg-white rounded-xl border border-slate-100 shadow-sm p-6">

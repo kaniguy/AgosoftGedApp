@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 export default function DocumentsParLocaliteChart({
   data = [],
@@ -17,11 +18,7 @@ export default function DocumentsParLocaliteChart({
   onLocaliteClick,
 }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   const truncated = data.map((d) => ({

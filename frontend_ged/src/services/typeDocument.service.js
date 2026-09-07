@@ -5,7 +5,10 @@ export const getTypeDocuments = async () => {
   const res = await apiFetch(`${getApiUrl()}/api/parametrage/type-documents/`, {
     headers: getHeaders(),
   });
-  return res.json();
+  if (!res.ok) return [];
+  const data = await res.json().catch(() => []);
+  if (Array.isArray(data)) return data;
+  return Array.isArray(data?.results) ? data.results : [];
 };
 
 // CREATE

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   deleteLienTelechargement,
   getLiensTelechargement,
@@ -8,6 +9,7 @@ import {
 } from "../../../services/liensTelechargement.service";
 import { formatDisplayDateTime } from "../../../utils/dateFormat";
 import { hasPermission, PERMISSIONS, useCrudPermissions, MODELS } from "../../../utils/permissions";
+import EmptyListState from "../../../components/ui/EmptyListState";
 
 const ITEMS_PER_PAGE = 10;
 
@@ -89,10 +91,12 @@ function DocumentsSummary({ link, onOpen }) {
 }
 
 export default function LiensTelechargementPage() {
+  const searchParams = useSearchParams();
   const [links, setLinks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState(searchParams.get("statut") || "");
+  const recentDays = Number(searchParams.get("recent") || 0) || 0;
   const [currentPage, setCurrentPage] = useState(1);
   const [notification, setNotification] = useState(null);
   const [togglingId, setTogglingId] = useState(null);
@@ -129,6 +133,10 @@ export default function LiensTelechargementPage() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    setStatusFilter(searchParams.get("statut") || "");
+  }, [searchParams]);
+
   const statusCounts = useMemo(() => {
     const counts = {};
     links.forEach((link) => {
@@ -149,6 +157,10 @@ export default function LiensTelechargementPage() {
     const q = searchQuery.trim().toLowerCase();
     const next = links.filter((link) => {
       if (statusFilter && link.status_label !== statusFilter) return false;
+      if (recentDays > 0) {
+        const created = new Date(link.created_at || 0).getTime();
+        if (created < Date.now() - recentDays * 24 * 60 * 60 * 1000) return false;
+      }
       if (!q) return true;
       const haystack = [
         link.created_by_label,
@@ -168,7 +180,7 @@ export default function LiensTelechargementPage() {
       return new Date(b.created_at || 0) - new Date(a.created_at || 0);
     });
     return next;
-  }, [links, searchQuery, statusFilter]);
+  }, [links, searchQuery, statusFilter, recentDays]);
 
   const totalCount = filtered.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / ITEMS_PER_PAGE));
@@ -347,11 +359,20 @@ export default function LiensTelechargementPage() {
         {loading ? (
           <div className="text-center py-12 text-gray-500">Chargement des liens…</div>
         ) : totalCount === 0 ? (
-          <div className="text-center py-12 text-gray-500">
-            {searchQuery || statusFilter
-              ? "Aucun lien ne correspond aux filtres."
-              : "Aucun lien généré pour le moment."}
-          </div>
+          <EmptyListState
+            icon="link"
+            tone="purple"
+            title={
+              searchQuery || statusFilter || recentDays
+                ? "Aucun lien ne correspond"
+                : "Aucun lien généré"
+            }
+            description={
+              searchQuery || statusFilter || recentDays
+                ? "Aucun lien de téléchargement ne correspond aux filtres."
+                : "Les liens partagés apparaîtront ici dès qu’ils seront créés."
+            }
+          />
         ) : (
           <>
             <div className="overflow-auto max-h-[500px] border border-gray-300 rounded-lg">

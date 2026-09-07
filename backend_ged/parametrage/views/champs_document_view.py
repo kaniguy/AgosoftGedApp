@@ -1,6 +1,6 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
-from gestion_acces.permissions import GedDjangoModelPermissions
+from gestion_acces.permissions import CanReadDocumentCatalog
 from ..models.champs_document import ChampsDocument
 from ..serializers.champs_document_serializer import ChampsDocumentSerializer
 
@@ -10,7 +10,7 @@ class ChampsDocumentViewSet(viewsets.ModelViewSet):
 
     queryset = ChampsDocument.objects.all().prefetch_related("options")
     serializer_class = ChampsDocumentSerializer
-    permission_classes = [IsAuthenticated, GedDjangoModelPermissions]
+    permission_classes = [IsAuthenticated, CanReadDocumentCatalog]
 
     def get_queryset(self):
         """Filtre optionnellement les champs par type de document."""

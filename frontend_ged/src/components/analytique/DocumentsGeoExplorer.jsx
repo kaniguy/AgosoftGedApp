@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { getAnalyticsDocumentsGeo } from "../../services/analytique.service";
 import { useAnalytiqueFilters } from "../../hooks/useAnalytiqueFilters";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 function CountBar({ count, max }) {
   const pct = max > 0 ? Math.round((count / max) * 100) : 0;
@@ -146,9 +147,7 @@ export default function DocumentsGeoExplorer() {
           ))}
         </div>
       ) : items.length === 0 ? (
-        <p className="text-sm text-slate-400 text-center py-8">
-          Aucune entité géographique à ce niveau.
-        </p>
+        <ChartEmpty title="Aucune entité géographique à ce niveau" />
       ) : (
         <div className="overflow-auto max-h-80 border border-slate-100 rounded-lg">
           <table className="w-full text-sm">

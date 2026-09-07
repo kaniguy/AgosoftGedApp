@@ -148,6 +148,7 @@ export const PERMISSIONS = {
   TAMPONNER_DOCUMENT: "gestion_documentaire.tamponner_document",
   SIGNER_DOCUMENT: "gestion_documentaire.signer_document",
   COMMENTER_DOCUMENT: "gestion_documentaire.commenter_document",
+  TELECHARGER_DOCUMENT: "gestion_documentaire.telecharger_document",
 };
 
 /** Lit l'utilisateur depuis le localStorage. */
@@ -184,6 +185,14 @@ export function hasAnyPermission(codenames = []) {
   return codenames.some((c) => hasPermission(c));
 }
 
+/** Plan de classement GD : consultation documents ou paramétrage du plan. */
+export function canViewGedPlanClassement() {
+  return hasAnyPermission([
+    PERMISSIONS.VIEW_PLAN_GEOGRAPHIQUE,
+    PERMISSIONS.VIEW_DOCUMENT_LOCALITE,
+  ]);
+}
+
 export function canManageGuideAide() {
   return hasAnyPermission([
     PERMISSIONS.ADD_GUIDE_AIDE,
@@ -193,12 +202,7 @@ export function canManageGuideAide() {
 }
 
 export function canAccessSauvegardeBase() {
-  return hasAnyPermission([
-    PERMISSIONS.VIEW_SAUVEGARDE_BASE,
-    PERMISSIONS.EXPORTER_SAUVEGARDE_BASE,
-    PERMISSIONS.RESTAURER_SAUVEGARDE_BASE,
-    PERMISSIONS.REINITIALISER_SAUVEGARDE_BASE,
-  ]);
+  return Boolean(getStoredUser()?.is_superuser);
 }
 
 export function canAccessGuideAideAdmin() {

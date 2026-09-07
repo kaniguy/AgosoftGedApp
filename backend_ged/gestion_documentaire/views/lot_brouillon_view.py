@@ -53,7 +53,7 @@ class LotBrouillonRattachementViewSet(
             )
             .prefetch_related("items")
         )
-        return filter_lot_brouillon_queryset(qs, self.request.user)
+        return filter_lot_brouillon_queryset(qs, self.request.user).order_by("-date_modification")
 
     def get_serializer_class(self):
         if self.action == "retrieve":
@@ -66,7 +66,7 @@ class LotBrouillonRattachementViewSet(
         ctx = super().get_serializer_context()
         if self.action == "list":
             localite_ids = list(
-                self.get_queryset().values_list("localite_id", flat=True).distinct()
+                self.get_queryset().order_by().values_list("localite_id", flat=True).distinct()
             )
             ctx["localite_chemin_map"] = nodes_map_for_localite_ids(localite_ids)
         elif self.action == "retrieve" and self.kwargs.get("pk"):

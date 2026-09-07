@@ -2,7 +2,7 @@
 
 from gestion_acces.services.audit_service import interpreter_requete_api, log_activite
 
-WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE", "GET"}
+WRITE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
 
 EXCLUDED_PREFIXES = (
     "/api/auth/login",
@@ -85,12 +85,6 @@ class AuditLogMiddleware:
         status_code = getattr(response, "status_code", 0) or 0
         if status_code >= 500:
             return
-        if method == "GET" and status_code != 200:
-            return
-        # Écritures : journaliser aussi les 4xx métier (refus permission, etc.)
-        if method != "GET" and status_code >= 400:
-            # On garde les 4xx pour la traçabilité admin
-            pass
 
         interpreted = interpreter_requete_api(method, path, status_code)
         if not interpreted:

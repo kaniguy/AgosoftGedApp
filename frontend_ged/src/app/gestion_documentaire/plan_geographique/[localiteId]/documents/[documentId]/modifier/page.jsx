@@ -124,10 +124,10 @@ export default function ModifierDocumentPage() {
           <p className="font-medium">{error}</p>
           <button
             type="button"
-            onClick={goBack}
+            onClick={() => router.push("/gestion_documentaire/brouillons")}
             className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700 cursor-pointer"
           >
-            Retour à la liste
+            Retour aux brouillons
           </button>
         </div>
       )}

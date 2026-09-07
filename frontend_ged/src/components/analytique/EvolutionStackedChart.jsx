@@ -10,12 +10,12 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 const SERIES = [
   { key: "valide", label: "Validés", color: "#10b981" },
   { key: "en_attente", label: "En attente", color: "#f59e0b" },
   { key: "rejete", label: "Rejetés", color: "#f43f5e" },
-  { key: "brouillon", label: "Brouillons", color: "#94a3b8" },
 ];
 
 function formatMois(str) {
@@ -32,11 +32,7 @@ export default function EvolutionStackedChart({ data = [], activeStatut = "" }) 
   }));
 
   if (chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   const visibleSeries = activeStatut

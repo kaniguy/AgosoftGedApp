@@ -61,7 +61,9 @@ export default function AnalytiqueFiltersBar({ showStatut = true, showType = tru
               className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-orange-500 focus:outline-none"
             >
               <option value="">Tous les statuts</option>
-              {(meta?.statuts ?? []).map((s) => (
+              {(meta?.statuts ?? [])
+                .filter((s) => s.value !== "brouillon")
+                .map((s) => (
                 <option key={s.value} value={s.value}>
                   {s.label}
                 </option>

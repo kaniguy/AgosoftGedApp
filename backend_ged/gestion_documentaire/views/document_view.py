@@ -10,7 +10,11 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from config.file_validation import validate_document_upload
 from django.core.exceptions import ValidationError as DjangoValidationError
-from gestion_acces.permissions import GedDjangoModelPermissions, RequiresDjangoPerm
+from gestion_acces.permissions import (
+    CanSoumettreDocumentQualite,
+    GedDjangoModelPermissions,
+    RequiresDjangoPerm,
+)
 from gestion_acces.services.access_service import filter_document_queryset
 from rest_framework.response import Response
 
@@ -74,9 +78,15 @@ class DocumentLocaliteViewSet(
 
     def get_permissions(self):
         action = getattr(self, "action", None)
+        if action == "soumettre_controle_qualite":
+            return [IsAuthenticated(), CanSoumettreDocumentQualite()]
         qc_perm = self.QC_ACTION_PERMISSIONS.get(action)
         if qc_perm:
             self.required_permission = qc_perm
+            return [IsAuthenticated(), RequiresDjangoPerm()]
+
+        if action in ("telecharger", "telecharger_archive"):
+            self.required_permission = "gestion_documentaire.telecharger_document"
             return [IsAuthenticated(), RequiresDjangoPerm()]
 
         method = getattr(self.request, "method", "GET").upper()
@@ -220,14 +230,6 @@ class DocumentLocaliteViewSet(
     @action(detail=False, methods=["post"], url_path="telecharger-archive")
     def telecharger_archive(self, request):
         """Télécharge plusieurs documents dans une archive RAR (ou ZIP si WinRAR absent)."""
-        if not request.user.is_superuser and not request.user.has_perm(
-            "gestion_documentaire.view_documentlocalite"
-        ):
-            return Response(
-                {"detail": "Permission refusée."},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
         raw_ids = request.data.get("ids")
         if not isinstance(raw_ids, list) or len(raw_ids) < 2:
             return Response(

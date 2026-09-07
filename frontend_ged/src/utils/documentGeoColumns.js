@@ -14,7 +14,8 @@ export function getLeafLocaliteLabel(doc) {
 
 /** Colonnes des niveaux intermédiaires + dernier niveau (localité). */
 export function buildGeoColumns(structures = []) {
-  const sorted = [...structures].sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  const list = Array.isArray(structures) ? structures : [];
+  const sorted = [...list].sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
   const ancestorLevels = sorted.length > 1 ? sorted.slice(0, -1) : [];
   const lastLevel = sorted[sorted.length - 1];
 

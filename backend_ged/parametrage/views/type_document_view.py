@@ -6,7 +6,7 @@ from rest_framework.response import Response
 
 from config.file_validation import validate_document_upload
 from django.core.exceptions import ValidationError as DjangoValidationError
-from gestion_acces.permissions import GedDjangoModelPermissions
+from gestion_acces.permissions import CanReadDocumentCatalog
 from gestion_acces.services.access_service import filter_type_document_queryset
 from gestion_documentaire.services.ocr_service import get_page_count_from_bytes
 
@@ -22,7 +22,7 @@ from ..serializers.type_document_serializer import TypeDocumentSerializer
 class TypeDocumentViewSet(viewsets.ModelViewSet):
     queryset = TypeDocument.objects.all()
     serializer_class = TypeDocumentSerializer
-    permission_classes = [IsAuthenticated, GedDjangoModelPermissions]
+    permission_classes = [IsAuthenticated, CanReadDocumentCatalog]
     parser_classes = [JSONParser, MultiPartParser, FormParser]
 
     def get_queryset(self):

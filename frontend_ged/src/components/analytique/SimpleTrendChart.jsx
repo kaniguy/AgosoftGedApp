@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 function formatMois(str) {
   if (!str) return "";
@@ -25,6 +26,7 @@ export function SimpleTrendChart({
   formatX = formatMois,
   height = 220,
   valueLabel = "Valeur",
+  onPointClick,
 }) {
   const chartData = data.map((d) => ({
     ...d,
@@ -32,16 +34,19 @@ export function SimpleTrendChart({
   }));
 
   if (chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <AreaChart data={chartData} margin={{ top: 4, right: 16, left: 0, bottom: 0 }}>
+      <AreaChart
+        data={chartData}
+        margin={{ top: 4, right: 16, left: 0, bottom: 0 }}
+        onClick={(state) => {
+          const payload = state?.activePayload?.[0]?.payload;
+          if (payload && onPointClick) onPointClick(payload);
+        }}
+      >
         <defs>
           <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
             <stop offset="5%" stopColor={color} stopOpacity={0.25} />
@@ -61,6 +66,7 @@ export function SimpleTrendChart({
           stroke={color}
           strokeWidth={2}
           fill={`url(#grad-${color})`}
+          style={{ cursor: onPointClick ? "pointer" : "default" }}
         />
       </AreaChart>
     </ResponsiveContainer>

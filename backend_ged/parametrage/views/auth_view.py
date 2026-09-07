@@ -1,3 +1,5 @@
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.response import Response
@@ -9,6 +11,7 @@ from gestion_acces.serializers.profile_serializer import UserSerializer
 from gestion_acces.services.access_service import get_user_access_payload
 from gestion_acces.models.journal_activite import JournalActivite
 from gestion_acces.services.audit_service import log_activite
+from gestion_acces.services.user_credentials_service import mark_password_prompt
 from config.throttling import LoginRateThrottle
 
 
@@ -131,7 +134,62 @@ def me_view(request):
     user = request.user
     access = get_user_access_payload(user)
     user_data = UserSerializer(user, context={"request": request}).data
-    return Response(
+    response = Response(
         {**user_data, **access},
         status=status.HTTP_200_OK,
+    )
+    response["Cache-Control"] = "no-store, no-cache, must-revalidate, private"
+    response["Pragma"] = "no-cache"
+    return response
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def password_prompt_view(request):
+    """Première connexion : changer le mot de passe (facultatif) ou ignorer."""
+    action = (request.data.get("action") or "").strip().lower()
+    user = request.user
+
+    if action == "dismiss":
+        mark_password_prompt(user, enabled=False)
+        access = get_user_access_payload(user)
+        return Response({"suggest_password_change": False, **access})
+
+    if action == "change":
+        new_password = (request.data.get("new_password") or "").strip()
+        confirm = (request.data.get("confirm_password") or "").strip()
+        if not new_password or not confirm:
+            return Response(
+                {"detail": "Saisissez le nouveau mot de passe et sa confirmation."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if new_password != confirm:
+            return Response(
+                {"detail": "Les mots de passe ne correspondent pas."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            validate_password(new_password, user=user)
+        except ValidationError as exc:
+            return Response(
+                {"detail": " ".join(exc.messages)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user.set_password(new_password)
+        user.save()
+        mark_password_prompt(user, enabled=False)
+        access = get_user_access_payload(user)
+        user_data = UserSerializer(user, context={"request": request}).data
+        return Response(
+            {
+                "detail": "Mot de passe mis à jour.",
+                "suggest_password_change": False,
+                **user_data,
+                **access,
+            }
+        )
+
+    return Response(
+        {"detail": "Action invalide. Utilisez « dismiss » ou « change »."},
+        status=status.HTTP_400_BAD_REQUEST,
     )

@@ -3,6 +3,7 @@ import Header from "../components/strucuture_page/Header";
 import AuthGuard from "../components/strucuture_page/AuthGuard";
 import RouteAccessGuard from "../components/strucuture_page/RouteAccessGuard";
 import PageFrame from "../components/strucuture_page/PageFrame";
+import FirstLoginPasswordModal from "../components/strucuture_page/FirstLoginPasswordModal";
 
 export const metadata = {
   title: "AGOSOFT-GED",
@@ -14,6 +15,7 @@ export default function RootLayout({ children }) {
     <html lang="fr">
       <body className="bg-slate-50">
         <AuthGuard>
+          <FirstLoginPasswordModal />
           <Header />
           <PageFrame>
             <RouteAccessGuard>{children}</RouteAccessGuard>

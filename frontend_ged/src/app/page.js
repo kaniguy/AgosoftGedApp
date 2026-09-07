@@ -5,8 +5,10 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import ModuleCard from "../components/ModuleCard";
 import Header from "../components/strucuture_page/Header";
-import { APP_MODULES, getVisibleModulesFromStorage, getModuleFilterChips, moduleMatchesFilterGroup } from "../constants/modules";
+import { getVisibleModulesFromStorage, getModuleFilterChips, moduleMatchesFilterGroup } from "../constants/modules";
+import { getModuleEntryPath, MODULE_ROOT_PATHS } from "../constants/routeAccess";
 import { hasControleQualiteModule } from "../utils/controleQualitePermissions";
+import { refreshUserAccess } from "../services/auth.service";
 
 const FILTER_CHIP_CLASSES = {
   slate: { active: "bg-slate-700 text-white", idle: "hover:bg-slate-100 text-slate-600" },
@@ -46,7 +48,18 @@ export default function Home() {
     };
     refreshModules();
     window.addEventListener("user-profile-updated", refreshModules);
-    return () => window.removeEventListener("user-profile-updated", refreshModules);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        refreshUserAccess();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", refreshUserAccess);
+    return () => {
+      window.removeEventListener("user-profile-updated", refreshModules);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", refreshUserAccess);
+    };
   }, []);
 
   // Mise à jour de l'heure chaque seconde
@@ -62,9 +75,11 @@ export default function Home() {
 
   const isExternalPath = (path) => /^https?:\/\//i.test(path || "");
 
-  const handleModuleClick = (module) => {
+  const handleModuleClick = async (module) => {
     if (!module.path || isExternalPath(module.path)) return;
-    router.push(module.path);
+    await refreshUserAccess();
+    const path = getModuleEntryPath(module.code) || MODULE_ROOT_PATHS[module.code] || module.path;
+    router.push(path);
   };
 
   const filteredModules = modules.filter(module => 

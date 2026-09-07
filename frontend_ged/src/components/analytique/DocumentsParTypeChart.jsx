@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 const GRADIENT_COLORS = [
   "#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd",
@@ -23,11 +24,7 @@ export default function DocumentsParTypeChart({
   onTypeClick,
 }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   const truncated = data.map((d) => ({

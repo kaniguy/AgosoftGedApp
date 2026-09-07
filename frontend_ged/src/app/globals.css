@@ -191,3 +191,432 @@ body {
   z-index: 1;
   margin-top: -48px;
 }
+
+/* État vide — robot document qui inspecte le message à la loupe */
+@keyframes empty-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes empty-critter-look {
+  0%,
+  8% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  16%,
+  26% {
+    transform: translate(-42px, 8px) rotate(-10deg);
+  }
+  34%,
+  44% {
+    transform: translate(46px, 6px) rotate(10deg);
+  }
+  52%,
+  62% {
+    transform: translate(2px, -34px) rotate(-5deg);
+  }
+  72%,
+  90% {
+    transform: translate(6px, 42px) rotate(6deg);
+  }
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+}
+
+@keyframes empty-critter-arm {
+  0%,
+  8% {
+    transform: rotate(-8deg);
+  }
+  16%,
+  26% {
+    transform: rotate(-58deg);
+  }
+  34%,
+  44% {
+    transform: rotate(46deg);
+  }
+  52%,
+  62% {
+    transform: rotate(-70deg);
+  }
+  72%,
+  90% {
+    transform: rotate(38deg) translate(8px, 18px);
+  }
+  100% {
+    transform: rotate(-8deg);
+  }
+}
+
+@keyframes empty-critter-head {
+  0%,
+  8% {
+    transform: rotate(0deg);
+  }
+  16%,
+  26% {
+    transform: rotate(-16deg);
+  }
+  34%,
+  44% {
+    transform: rotate(16deg);
+  }
+  52%,
+  62% {
+    transform: rotate(-12deg);
+  }
+  72%,
+  90% {
+    transform: rotate(12deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes empty-critter-eyes {
+  0%,
+  8% {
+    transform: translate(0, 0);
+  }
+  16%,
+  26% {
+    transform: translate(-5px, 1px);
+  }
+  34%,
+  44% {
+    transform: translate(5px, 1px);
+  }
+  52%,
+  62% {
+    transform: translate(0, -5px);
+  }
+  72%,
+  90% {
+    transform: translate(1px, 5px);
+  }
+  100% {
+    transform: translate(0, 0);
+  }
+}
+
+@keyframes empty-critter-blink {
+  0%,
+  86%,
+  94%,
+  100% {
+    transform: scaleY(1);
+  }
+  90%,
+  92% {
+    transform: scaleY(0.08);
+  }
+}
+
+@keyframes empty-critter-antenna {
+  0%,
+  100% {
+    transform: rotate(-6deg);
+  }
+  50% {
+    transform: rotate(8deg);
+  }
+}
+
+@keyframes empty-critter-scan {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.55;
+  }
+  50% {
+    transform: translateY(28px);
+    opacity: 0.35;
+  }
+  82% {
+    opacity: 0.55;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes empty-critter-glint {
+  0%,
+  58%,
+  100% {
+    opacity: 0.18;
+  }
+  70% {
+    opacity: 1;
+  }
+}
+
+@keyframes empty-critter-sparkle {
+  0%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  76%,
+  88% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+}
+
+@keyframes empty-critter-loupe-handoff {
+  0%,
+  68%,
+  100% {
+    opacity: 1;
+  }
+  74%,
+  90% {
+    opacity: 0.12;
+  }
+}
+
+@keyframes empty-title-inspect {
+  0%,
+  68%,
+  100% {
+    transform: scale(1);
+    letter-spacing: 0;
+    color: #334155;
+  }
+  76%,
+  90% {
+    transform: scale(1.04);
+    letter-spacing: 0.02em;
+    color: #1e293b;
+  }
+}
+
+@keyframes empty-glass-inspect {
+  0%,
+  68%,
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.28) rotate(-12deg);
+  }
+  76%,
+  90% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+  }
+}
+
+@keyframes empty-glass-text {
+  0%,
+  68%,
+  100% {
+    transform: scale(1);
+  }
+  76%,
+  90% {
+    transform: scale(1.55);
+  }
+}
+
+@keyframes empty-critter-shadow {
+  0%,
+  8%,
+  100% {
+    transform: translateX(0) scaleX(1);
+    opacity: 0.14;
+  }
+  16%,
+  26% {
+    transform: translateX(-20px) scaleX(0.86);
+    opacity: 0.2;
+  }
+  34%,
+  44% {
+    transform: translateX(22px) scaleX(0.86);
+    opacity: 0.2;
+  }
+  52%,
+  62% {
+    transform: translateX(3px) scaleX(0.68);
+    opacity: 0.1;
+  }
+  72%,
+  90% {
+    transform: translateX(6px) scaleX(1.18);
+    opacity: 0.26;
+  }
+}
+
+.empty-list-state {
+  animation: empty-fade-up 0.5s ease-out both;
+}
+
+.empty-search-stage {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: visible;
+}
+
+.empty-critter {
+  overflow: visible;
+  display: block;
+}
+
+.empty-critter-move {
+  transform-origin: 140px 196px;
+  animation: empty-critter-look 9s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+}
+
+.empty-critter-head {
+  transform-origin: 140px 86px;
+  animation: empty-critter-head 9s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+}
+
+.empty-critter-antenna {
+  transform-origin: 140px 38px;
+  animation: empty-critter-antenna 1.6s ease-in-out infinite;
+}
+
+.empty-critter-scan {
+  animation: empty-critter-scan 2.4s ease-in-out infinite;
+}
+
+.empty-critter-eyes {
+  animation: empty-critter-eyes 9s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+}
+
+.empty-critter-blink {
+  animation: empty-critter-blink 4.2s ease-in-out infinite;
+}
+
+.empty-critter-arm {
+  transform-origin: 170px 148px;
+  animation: empty-critter-arm 9s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+}
+
+.empty-critter-loupe {
+  animation: empty-critter-loupe-handoff 9s ease-in-out infinite;
+}
+
+.empty-critter-glint {
+  animation: empty-critter-glint 2.1s ease-in-out infinite;
+}
+
+.empty-critter-sparkle {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: empty-critter-sparkle 9s ease-in-out infinite;
+}
+
+.empty-critter-shadow {
+  transform-origin: 140px 208px;
+  animation: empty-critter-shadow 9s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+}
+
+.empty-search-caption {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0.35rem 1.4rem;
+  margin-top: -1.65rem;
+}
+
+.empty-search-title {
+  position: relative;
+  z-index: 1;
+  margin: 0;
+  font-weight: 700;
+  color: #334155;
+  white-space: nowrap;
+  animation: empty-title-inspect 9s ease-in-out infinite;
+}
+
+.empty-search-glass {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: 8.5rem;
+  height: 8.5rem;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 7px solid #1e293b;
+  background:
+    radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.62), transparent 46%),
+    var(--empty-glass, rgba(16, 185, 129, 0.2));
+  box-shadow:
+    inset 0 0 0 2px var(--empty-accent, #10b981),
+    0 12px 28px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+  animation: empty-glass-inspect 9s ease-in-out infinite;
+}
+
+.empty-search-glass::after {
+  content: "";
+  position: absolute;
+  right: 10px;
+  bottom: -22px;
+  width: 10px;
+  height: 32px;
+  border-radius: 999px;
+  background: #1e293b;
+  box-shadow: 0 0 0 2px var(--empty-accent, #10b981);
+  transform: rotate(40deg);
+}
+
+.empty-search-glass-text {
+  font-weight: 800;
+  font-size: 1.05rem;
+  color: #0f172a;
+  white-space: nowrap;
+  animation: empty-glass-text 9s ease-in-out infinite;
+}
+
+.empty-search-desc {
+  opacity: 0.9;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .empty-list-state,
+  .empty-critter-move,
+  .empty-critter-head,
+  .empty-critter-antenna,
+  .empty-critter-scan,
+  .empty-critter-eyes,
+  .empty-critter-blink,
+  .empty-critter-arm,
+  .empty-critter-loupe,
+  .empty-critter-glint,
+  .empty-critter-sparkle,
+  .empty-critter-shadow,
+  .empty-search-title,
+  .empty-search-glass,
+  .empty-search-glass-text {
+    animation: none;
+  }
+
+  .empty-search-glass {
+    display: none;
+  }
+}

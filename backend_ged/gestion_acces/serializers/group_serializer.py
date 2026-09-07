@@ -2,9 +2,37 @@ from rest_framework import serializers
 from django.contrib.auth.models import Group, Permission, User
 from parametrage.models import PlanGeographique, TypeDocument
 from ..models.group_profile import GroupProfile
-from ..constants import VALID_MODULE_CODES
+from ..constants import VALID_MODULE_CODES, MODULE_DEFAULT_VIEW_PERMISSIONS
+from ..permission_tree import expand_permission_objects
 from ..services.access_service import build_localite_chemin
 from gestion_acces.services.permission_labels import format_permission_label_fr
+
+
+def _permissions_from_codenames(full_codenames):
+    """Résout app_label.codename vers des objets Permission existants."""
+    found = []
+    for full in full_codenames:
+        app_label, _, codename = full.partition(".")
+        if not app_label or not codename:
+            continue
+        perm = Permission.objects.filter(
+            content_type__app_label=app_label, codename=codename
+        ).first()
+        if perm:
+            found.append(perm)
+    return found
+
+
+def _default_view_permissions_for_modules(modules):
+    """Permissions de consultation minimales pour entrer dans les modules cochés."""
+    codenames = []
+    seen = set()
+    for code in modules or []:
+        for full in MODULE_DEFAULT_VIEW_PERMISSIONS.get(code, []):
+            if full not in seen:
+                seen.add(full)
+                codenames.append(full)
+    return _permissions_from_codenames(codenames)
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -34,12 +62,14 @@ class GroupSerializer(serializers.ModelSerializer):
         required=False,
     )
     types_documents_detail = serializers.SerializerMethodField(read_only=True)
+    is_active = serializers.BooleanField(required=False)
 
     class Meta:
         model = Group
         fields = [
             "id",
             "name",
+            "is_active",
             "permissions",
             "permissions_detail",
             "users",
@@ -52,8 +82,20 @@ class GroupSerializer(serializers.ModelSerializer):
             "types_documents_detail",
         ]
 
+    def _is_lite(self):
+        request = self.context.get("request")
+        return bool(request and request.query_params.get("lite") == "1")
+
+    def _skip_details(self):
+        if self._is_lite():
+            return True
+        view = self.context.get("view")
+        return getattr(view, "action", None) == "list"
+
     def get_permissions_detail(self, obj):
         """Détail lisible des permissions Django du groupe."""
+        if self._skip_details():
+            return []
         return [
             {"id": p.id, "name": format_permission_label_fr(p), "codename": p.codename}
             for p in obj.permissions.all()
@@ -61,6 +103,8 @@ class GroupSerializer(serializers.ModelSerializer):
 
     def get_users_detail(self, obj):
         """Liste des utilisateurs membres du groupe."""
+        if self._skip_details():
+            return []
         return [
             {
                 "id": u.id,
@@ -75,10 +119,15 @@ class GroupSerializer(serializers.ModelSerializer):
 
     def get_users_count(self, obj):
         """Nombre d'utilisateurs membres du groupe."""
+        annotated = getattr(obj, "users_count_ann", None)
+        if annotated is not None:
+            return annotated
         return obj.user_set.count()
 
     def get_localites_detail(self, obj):
         """Localités du dernier niveau avec leur chemin hiérarchique."""
+        if self._skip_details():
+            return []
         profile = getattr(obj, "ged_profile", None)
         if not profile:
             return []
@@ -98,6 +147,8 @@ class GroupSerializer(serializers.ModelSerializer):
 
     def get_types_documents_detail(self, obj):
         """Types de documents autorisés pour ce groupe."""
+        if self._skip_details():
+            return []
         profile = getattr(obj, "ged_profile", None)
         if not profile:
             return []
@@ -115,21 +166,33 @@ class GroupSerializer(serializers.ModelSerializer):
         """Charge modules, localites et types de documents depuis le profil pour la lecture."""
         profile = getattr(obj, "ged_profile", None)
         if not profile:
-            return [], [], []
+            return [], [], [], True
         return (
             list(profile.modules or []),
-            list(profile.localites.values_list("id", flat=True)),
-            list(profile.types_documents.values_list("id", flat=True)),
+            [loc.id for loc in profile.localites.all()],
+            [td.id for td in profile.types_documents.all()],
+            bool(profile.is_active),
         )
 
     def to_representation(self, instance):
         """Injecte modules, localites, types de documents et utilisateurs dans la réponse API."""
+        if self._is_lite():
+            profile = getattr(instance, "ged_profile", None)
+            annotated = getattr(instance, "users_count_ann", None)
+            return {
+                "id": instance.id,
+                "name": instance.name,
+                "is_active": True if profile is None else bool(profile.is_active),
+                "users_count": annotated if annotated is not None else 0,
+            }
+
         data = super().to_representation(instance)
-        modules, localite_ids, type_doc_ids = self._read_profile_fields(instance)
+        modules, localite_ids, type_doc_ids, is_active = self._read_profile_fields(instance)
         data["modules"] = modules
         data["localites"] = localite_ids
         data["types_documents"] = type_doc_ids
-        data["users"] = list(instance.user_set.values_list("id", flat=True))
+        data["is_active"] = is_active
+        data["users"] = [u.id for u in instance.user_set.all()]
         return data
 
     def validate_modules(self, value):
@@ -153,19 +216,31 @@ class GroupSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
         return value
 
-    def _save_profile(self, group, modules=None, localites=None, types_documents=None):
-        """Persiste modules, localités et types de documents dans GroupProfile."""
+    def _save_profile(
+        self, group, modules=None, localites=None, types_documents=None, is_active=None
+    ):
+        """Persiste modules, localités, types de documents et statut dans GroupProfile."""
         profile, _ = GroupProfile.objects.get_or_create(group=group)
+        update_fields = []
 
         if modules is not None:
             profile.modules = modules
-            profile.save(update_fields=["modules"])
+            update_fields.append("modules")
+
+        if is_active is not None:
+            GroupProfile.objects.filter(pk=profile.pk).update(is_active=is_active)
+            profile.is_active = is_active
+
+        if update_fields:
+            profile.save(update_fields=update_fields)
 
         if localites is not None:
             profile.localites.set(localites)
 
         if types_documents is not None:
             profile.types_documents.set(types_documents)
+
+        group.ged_profile = profile
 
     def _sync_group_users(self, group, users):
         """Ajoute ou retire les utilisateurs du groupe sans toucher aux autres groupes."""
@@ -190,6 +265,11 @@ class GroupSerializer(serializers.ModelSerializer):
         localites = validated_data.pop("localites", [])
         types_documents = validated_data.pop("types_documents", [])
         users = validated_data.pop("users", [])
+        is_active = validated_data.pop("is_active", True)
+
+        if not permissions:
+            permissions = _default_view_permissions_for_modules(modules)
+        permissions = expand_permission_objects(permissions)
 
         group = Group.objects.create(**validated_data)
         group.permissions.set(permissions)
@@ -198,6 +278,7 @@ class GroupSerializer(serializers.ModelSerializer):
             modules=modules,
             localites=localites,
             types_documents=types_documents,
+            is_active=is_active,
         )
         self._sync_group_users(group, users)
         return group
@@ -209,18 +290,29 @@ class GroupSerializer(serializers.ModelSerializer):
         localites = validated_data.pop("localites", None)
         types_documents = validated_data.pop("types_documents", None)
         users = validated_data.pop("users", None)
+        is_active = validated_data.pop("is_active", None)
 
-        instance.name = validated_data.get("name", instance.name)
-        instance.save()
+        if "name" in validated_data:
+            instance.name = validated_data["name"]
+            instance.save(update_fields=["name"])
+        elif validated_data:
+            instance.save()
 
         if permissions is not None:
-            instance.permissions.set(permissions)
+            if not permissions:
+                permissions = _default_view_permissions_for_modules(
+                    modules if modules is not None else list(
+                        getattr(getattr(instance, "ged_profile", None), "modules", None) or []
+                    )
+                )
+            instance.permissions.set(expand_permission_objects(permissions))
 
         self._save_profile(
             instance,
             modules=modules,
             localites=localites,
             types_documents=types_documents,
+            is_active=is_active,
         )
         self._sync_group_users(instance, users)
         return instance

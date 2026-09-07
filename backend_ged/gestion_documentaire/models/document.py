@@ -96,6 +96,7 @@ class DocumentLocalite(models.Model):
             ("tamponner_document", "Peut apposer des tampons sur un document"),
             ("signer_document", "Peut signer un document"),
             ("commenter_document", "Peut ajouter des commentaires sur un document"),
+            ("telecharger_document", "Peut télécharger un document"),
         ]
 
     def __str__(self):

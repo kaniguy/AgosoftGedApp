@@ -10,6 +10,7 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 const COLORS = [
   "#10b981", "#6366f1", "#f59e0b", "#f43f5e",
@@ -18,11 +19,7 @@ const COLORS = [
 
 export default function ActionsParTypeChart({ data = [] }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   return (

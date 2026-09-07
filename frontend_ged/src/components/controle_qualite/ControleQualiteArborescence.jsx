@@ -8,6 +8,7 @@ import {
   canOpenDocumentQc,
   getQcActionLabel,
 } from "../../utils/controleQualitePermissions";
+import EmptyListState from "../ui/EmptyListState";
 
 function formatDate(value) {
   if (!value) return "—";
@@ -57,9 +58,12 @@ function CasierDocumentsTable({ documents, statut, localiteId, statutConfig, hig
 
   if (!documents.length) {
     return (
-      <p className="px-4 py-6 text-sm text-slate-400 text-center bg-slate-50/80">
-        Aucun document pour ce casier.
-      </p>
+      <EmptyListState
+        compact
+        icon="folder"
+        tone="amber"
+        title="Aucun document pour ce casier"
+      />
     );
   }
 

@@ -16,7 +16,7 @@ import {
   getControleQualiteRedirectAfterImport,
 } from "../../../../../utils/controleQualitePermissions";
 import { findRattachementDraftForLocalite } from "../../../../../utils/rattachementDraftStore";
-import { PLAN_GEO_RESTORE_PATH } from "../../../../../components/gestion_documentaire/plan_geographique/planGeoNavigationState";
+import { PLAN_GEO_PATH, PLAN_GEO_RESTORE_PATH } from "../../../../../components/gestion_documentaire/plan_geographique/planGeoNavigationState";
 
 function RattacherDocumentContent() {
   const router = useRouter();
@@ -78,7 +78,11 @@ function RattacherDocumentContent() {
   }, [localiteId, draftFromUrl]);
 
   const handleClose = () => {
-    router.push(PLAN_GEO_RESTORE_PATH);
+    if (draftFromUrl) {
+      router.push("/gestion_documentaire/brouillons");
+      return;
+    }
+    router.push(PLAN_GEO_PATH);
   };
 
   const guardedNavigate = useCallback(
@@ -147,7 +151,7 @@ function RattacherDocumentContent() {
           <span>/</span>
           <button
             type="button"
-            onClick={() => guardedNavigate(PLAN_GEO_RESTORE_PATH)}
+            onClick={() => guardedNavigate(error ? PLAN_GEO_PATH : PLAN_GEO_RESTORE_PATH)}
             className="hover:text-emerald-600"
           >
             Plan de classement
@@ -174,7 +178,7 @@ function RattacherDocumentContent() {
             onClick={handleClose}
             className="mt-4 px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm hover:bg-emerald-700"
           >
-            Retour au plan de classement
+            {draftFromUrl ? "Retour aux brouillons" : "Retour au plan de classement"}
           </button>
         </div>
       )}

@@ -8,6 +8,7 @@ from .registre import (
     get_or_create_regle,
     get_or_create_template,
 )
+from .notification_identifiants import notifier_identifiants
 from .notification_rejet import notifier_rejet
 from .notification_resoumission import notifier_resoumission
 from .notification_resume_periodique import envoyer_resume_periodique
@@ -21,6 +22,7 @@ __all__ = [
     "get_or_create_regle",
     "get_or_create_template",
     "notifier_evenement_qc",
+    "notifier_identifiants",
     "notifier_rejet",
     "notifier_resoumission",
     "notifier_soumission",

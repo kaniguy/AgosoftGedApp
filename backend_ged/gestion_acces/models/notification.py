@@ -9,16 +9,18 @@ class EvenementNotification(models.TextChoices):
     VALIDATION = "validation", "Validation du document"
     REJET = "rejet", "Rejet du document"
     RESOUMISSION = "resoumission", "Resoumission après rejet"
+    IDENTIFIANTS = "identifiants", "Envoi du mot de passe (création de compte)"
     RESUME_PERIODIQUE = "resume_periodique", "Résumé périodique des documents en attente"
 
     @classmethod
     def workflow_codes(cls):
-        """Ordre d'affichage aligné sur le parcours QC."""
+        """Ordre d'affichage aligné sur le parcours QC, puis identifiants."""
         return [
             cls.SOUMISSION,
             cls.VALIDATION,
             cls.REJET,
             cls.RESOUMISSION,
+            cls.IDENTIFIANTS,
             cls.RESUME_PERIODIQUE,
         ]
 
@@ -33,6 +35,7 @@ class CibleNotification(models.TextChoices):
     CONTROLEURS = "controleurs", "Contrôleurs éligibles (permissions + périmètre)"
     GROUPES = "groupes", "Groupes personnalisés"
     UTILISATEURS = "utilisateurs", "Utilisateurs personnalisés"
+    COMPTE = "compte", "Le compte concerné"
 
 
 class ModeleEmailNotification(models.Model):
@@ -187,6 +190,10 @@ class PreferenceNotification(models.Model):
     notif_resoumission = models.BooleanField(default=True)
     notif_validation = models.BooleanField(default=True)
     notif_rejet = models.BooleanField(default=True)
+    notif_identifiants = models.BooleanField(
+        default=True,
+        help_text="Recevoir un e-mail lorsqu'un mot de passe est généré pour le compte.",
+    )
     resume_periodique = models.BooleanField(default=True)
     date_modification = models.DateTimeField(auto_now=True)
 
@@ -199,6 +206,7 @@ class PreferenceNotification(models.Model):
         EvenementNotification.RESOUMISSION: "notif_resoumission",
         EvenementNotification.VALIDATION: "notif_validation",
         EvenementNotification.REJET: "notif_rejet",
+        EvenementNotification.IDENTIFIANTS: "notif_identifiants",
         EvenementNotification.RESUME_PERIODIQUE: "resume_periodique",
     }
 

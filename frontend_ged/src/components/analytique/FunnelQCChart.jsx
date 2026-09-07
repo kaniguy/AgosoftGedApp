@@ -10,16 +10,13 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
-const FUNNEL_COLORS = ["#94a3b8", "#f59e0b", "#10b981", "#f43f5e"];
+const FUNNEL_COLORS = ["#f59e0b", "#10b981", "#f43f5e"];
 
 export default function FunnelQCChart({ data = [], activeStatut = "", onStatutClick }) {
   if (data.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune donnée disponible
-      </div>
-    );
+    return <ChartEmpty />;
   }
 
   return (

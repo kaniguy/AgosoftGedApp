@@ -4,11 +4,9 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { hasPermission, PERMISSIONS } from "../../utils/permissions";
-import {
-  listRattachementDrafts,
-  RATTACHEMENT_DRAFTS_UPDATED,
-} from "../../utils/rattachementDraftStore";
+import { canViewGedPlanClassement, hasPermission, PERMISSIONS } from "../../utils/permissions";
+import { listAllVisibleBrouillons } from "../../utils/brouillonsList";
+import { RATTACHEMENT_DRAFTS_UPDATED } from "../../utils/rattachementDraftStore";
 
 export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
   const pathname = usePathname();
@@ -32,8 +30,8 @@ export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
     let cancelled = false;
     const loadCount = async () => {
       try {
-        const list = await listRattachementDrafts();
-        if (!cancelled) setDraftCount(list.length);
+        const { drafts } = await listAllVisibleBrouillons();
+        if (!cancelled) setDraftCount(drafts.length);
       } catch {
         if (!cancelled) setDraftCount(0);
       }
@@ -54,7 +52,7 @@ export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
       id: "plan-geographique",
       name: "Plan de classement",
       path: "/gestion_documentaire/plan_geographique",
-      permission: PERMISSIONS.VIEW_PLAN_GEOGRAPHIQUE,
+      permissionCheck: canViewGedPlanClassement,
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path
@@ -103,7 +101,10 @@ export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
   ];
 
   const menuItems = useMemo(
-    () => allMenuItems.filter((item) => hasPermission(item.permission)),
+    () =>
+      allMenuItems.filter((item) =>
+        item.permissionCheck ? item.permissionCheck() : hasPermission(item.permission)
+      ),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [accessVersion]
   );

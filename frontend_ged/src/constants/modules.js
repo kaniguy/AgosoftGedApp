@@ -121,8 +121,11 @@ export function getVisibleModules(userModules, isSuperuser = false) {
   if (isSuperuser) {
     return APP_MODULES;
   }
-  if (!userModules || userModules.length === 0) {
+  if (!Array.isArray(userModules)) {
     return APP_MODULES;
+  }
+  if (userModules.length === 0) {
+    return [];
   }
   return APP_MODULES.filter((m) => userModules.includes(m.code));
 }
@@ -178,7 +181,8 @@ export function isSuperuserFromStorage() {
 export function userHasModule(moduleCode) {
   if (isSuperuserFromStorage()) return true;
   const modules = getUserModulesFromStorage();
-  if (!modules || modules.length === 0) return true;
+  if (!Array.isArray(modules)) return true;
+  if (modules.length === 0) return false;
   return modules.includes(moduleCode);
 }
 

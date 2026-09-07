@@ -9,6 +9,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ChartEmpty } from "./AnalytiqueShared";
 
 function formatJour(str) {
   if (!str) return "";
@@ -23,11 +24,7 @@ export default function ActiviteJournaliereChart({ data = [] }) {
   }));
 
   if (chartData.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-48 text-slate-400 text-sm">
-        Aucune activité enregistrée
-      </div>
-    );
+    return <ChartEmpty title="Aucune activité enregistrée" />;
   }
 
   return (

@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { getUsers, createUser, updateUser, deleteUser } from "../../../services/user.service";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { getUsers, createUser, updateUser, patchUser, deleteUser } from "../../../services/user.service";
 import { getGroups } from "../../../services/group.service";
 import { useCrudPermissions, MODELS } from "../../../utils/permissions";
+import EmptyListState from "../../../components/ui/EmptyListState";
+import { PASSWORD_HELP, passwordComplexityMessage } from "../../../utils/passwordPolicy";
 
 const emptyForm = {
   username: "",
@@ -17,7 +20,65 @@ const emptyForm = {
   groups: [],
 };
 
+function toIdList(values) {
+  return (values || []).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+}
+
+function listHasId(list, id) {
+  const n = Number(id);
+  return list.some((x) => Number(x) === n);
+}
+
+const ETAT_LABELS = {
+  total: "Tous les utilisateurs",
+  actifs: "Comptes actifs",
+  inactifs: "Comptes inactifs",
+  jamais_connectes: "Jamais connectés",
+  sans_groupe: "Sans groupe",
+  connectes_30j: "Connectés (30 j)",
+  nouveaux_30j: "Nouveaux (30 j)",
+};
+
+function msAgo(days) {
+  return Date.now() - days * 24 * 60 * 60 * 1000;
+}
+
+function currentUserId() {
+  try {
+    return Number(JSON.parse(localStorage.getItem("user") || "{}")?.id);
+  } catch {
+    return NaN;
+  }
+}
+
+function matchesEtat(user, etat, mois) {
+  if (mois) {
+    if (!user.date_joined) return false;
+    const d = new Date(user.date_joined);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    if (key !== mois) return false;
+    if (!etat || etat === "nouveaux_30j") return true;
+  }
+  if (!etat || etat === "total") return true;
+  if (etat === "actifs") return Boolean(user.is_active);
+  if (etat === "inactifs") return !user.is_active;
+  if (etat === "jamais_connectes") return !user.last_login;
+  if (etat === "sans_groupe") {
+    const groups = user.groups_detail || user.groups || [];
+    return groups.length === 0;
+  }
+  if (etat === "connectes_30j") {
+    return Boolean(user.last_login) && new Date(user.last_login).getTime() >= msAgo(30);
+  }
+  if (etat === "nouveaux_30j") {
+    return Boolean(user.date_joined) && new Date(user.date_joined).getTime() >= msAgo(30);
+  }
+  return true;
+}
+
 export default function UtilisateursPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { canAdd, canChange, canDelete } = useCrudPermissions(MODELS.USER);
   const showRowActions = canChange || canDelete;
   const [users, setUsers] = useState([]);
@@ -28,6 +89,14 @@ export default function UtilisateursPage() {
   const [modal, setModal] = useState(null);
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptyForm);
+  const [delivery, setDelivery] = useState(null);
+  const [busyId, setBusyId] = useState(null);
+  const openedUserFromQuery = useRef(false);
+
+  const etatFilter = searchParams.get("etat") || "";
+  const groupeFilter = searchParams.get("groupe") || "";
+  const moisFilter = searchParams.get("mois") || "";
+  const userFilter = searchParams.get("user") || "";
 
   const showNotif = (message, type = "success") => {
     setNotification({ message, type });
@@ -37,7 +106,10 @@ export default function UtilisateursPage() {
   const load = async () => {
     try {
       setLoading(true);
-      const [usersData, groupsData] = await Promise.all([getUsers(), getGroups()]);
+      const [usersData, groupsData] = await Promise.all([
+        getUsers(),
+        getGroups({ lite: true }),
+      ]);
       setUsers(Array.isArray(usersData) ? usersData : []);
       setGroups(Array.isArray(groupsData) ? groupsData : []);
     } catch (err) {
@@ -47,16 +119,45 @@ export default function UtilisateursPage() {
     }
   };
 
+  const upsertUser = (saved) => {
+    if (!saved?.id) return;
+    setUsers((prev) => {
+      const index = prev.findIndex((u) => u.id === saved.id);
+      if (index === -1) return [...prev, saved];
+      const next = [...prev];
+      next[index] = { ...prev[index], ...saved };
+      return next;
+    });
+  };
+
   useEffect(() => {
     load();
   }, []);
 
-  const filtered = users.filter(
-    (u) =>
-      u.username?.toLowerCase().includes(search.toLowerCase()) ||
-      u.email?.toLowerCase().includes(search.toLowerCase()) ||
-      `${u.first_name} ${u.last_name}`.toLowerCase().includes(search.toLowerCase())
-  );
+  const clearQueryFilters = () => {
+    router.replace("/gestion_acces/utilisateurs");
+  };
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return users.filter((u) => {
+      if (!matchesEtat(u, etatFilter, moisFilter)) return false;
+      if (groupeFilter) {
+        const id = Number(groupeFilter);
+        const inDetail = (u.groups_detail || []).some((g) => Number(g.id) === id);
+        const inIds = (u.groups || []).some((g) => Number(g) === id);
+        if (!inDetail && !inIds) return false;
+      }
+      if (!q) return true;
+      return (
+        u.username?.toLowerCase().includes(q) ||
+        u.email?.toLowerCase().includes(q) ||
+        `${u.first_name} ${u.last_name}`.toLowerCase().includes(q)
+      );
+    });
+  }, [users, search, etatFilter, groupeFilter, moisFilter]);
+
+  const groupeLabel = groups.find((g) => String(g.id) === String(groupeFilter))?.name;
 
   const openCreate = () => {
     setForm(emptyForm);
@@ -75,21 +176,48 @@ export default function UtilisateursPage() {
       is_active: user.is_active,
       is_staff: user.is_staff,
       is_superuser: user.is_superuser,
-      groups: user.groups || [],
+      groups: toIdList(user.groups),
     });
     setModal("form");
   };
+
+  useEffect(() => {
+    if (openedUserFromQuery.current || !userFilter || !users.length) return;
+    const found = users.find((u) => String(u.id) === String(userFilter));
+    if (found) {
+      openedUserFromQuery.current = true;
+      openEdit(found);
+    }
+  }, [userFilter, users]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       const payload = { ...form };
-      if (selected && !payload.password) delete payload.password;
-      if (selected) await updateUser(selected.id, payload);
-      else await createUser(payload);
-      setModal(null);
-      showNotif(selected ? "Utilisateur modifié" : "Utilisateur créé");
-      await load();
+      if (!payload.password) delete payload.password;
+      else {
+        const complexity = passwordComplexityMessage(payload.password);
+        if (complexity) {
+          showNotif(complexity, "error");
+          return;
+        }
+      }
+      if (selected) {
+        const saved = await updateUser(selected.id, payload);
+        upsertUser(saved);
+        setModal(null);
+        showNotif("Utilisateur modifié");
+      } else {
+        const created = await createUser(payload);
+        upsertUser(created);
+        setModal(null);
+        setDelivery({
+          username: created.username || payload.username,
+          detail: created.password_delivery_detail || "Utilisateur créé.",
+          password: created.generated_password || "",
+          status: created.password_delivery || "ok",
+        });
+      }
     } catch (err) {
       showNotif(err.message, "error");
     }
@@ -97,21 +225,40 @@ export default function UtilisateursPage() {
 
   const handleDelete = async () => {
     try {
-      await deleteUser(selected.id);
+      const deletedId = selected.id;
+      await deleteUser(deletedId);
+      setUsers((prev) => prev.filter((u) => u.id !== deletedId));
       setModal(null);
       showNotif("Utilisateur supprimé");
-      await load();
     } catch (err) {
       showNotif(err.message, "error");
     }
   };
 
+  const handleToggleActive = async (user) => {
+    if (Number(user.id) === currentUserId() && user.is_active) {
+      showNotif("Vous ne pouvez pas désactiver votre propre compte.", "error");
+      return;
+    }
+    try {
+      setBusyId(user.id);
+      const saved = await patchUser(user.id, { is_active: !user.is_active });
+      upsertUser(saved);
+      showNotif(saved.is_active ? "Utilisateur activé" : "Utilisateur désactivé");
+    } catch (err) {
+      showNotif(err.message, "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const toggleGroup = (groupId) => {
+    const id = Number(groupId);
     setForm((prev) => ({
       ...prev,
-      groups: prev.groups.includes(groupId)
-        ? prev.groups.filter((id) => id !== groupId)
-        : [...prev.groups, groupId],
+      groups: listHasId(prev.groups, id)
+        ? prev.groups.filter((x) => Number(x) !== id)
+        : [...prev.groups, id],
     }));
   };
 
@@ -147,8 +294,35 @@ export default function UtilisateursPage() {
           />
         </div>
 
+        {(etatFilter || groupeFilter || moisFilter) && (
+          <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg border border-purple-100 bg-purple-50 px-3 py-2 text-sm text-purple-800">
+            <span className="font-medium">Filtre analytique :</span>
+            {etatFilter && <span>{ETAT_LABELS[etatFilter] || etatFilter}</span>}
+            {moisFilter && <span>Mois {moisFilter}</span>}
+            {groupeFilter && <span>Groupe {groupeLabel || `#${groupeFilter}`}</span>}
+            <button
+              type="button"
+              onClick={clearQueryFilters}
+              className="ml-auto text-purple-700 hover:underline"
+            >
+              Effacer
+            </button>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12 text-gray-500">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <EmptyListState
+            icon="users"
+            tone="purple"
+            title={search || etatFilter || groupeFilter || moisFilter ? "Aucun utilisateur trouvé" : "Aucun utilisateur"}
+            description={
+              search || etatFilter || groupeFilter || moisFilter
+                ? "Aucun compte ne correspond aux filtres ou à la recherche."
+                : "Créez un compte pour commencer à donner des accès à l'application."
+            }
+          />
         ) : (
           <div className="overflow-auto max-h-[500px] border rounded-lg">
             <table className="w-full text-sm">
@@ -165,7 +339,7 @@ export default function UtilisateursPage() {
               </thead>
               <tbody>
                 {filtered.map((user) => (
-                  <tr key={user.id} className="border-b hover:bg-gray-50">
+                  <tr key={user.id} className={`border-b hover:bg-gray-50 ${user.is_active ? "" : "opacity-70"}`}>
                     <td className="px-4 py-3">
                       <div className="font-medium">{user.username}</div>
                       <div className="text-xs text-gray-500">{user.first_name} {user.last_name}</div>
@@ -184,10 +358,33 @@ export default function UtilisateursPage() {
                         {user.is_active ? "Actif" : "Inactif"}
                       </span>
                       {user.is_staff && <span className="ml-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Staff</span>}
+                      {user.has_usable_password === false && (
+                        <span className="ml-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">Sans mot de passe</span>
+                      )}
                     </td>
                     {showRowActions && (
                     <td className="px-4 py-3 text-center">
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center flex-wrap gap-1">
+                        {canChange && (
+                        <button
+                          type="button"
+                          disabled={busyId === user.id || user.is_active}
+                          onClick={() => handleToggleActive(user)}
+                          className="px-3 py-1 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 disabled:opacity-40"
+                        >
+                          Activer
+                        </button>
+                        )}
+                        {canChange && (
+                        <button
+                          type="button"
+                          disabled={busyId === user.id || !user.is_active || Number(user.id) === currentUserId()}
+                          onClick={() => handleToggleActive(user)}
+                          className="px-3 py-1 bg-amber-500 text-white rounded text-xs hover:bg-amber-600 disabled:opacity-40"
+                        >
+                          Désactiver
+                        </button>
+                        )}
                         {canChange && (
                         <button onClick={() => openEdit(user)} className="px-3 py-1 bg-green-600 text-white rounded text-xs hover:bg-green-700">Modifier</button>
                         )}
@@ -230,19 +427,32 @@ export default function UtilisateursPage() {
               <div>
                 <label className="text-sm font-medium text-gray-700">Email</label>
                 <input type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} className="w-full mt-1 px-3 py-2 border rounded-lg text-sm" />
+                {!selected && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    Nécessaire pour envoyer automatiquement un mot de passe généré (si le SMTP est configuré).
+                  </p>
+                )}
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700">
-                  {selected ? "Nouveau mot de passe (optionnel)" : "Mot de passe *"}
+                  {selected
+                    ? selected.has_usable_password === false
+                      ? "Mot de passe (requis pour que le compte puisse se connecter)"
+                      : "Nouveau mot de passe (optionnel)"
+                    : "Mot de passe (optionnel)"}
                 </label>
                 <input
                   type="password"
-                  required={!selected}
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
                   className="w-full mt-1 px-3 py-2 border rounded-lg text-sm"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  {selected
+                    ? PASSWORD_HELP
+                    : `Laissez vide pour générer et envoyer un mot de passe par e-mail si le SMTP est configuré et que la règle « Envoi du mot de passe » est activée. Un mot de passe saisi ici n'envoie aucun e-mail. Sinon aucun mot de passe ne sera défini. ${PASSWORD_HELP}`}
+                </p>
               </div>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Actif</label>
@@ -255,8 +465,11 @@ export default function UtilisateursPage() {
                   <div className="max-h-32 overflow-y-auto border rounded-lg p-2 space-y-1">
                     {groups.map((g) => (
                       <label key={g.id} className="flex items-center gap-2 text-sm cursor-pointer hover:bg-gray-50 p-1 rounded">
-                        <input type="checkbox" checked={form.groups.includes(g.id)} onChange={() => toggleGroup(g.id)} />
+                        <input type="checkbox" checked={listHasId(form.groups, g.id)} onChange={() => toggleGroup(g.id)} />
                         {g.name}
+                        {g.is_active === false && (
+                          <span className="text-xs text-amber-700">(désactivé)</span>
+                        )}
                       </label>
                     ))}
                   </div>
@@ -281,6 +494,40 @@ export default function UtilisateursPage() {
             <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">
               <button onClick={() => setModal(null)} className="px-4 py-2 border rounded-lg text-sm">Annuler</button>
               <button onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">Supprimer</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {delivery && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-md">
+            <div className={`text-white px-6 py-3 rounded-t-lg ${delivery.status === "email_failed" || delivery.status === "unset" ? "bg-amber-600" : "bg-purple-600"}`}>
+              <h3 className="font-semibold">Compte {delivery.username}</h3>
+            </div>
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-gray-700">{delivery.detail}</p>
+              {delivery.password && (
+                <div>
+                  <p className="text-xs font-medium text-gray-500 mb-1">Mot de passe généré</p>
+                  <div className="flex gap-2">
+                    <code className="flex-1 rounded-lg bg-slate-100 px-3 py-2 text-sm break-all">{delivery.password}</code>
+                    <button
+                      type="button"
+                      className="px-3 py-2 text-sm border rounded-lg hover:bg-slate-50"
+                      onClick={() => navigator.clipboard?.writeText(delivery.password)}
+                    >
+                      Copier
+                    </button>
+                  </div>
+                  <p className="mt-2 text-xs text-amber-700">Transmettez-le à l’utilisateur : il ne sera plus affiché.</p>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end">
+              <button type="button" onClick={() => setDelivery(null)} className="px-4 py-2 bg-purple-600 text-white rounded-lg text-sm">
+                Fermer
+              </button>
             </div>
           </div>
         </div>

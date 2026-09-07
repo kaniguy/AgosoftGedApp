@@ -1,5 +1,7 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import ModuleEntryRedirect from "../../components/strucuture_page/ModuleEntryRedirect";
 
 export default function AnalytiqueIndexPage() {
-  redirect("/analytique/documents");
+  return <ModuleEntryRedirect moduleCode="analytique" />;
 }

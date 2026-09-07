@@ -95,7 +95,7 @@ def render_for_recipient(
     corps_texte = render_template_string(template.corps_texte, ctx)
     corps_html = ""
     if template.corps_html:
-        raw_keys = {"pending_list_html"}
+        raw_keys = {"pending_list_html", "login_url"}
         corps_html = PLACEHOLDER_RE.sub(
             lambda match: (
                 str(ctx.get(match.group(1), ""))

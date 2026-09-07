@@ -1,11 +1,12 @@
-from rest_framework import viewsets
+from rest_framework import viewsets, status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from django.db.models import Count
 from ..serializers.group_serializer import GroupSerializer
 from ..constants import APP_MODULES
+from ..models.group_profile import GroupProfile
 from gestion_acces.services.localites_dernier_niveau_service import (
     build_localites_dernier_niveau_payload,
 )
@@ -32,16 +33,51 @@ class GroupViewSet(viewsets.ModelViewSet):
 
   def get_queryset(self):
     """Précharge permissions, profil d'accès et utilisateurs pour limiter les requêtes N+1."""
-    return (
-      Group.objects.prefetch_related(
-        "permissions",
-        "ged_profile__localites__niveau",
-        "ged_profile__types_documents",
-        "user_set",
-      )
-      .annotate(users_count_ann=Count("user"))
-      .all()
+    qs = Group.objects.select_related("ged_profile").annotate(
+      users_count_ann=Count("user")
     )
+    lite = self.request.query_params.get("lite") == "1"
+    if lite:
+      return qs
+    return qs.prefetch_related(
+      "permissions",
+      "ged_profile__localites",
+      "ged_profile__types_documents",
+      "user_set",
+    )
+
+  @action(detail=True, methods=["patch"], url_path="activation")
+  def activation(self, request, pk=None):
+    """Active ou désactive un groupe sans toucher aux autres champs."""
+    raw = request.data.get("is_active") if isinstance(request.data, dict) else None
+    is_active = _parse_bool(raw)
+    if is_active is None:
+      return Response(
+        {"detail": "Le champ is_active (true/false) est requis."},
+        status=status.HTTP_400_BAD_REQUEST,
+      )
+
+    group = self.get_object()
+    profile, _ = GroupProfile.objects.get_or_create(group=group)
+    GroupProfile.objects.filter(pk=profile.pk).update(is_active=is_active)
+
+    group = self.get_queryset().get(pk=group.pk)
+    serializer = self.get_serializer(group)
+    return Response(serializer.data)
+
+
+def _parse_bool(value):
+  if value is True or value is False:
+    return value
+  if value in (1, 0):
+    return bool(value)
+  if isinstance(value, str):
+    normalized = value.strip().lower()
+    if normalized in ("true", "1", "oui", "on"):
+      return True
+    if normalized in ("false", "0", "non", "off"):
+      return False
+  return None
 
 
 @api_view(["GET"])

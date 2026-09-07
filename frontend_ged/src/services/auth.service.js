@@ -85,6 +85,7 @@ export async function getCurrentUser() {
   const res = await apiFetch(`${getApiUrl()}/api/auth/me/`, {
     headers: getHeadersSafe(),
     suppressAuthRedirect: true,
+    cache: "no-store",
   });
 
   if (!res.ok) {

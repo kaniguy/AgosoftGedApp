@@ -53,16 +53,23 @@ function mapDetailToDraft(lot, filesByClientId) {
 }
 
 export async function listServerRattachementDrafts() {
-  const res = await apiFetch(`${getApiUrl()}/api/gestion-documentaire/lots-brouillon/`, {
-    headers: getHeaders(),
-  });
-  const data = await res.json().catch(() => []);
+  const res = await apiFetch(
+    `${getApiUrl()}/api/gestion-documentaire/lots-brouillon/`,
+    {
+      headers: getHeaders(),
+      cache: "no-store",
+    }
+  );
+  const data = await res.json().catch(() => null);
   if (!res.ok) {
     const message = data?.detail || "Impossible de charger les brouillons.";
     throw new Error(typeof message === "string" ? message : "Impossible de charger les brouillons.");
   }
-  const rows = Array.isArray(data) ? data : data.results || [];
-  return rows.map(mapListItem).filter((d) => d.pendingCount > 0);
+  const rows = Array.isArray(data) ? data : Array.isArray(data?.results) ? data.results : null;
+  if (!rows) {
+    throw new Error("Impossible de charger les brouillons.");
+  }
+  return rows.map(mapListItem).filter((d) => Number(d.pendingCount || d.totalCount) > 0);
 }
 
 export async function downloadDraftItemFile(item) {

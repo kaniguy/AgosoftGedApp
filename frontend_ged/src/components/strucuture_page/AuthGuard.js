@@ -54,8 +54,18 @@ export default function AuthGuard({ children }) {
 
     validateSession();
 
+    const refreshIfVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      if (!hasClientSession() || isLoginPage || isPublicDownloadPage) return;
+      getCurrentUser().catch(() => {});
+    };
+    window.addEventListener("focus", refreshIfVisible);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+
     return () => {
       cancelled = true;
+      window.removeEventListener("focus", refreshIfVisible);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
     };
   }, [isLoginPage, isPublicDownloadPage, pathname]);
 

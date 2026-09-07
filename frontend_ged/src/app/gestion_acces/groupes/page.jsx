@@ -5,6 +5,7 @@ import {
   getGroups,
   createGroup,
   updateGroup,
+  patchGroup,
   deleteGroup,
   getAppModules,
   getLocalitesDernierNiveau,
@@ -13,6 +14,15 @@ import { getPermissions } from "../../../services/permission.service";
 import { getUsers } from "../../../services/user.service";
 import { getTypeDocuments } from "../../../services/typeDocument.service";
 import { useCrudPermissions, MODELS } from "../../../utils/permissions";
+import EmptyListState from "../../../components/ui/EmptyListState";
+import PermissionTreePicker from "../../../components/gestion_acces/PermissionTreePicker";
+import {
+  expandPermissionIds,
+  isHiddenPermissionKey,
+  permKey,
+  removePermissionKeysCascade,
+  togglePermissionCascade,
+} from "../../../constants/permissionTree";
 
 const emptyForm = {
   name: "",
@@ -30,6 +40,15 @@ const STEPS = [
   { id: "utilisateurs", number: 4, label: "Utilisateurs" },
   { id: "localites", number: 5, label: "Localités" },
 ];
+
+function toIdList(values) {
+  return (values || []).map((v) => Number(v)).filter((n) => Number.isFinite(n));
+}
+
+function listHasId(list, id) {
+  const n = Number(id);
+  return list.some((x) => Number(x) === n);
+}
 
 function getStepCount(stepId, form) {
   switch (stepId) {
@@ -117,6 +136,7 @@ export default function GroupesPage() {
   const [userSearch, setUserSearch] = useState("");
   const [locSearch, setLocSearch] = useState("");
   const [loadingLocalites, setLoadingLocalites] = useState(false);
+  const [busyId, setBusyId] = useState(null);
   const { notification, showNotif } = useNotification();
 
   /** Permissions des modules cochés, puis filtre texte. */
@@ -132,9 +152,10 @@ export default function GroupesPage() {
               const full = `${p.app_label}.${p.codename}`;
               return labels.has(p.app_label) || extras.has(full);
             });
+      const visible = scoped.filter((p) => !isHiddenPermissionKey(permKey(p)));
       const q = permSearch.toLowerCase();
-      if (!q) return scoped;
-      return scoped.filter(
+      if (!q) return visible;
+      return visible.filter(
         (p) =>
           p.name?.toLowerCase().includes(q) ||
           p.codename?.toLowerCase().includes(q) ||
@@ -237,10 +258,10 @@ export default function GroupesPage() {
     setForm({
       name: group.name,
       modules: group.modules || [],
-      permissions: group.permissions || [],
-      types_documents: group.types_documents || [],
-      users: group.users || [],
-      localites: group.localites || [],
+      permissions: toIdList(group.permissions),
+      types_documents: toIdList(group.types_documents),
+      users: toIdList(group.users),
+      localites: toIdList(group.localites),
     });
     setActiveTab("general");
     setPermSearch("");
@@ -259,11 +280,19 @@ export default function GroupesPage() {
       return;
     }
     try {
-      if (selected) await updateGroup(selected.id, form);
-      else await createGroup(form);
+      const saved = selected
+        ? await updateGroup(selected.id, form)
+        : await createGroup(form);
+      setGroups((prev) => {
+        if (!saved?.id) return prev;
+        const index = prev.findIndex((g) => g.id === saved.id);
+        if (index === -1) return [...prev, saved];
+        const next = [...prev];
+        next[index] = { ...prev[index], ...saved };
+        return next;
+      });
       setModal(null);
       showNotif(selected ? "Groupe modifié" : "Groupe créé");
-      await load();
     } catch (err) {
       showNotif(err.message, "error");
     }
@@ -272,69 +301,111 @@ export default function GroupesPage() {
   /** Supprime le groupe sélectionné. */
   const handleDelete = async () => {
     try {
-      await deleteGroup(selected.id);
+      const deletedId = selected.id;
+      await deleteGroup(deletedId);
+      setGroups((prev) => prev.filter((g) => g.id !== deletedId));
       setModal(null);
       showNotif("Groupe supprimé");
-      await load();
     } catch (err) {
       showNotif(err.message, "error");
     }
   };
 
-  /** Ajoute ou retire une permission du formulaire. */
+  const handleToggleActive = async (group, nextActive) => {
+    try {
+      setBusyId(group.id);
+      const saved = await patchGroup(group.id, { is_active: nextActive });
+      setGroups((prev) =>
+        prev.map((g) => (Number(g.id) === Number(saved.id) ? { ...g, ...saved } : g))
+      );
+      const active = saved.is_active !== false;
+      if (active !== nextActive) {
+        showNotif("Le statut du groupe n'a pas pu être mis à jour.", "error");
+        return;
+      }
+      showNotif(active ? "Groupe activé" : "Groupe désactivé");
+    } catch (err) {
+      showNotif(err.message, "error");
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  /** Ajoute ou retire une permission, avec cascade des prérequis / dépendants. */
   const togglePermission = (permId) => {
     setForm((prev) => ({
       ...prev,
-      permissions: prev.permissions.includes(permId)
-        ? prev.permissions.filter((id) => id !== permId)
-        : [...prev.permissions, permId],
+      permissions: togglePermissionCascade(prev.permissions, permId, permissions),
     }));
+  };
+
+  const viewIdsForModule = (mod) => {
+    const labels = new Set(mod.app_labels || []);
+    const extras = new Set(mod.extra_permission_codenames || []);
+    return permissions
+      .filter((p) => {
+        const full = `${p.app_label}.${p.codename}`;
+        const inScope = labels.has(p.app_label) || extras.has(full);
+        return inScope && String(p.codename || "").startsWith("view_");
+      })
+      .map((p) => Number(p.id));
   };
 
   /** Ajoute ou retire un module. */
   const toggleModule = (code) => {
-    setForm((prev) => ({
-      ...prev,
-      modules: prev.modules.includes(code)
-        ? prev.modules.filter((c) => c !== code)
-        : [...prev.modules, code],
-    }));
+    setForm((prev) => {
+      const adding = !prev.modules.includes(code);
+      const modules = adding
+        ? [...prev.modules, code]
+        : prev.modules.filter((c) => c !== code);
+      const mod = appModules.find((m) => m.code === code);
+      const viewIds = mod ? viewIdsForModule(mod) : [];
+      const nextPermissions = adding
+        ? expandPermissionIds([...prev.permissions, ...viewIds], permissions)
+        : prev.permissions.filter((id) => !viewIds.includes(Number(id)));
+      return { ...prev, modules, permissions: nextPermissions };
+    });
   };
 
   /** Ajoute ou retire un utilisateur membre du groupe. */
   const toggleUser = (userId) => {
+    const id = Number(userId);
     setForm((prev) => ({
       ...prev,
-      users: prev.users.includes(userId)
-        ? prev.users.filter((id) => id !== userId)
-        : [...prev.users, userId],
+      users: listHasId(prev.users, id)
+        ? prev.users.filter((x) => Number(x) !== id)
+        : [...prev.users, id],
     }));
   };
 
   /** Ajoute ou retire un type de document du formulaire. */
   const toggleTypeDocument = (typeId) => {
+    const id = Number(typeId);
     setForm((prev) => ({
       ...prev,
-      types_documents: prev.types_documents.includes(typeId)
-        ? prev.types_documents.filter((id) => id !== typeId)
-        : [...prev.types_documents, typeId],
+      types_documents: listHasId(prev.types_documents, id)
+        ? prev.types_documents.filter((x) => Number(x) !== id)
+        : [...prev.types_documents, id],
     }));
   };
 
   /** Ajoute ou retire une localité feuille du formulaire. */
   const toggleLocalite = (locId) => {
+    const id = Number(locId);
     setForm((prev) => ({
       ...prev,
-      localites: prev.localites.includes(locId)
-        ? prev.localites.filter((id) => id !== locId)
-        : [...prev.localites, locId],
+      localites: listHasId(prev.localites, id)
+        ? prev.localites.filter((x) => Number(x) !== id)
+        : [...prev.localites, id],
     }));
   };
 
   const selectAllModules = () => {
+    const viewIds = appModules.flatMap((mod) => viewIdsForModule(mod));
     setForm((prev) => ({
       ...prev,
       modules: appModules.map((mod) => mod.code),
+      permissions: expandPermissionIds([...prev.permissions, ...viewIds], permissions),
     }));
   };
 
@@ -343,18 +414,18 @@ export default function GroupesPage() {
   };
 
   const selectAllFilteredPermissions = () => {
-    const ids = filteredPerms.map((p) => p.id);
+    const ids = filteredPerms.map((p) => Number(p.id));
     setForm((prev) => ({
       ...prev,
-      permissions: [...new Set([...prev.permissions, ...ids])],
+      permissions: expandPermissionIds([...prev.permissions, ...ids], permissions),
     }));
   };
 
   const deselectAllFilteredPermissions = () => {
-    const ids = new Set(filteredPerms.map((p) => p.id));
+    const keys = filteredPerms.map((p) => permKey(p));
     setForm((prev) => ({
       ...prev,
-      permissions: prev.permissions.filter((id) => !ids.has(id)),
+      permissions: removePermissionKeysCascade(prev.permissions, keys, permissions),
     }));
   };
 
@@ -449,6 +520,17 @@ export default function GroupesPage() {
 
         {loading ? (
           <div className="text-center py-12 text-gray-500">Chargement...</div>
+        ) : filtered.length === 0 ? (
+          <EmptyListState
+            icon="users"
+            tone="purple"
+            title={search ? "Aucun groupe trouvé" : "Aucun groupe"}
+            description={
+              search
+                ? "Aucun groupe ne correspond à votre recherche."
+                : "Créez un groupe pour attribuer des modules, permissions et localités."
+            }
+          />
         ) : (
           <div className="overflow-auto max-h-[500px] border rounded-lg">
             <table className="w-full text-sm">
@@ -459,6 +541,7 @@ export default function GroupesPage() {
                   <th className="px-4 py-3 text-left">Membres</th>
                   <th className="px-4 py-3 text-left">Types doc.</th>
                   <th className="px-4 py-3 text-left">Localités</th>
+                  <th className="px-4 py-3 text-center">Statut</th>
                   {showRowActions && (
                   <th className="px-4 py-3 text-center">Actions</th>
                   )}
@@ -466,7 +549,7 @@ export default function GroupesPage() {
               </thead>
               <tbody>
                 {filtered.map((group) => (
-                  <tr key={group.id} className="border-b hover:bg-gray-50">
+                  <tr key={group.id} className={`border-b hover:bg-gray-50 ${group.is_active === false ? "opacity-70" : ""}`}>
                     <td className="px-4 py-3 font-medium">{group.name}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -485,29 +568,49 @@ export default function GroupesPage() {
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-gray-700 font-medium">
-                        {group.users_count ?? 0} utilisateur(s)
+                        {group.users_count ?? (group.users || []).length} utilisateur(s)
                       </span>
-                      {(group.users_detail || []).slice(0, 2).map((u) => (
-                        <p key={u.id} className="text-xs text-gray-500">
-                          {u.username}
-                        </p>
-                      ))}
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-gray-600">
-                        {(group.types_documents_detail || []).length > 0
-                          ? `${(group.types_documents_detail || []).length} type(s)`
+                        {(group.types_documents || []).length > 0
+                          ? `${(group.types_documents || []).length} type(s)`
                           : "Tous"}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className="text-gray-600">
-                        {(group.localites_detail || []).length} localité(s)
+                        {(group.localites || []).length} localité(s)
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2 py-1 rounded text-xs ${group.is_active === false ? "bg-red-100 text-red-700" : "bg-green-100 text-green-700"}`}>
+                        {group.is_active === false ? "Inactif" : "Actif"}
                       </span>
                     </td>
                     {showRowActions && (
                     <td className="px-4 py-3 text-center">
-                      <div className="flex justify-center gap-2">
+                      <div className="flex justify-center flex-wrap gap-1">
+                        {canChange && (
+                        <button
+                          type="button"
+                          disabled={busyId === group.id || group.is_active !== false}
+                          onClick={() => handleToggleActive(group, true)}
+                          className="px-3 py-1 bg-emerald-600 text-white rounded text-xs hover:bg-emerald-700 disabled:opacity-40"
+                        >
+                          Activer
+                        </button>
+                        )}
+                        {canChange && (
+                        <button
+                          type="button"
+                          disabled={busyId === group.id || group.is_active === false}
+                          onClick={() => handleToggleActive(group, false)}
+                          className="px-3 py-1 bg-amber-500 text-white rounded text-xs hover:bg-amber-600 disabled:opacity-40"
+                        >
+                          Désactiver
+                        </button>
+                        )}
                         {canChange && (
                         <button
                           onClick={() => openEdit(group)}
@@ -653,7 +756,8 @@ export default function GroupesPage() {
                   <div>
                     <div className="flex items-start justify-between gap-4 mb-4">
                       <p className="text-sm text-gray-600 flex-1">
-                        Choisissez les modules visibles dans le menu pour les membres de ce groupe.
+                        Choisissez les modules visibles. Les droits de consultation associés
+                        sont cochés automatiquement (vous pourrez les ajuster à l’étape Permissions).
                       </p>
                       <SelectAllActions
                         onSelectAll={selectAllModules}
@@ -694,51 +798,36 @@ export default function GroupesPage() {
                 {activeTab === "permissions" && (
                   <div>
                     <p className="text-sm text-gray-600 mb-3">
-                      Permissions des modules cochés (Aide Vidéo, Paramétrage, etc.).
-                      Cochez d’abord les modules, puis les droits correspondants.
+                      Les droits sont liés en arbre : autoriser l’import de documents coche
+                      aussi la consultation, les types, les champs et le plan de classement.
+                      Décocher un prérequis retire les actions qui en dépendent.
                     </p>
                     <div className="flex items-center gap-2 mb-3">
-                          <input
-                            type="text"
-                            placeholder="Filtrer les permissions..."
-                            value={permSearch}
-                            onChange={(e) => setPermSearch(e.target.value)}
-                            className="flex-1 px-3 py-2 border rounded-lg text-sm"
-                          />
-                          <SelectAllActions
-                            onSelectAll={selectAllFilteredPermissions}
-                            onDeselectAll={deselectAllFilteredPermissions}
-                          />
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-1 max-h-[50vh] overflow-y-auto border rounded-lg p-3">
-                          {filteredPerms.length === 0 ? (
-                            <p className="col-span-2 text-sm text-gray-500 text-center py-6">
-                              {form.modules.length === 0
-                                ? "Cochez au moins un module pour afficher ses permissions."
-                                : "Aucune permission trouvée."}
-                            </p>
-                          ) : (
-                            filteredPerms.map((p) => (
-                              <label
-                                key={p.id}
-                                className="flex items-start gap-2 text-sm cursor-pointer hover:bg-gray-50 p-2 rounded"
-                              >
-                                <input
-                                  type="checkbox"
-                                  className="mt-1"
-                                  checked={form.permissions.includes(p.id)}
-                                  onChange={() => togglePermission(p.id)}
-                                />
-                                <span>
-                                  <span className="font-medium">{p.name}</span>
-                                  <span className="block text-xs text-gray-500">
-                                    {p.app_label_display || p.app_label} · {p.codename}
-                                  </span>
-                                </span>
-                              </label>
-                            ))
-                          )}
-                        </div>
+                      <input
+                        type="text"
+                        placeholder="Filtrer les permissions..."
+                        value={permSearch}
+                        onChange={(e) => setPermSearch(e.target.value)}
+                        className="flex-1 px-3 py-2 border rounded-lg text-sm"
+                      />
+                      <SelectAllActions
+                        onSelectAll={selectAllFilteredPermissions}
+                        onDeselectAll={deselectAllFilteredPermissions}
+                      />
+                    </div>
+                    {filteredPerms.length === 0 ? (
+                      <p className="text-sm text-gray-500 text-center py-6 border rounded-lg">
+                        {form.modules.length === 0
+                          ? "Cochez au moins un module pour afficher ses permissions."
+                          : "Aucune permission trouvée."}
+                      </p>
+                    ) : (
+                      <PermissionTreePicker
+                        scopedPerms={filteredPerms}
+                        selectedIds={form.permissions}
+                        onToggle={togglePermission}
+                      />
+                    )}
                   </div>
                 )}
 
@@ -800,7 +889,7 @@ export default function GroupesPage() {
                             <input
                               type="checkbox"
                               className="mt-1"
-                              checked={form.types_documents.includes(td.id)}
+                              checked={listHasId(form.types_documents, td.id)}
                               onChange={() => toggleTypeDocument(td.id)}
                             />
                             <span>
@@ -877,7 +966,7 @@ export default function GroupesPage() {
                           >
                             <input
                               type="checkbox"
-                              checked={form.users.includes(u.id)}
+                              checked={listHasId(form.users, u.id)}
                               onChange={() => toggleUser(u.id)}
                             />
                             <span className="flex-1">
@@ -964,7 +1053,7 @@ export default function GroupesPage() {
                               <input
                                 type="checkbox"
                                 className="mt-1"
-                                checked={form.localites.includes(loc.id)}
+                                checked={listHasId(form.localites, loc.id)}
                                 onChange={() => toggleLocalite(loc.id)}
                               />
                               <span>

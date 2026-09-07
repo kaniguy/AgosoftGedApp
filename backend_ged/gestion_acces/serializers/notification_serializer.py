@@ -95,6 +95,7 @@ class PreferenceNotificationSerializer(serializers.ModelSerializer):
             "notif_resoumission",
             "notif_validation",
             "notif_rejet",
+            "notif_identifiants",
             "resume_periodique",
             "date_modification",
         ]

@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { getProfile, updateProfile } from "../../services/profile.service";
+import { PASSWORD_HELP, passwordComplexityMessage } from "../../utils/passwordPolicy";
 
 export default function ProfileForm({ onSaved }) {
   const [profile, setProfile] = useState({
@@ -98,8 +99,9 @@ export default function ProfileForm({ onSaved }) {
         setSaving(false);
         return;
       }
-      if (passwords.new_password.length < 8) {
-        setMessage({ type: "error", text: "Le nouveau mot de passe doit comporter au moins 8 caractères." });
+      const complexity = passwordComplexityMessage(passwords.new_password);
+      if (complexity) {
+        setMessage({ type: "error", text: complexity });
         setSaving(false);
         return;
       }
@@ -202,6 +204,7 @@ export default function ProfileForm({ onSaved }) {
 
           <hr className="border-slate-100 my-4" />
           <h3 className="text-sm font-semibold text-slate-800 mb-2">Changer le mot de passe</h3>
+          <p className="text-xs text-slate-400 mb-2">{PASSWORD_HELP}</p>
           <input name="old_password" type="password" value={passwords.old_password} onChange={handlePasswordChange} placeholder="Ancien mot de passe" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm mb-2 focus:ring-2 focus:ring-purple-500 focus:outline-none" />
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <input name="new_password" type="password" value={passwords.new_password} onChange={handlePasswordChange} placeholder="Nouveau mot de passe" className="w-full px-4 py-2.5 border border-slate-200 rounded-xl text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none" />

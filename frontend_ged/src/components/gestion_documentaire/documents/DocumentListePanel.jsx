@@ -18,6 +18,7 @@ import DocumentListSplitView from "./DocumentListSplitView";
 import DocumentTableHead from "./DocumentTableHead";
 import DocumentColumnFilterBar from "./DocumentColumnFilterBar";
 import DocumentColumnVisibilityMenu from "./DocumentColumnVisibilityMenu";
+import EmptyListState from "../../ui/EmptyListState";
 import { clearChampColumnFilters } from "../../../utils/documentColumnFilters";
 import {
   buildDocumentTableBaseColumns,
@@ -27,7 +28,7 @@ import {
 import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationDateChamp } from "../../../utils/dateFormat";
 import { getFileFormat } from "../../../utils/documentFileFormat";
 import ChampCellValue from "./ChampCellValue";
-import { useCrudPermissions, MODELS } from "../../../utils/permissions";
+import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../../utils/permissions";
 
 const FORMAT_OPTIONS = [
   { value: "", label: "Tous les formats" },
@@ -122,6 +123,7 @@ function ActionButton({ onClick, disabled, variant, title, children }) {
 
 export default function DocumentListePanel({ localite, onClose, onAttach, onNotify }) {
   const { canAdd, canChange, canDelete } = useCrudPermissions(MODELS.DOCUMENT_LOCALITE);
+  const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
   const router = useRouter();
   const tableScrollRef = useRef(null);
   const searchDebounceRef = useRef(null);
@@ -603,7 +605,11 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
         <DocumentListSplitView
           previewDoc={previewDoc}
           onClosePreview={() => setPreviewDoc(null)}
-          onDownload={(doc, previewSource) => handleDownload(doc, getFilename, notifyUser, previewSource)}
+          onDownload={
+            canDownload
+              ? (doc, previewSource) => handleDownload(doc, getFilename, notifyUser, previewSource)
+              : undefined
+          }
           getFilename={getFilename}
         >
         <div
@@ -617,29 +623,31 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
               <div className="inline-block animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600" />
             </div>
           ) : documents.length === 0 ? (
-            <div className="text-center py-20 px-6">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-emerald-50 flex items-center justify-center">
-                <svg className="w-8 h-8 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <p className="text-gray-600 font-medium">
-                {typesAvecDocuments.length === 0
+            <EmptyListState
+              icon={hasActiveFilters ? "search" : "folder"}
+              tone="emerald"
+              title={
+                typesAvecDocuments.length === 0 || !hasActiveFilters
                   ? "Aucun document pour ce site"
-                  : hasActiveFilters
-                    ? "Aucun document ne correspond aux filtres"
-                    : "Aucun document pour ce site"}
-              </p>
-              {canAdd && (
-              <button
-                type="button"
-                onClick={onAttach}
-                className="mt-5 px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition cursor-pointer shadow-md"
-              >
-                Rattacher un document
-              </button>
-              )}
-            </div>
+                  : "Aucun document ne correspond aux filtres"
+              }
+              description={
+                hasActiveFilters
+                  ? "Modifiez les filtres pour afficher d’autres documents."
+                  : "Rattachez un fichier à cette localité pour commencer."
+              }
+              action={
+                canAdd ? (
+                  <button
+                    type="button"
+                    onClick={onAttach}
+                    className="px-5 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 transition cursor-pointer shadow-md"
+                  >
+                    Rattacher un document
+                  </button>
+                ) : null
+              }
+            />
           ) : (
             <table className="min-w-full w-max text-sm border-collapse">
               <DocumentTableHead columns={activeColumns} thCellClass={TH_CELL} />
@@ -711,6 +719,7 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
                             </svg>
                             Voir
                           </ActionButton>
+                          {canDownload && (
                           <ActionButton
                             variant="download"
                             title="Télécharger"
@@ -722,6 +731,7 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
                             </svg>
                             Télécharger
                           </ActionButton>
+                          )}
                           {canChange && (
                           <ActionButton variant="edit" title="Modifier" onClick={() => goToEdit(doc)}>
                             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
