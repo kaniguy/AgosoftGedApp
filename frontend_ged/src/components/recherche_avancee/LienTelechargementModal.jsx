@@ -6,6 +6,7 @@ import {
   createLienTelechargement,
   sendLienTelechargementEmail,
 } from "../../services/liensTelechargement.service";
+import { copyToClipboard } from "../../utils/copyToClipboard";
 
 function formatRecipientsLabel(value) {
   if (!value) return "";
@@ -84,11 +85,11 @@ export default function LienTelechargementModal({ documentIds, onClose, onNotify
   const handleCopy = async () => {
     if (!generatedLink?.download_url) return;
     try {
-      await navigator.clipboard.writeText(generatedLink.download_url);
+      await copyToClipboard(generatedLink.download_url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      onNotify?.("Copie impossible.", "error");
+      onNotify?.("Copie impossible. Sélectionnez le lien et utilisez Ctrl+C.", "error");
     }
   };
 

@@ -35,7 +35,7 @@ imagesize==2.0.0
 markdown-it-py==4.2.0
 mdurl==0.1.2
 modelscope==1.37.1
-mssql-django==1.6
+mssql-django==1.7.2
 multidict==6.7.1
 networkx==3.6.1
 numpy==2.3.5

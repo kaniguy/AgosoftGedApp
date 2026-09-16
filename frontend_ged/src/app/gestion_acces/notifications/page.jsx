@@ -804,14 +804,7 @@ function ResumeTab({ config, setConfig, canChange, notify }) {
           . Le créneau du jour n&apos;est renvoyé que si vous reprogrammez une
           heure plus tardive.
         </p>
-        <p>
-          <strong>Planification requise :</strong> le Planificateur de tâches Windows
-          doit exécuter toutes les 5 minutes{" "}
-          <code className="bg-gray-100 px-1 py-0.5 rounded">
-            python manage.py envoyer_resume_periodique
-          </code>
-          . « Envoyer maintenant (test) » ignore la fréquence et l&apos;heure.
-        </p>
+       
       </div>
 
       <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-3">

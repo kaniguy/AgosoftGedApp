@@ -1,5 +1,5 @@
 # port public: port actuelle 3001
 :3001 {
 	encode gzip
-	reverse_proxy frontend:3000
+	reverse_proxy frontend:3001
 }

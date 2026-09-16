@@ -2884,7 +2884,9 @@ export default function DocumentRattachementPanel({
               {submitting ? "Enregistrement…" : "Enregistrer et passer au suivant"}
             </button>
           )}
-          {!isEditMode && canSoumettreDoc && (
+
+          {/* Bouton à revoir plus tard */}
+          {/* {!isEditMode && canSoumettreDoc && (
             <button
               type="button"
               disabled={
@@ -2902,7 +2904,9 @@ export default function DocumentRattachementPanel({
                   ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
                   : "Enregistrer en brouillon"}
             </button>
-          )}
+          )} */}
+
+
           {isEditMode && canSoumettreDoc && canSoumettreValidation(documentToEdit?.statut_qualite) && (
             <button
               type="button"

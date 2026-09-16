@@ -8,6 +8,7 @@ import {
   toggleLienTelechargement,
 } from "../../../services/liensTelechargement.service";
 import { formatDisplayDateTime } from "../../../utils/dateFormat";
+import { copyToClipboard } from "../../../utils/copyToClipboard";
 import { hasPermission, PERMISSIONS, useCrudPermissions, MODELS } from "../../../utils/permissions";
 import EmptyListState from "../../../components/ui/EmptyListState";
 
@@ -261,12 +262,12 @@ export default function LiensTelechargementPage() {
 
   const handleCopy = async (link) => {
     try {
-      await navigator.clipboard.writeText(link.download_url);
+      await copyToClipboard(link.download_url);
       setCopiedId(link.id);
       setTimeout(() => setCopiedId(null), 2000);
       showNotif("Lien copié dans le presse-papiers.");
     } catch {
-      showNotif("Copie impossible.", "error");
+      showNotif("Copie impossible. Sélectionnez le lien et utilisez Ctrl+C.", "error");
     }
   };
 
