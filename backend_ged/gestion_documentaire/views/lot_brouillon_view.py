@@ -13,6 +13,7 @@ from gestion_documentaire.serializers.lot_brouillon_serializer import (
     LotBrouillonListSerializer,
     LotBrouillonSyncSerializer,
 )
+from gestion_documentaire.services.document_download_service import guess_document_content_type
 from gestion_documentaire.services.document_storage import download_display_filename
 from gestion_documentaire.services.localite_chemin import nodes_map_for_localite_ids
 
@@ -122,14 +123,7 @@ class LotBrouillonRattachementViewSet(
 
         raw = item.nom_fichier or os.path.basename(item.fichier.name) or f"brouillon-{item.pk}.pdf"
         filename = download_display_filename(raw, fallback=f"brouillon-{item.pk}.pdf")
-        content_type = "application/octet-stream"
-        lower = filename.lower()
-        if lower.endswith(".pdf"):
-            content_type = "application/pdf"
-        elif lower.endswith((".jpg", ".jpeg")):
-            content_type = "image/jpeg"
-        elif lower.endswith(".png"):
-            content_type = "image/png"
+        content_type = guess_document_content_type(filename, item.fichier.name, content=content)
 
         response = HttpResponse(content, content_type=content_type)
         response["Content-Disposition"] = f'inline; filename="{filename}"'

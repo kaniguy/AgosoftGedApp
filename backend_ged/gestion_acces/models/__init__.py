@@ -13,7 +13,6 @@ from .notification import (
     EvenementNotification,
     ModeleEmailNotification,
     NotificationEmailLog,
-    PreferenceNotification,
     RegleNotification,
 )
 
@@ -33,6 +32,5 @@ __all__ = [
     "EvenementNotification",
     "ModeleEmailNotification",
     "NotificationEmailLog",
-    "PreferenceNotification",
     "RegleNotification",
 ]

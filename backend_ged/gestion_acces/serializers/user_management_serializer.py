@@ -29,7 +29,6 @@ class UserManagementSerializer(serializers.ModelSerializer):
             "first_name",
             "last_name",
             "is_active",
-            "is_staff",
             "is_superuser",
             "date_joined",
             "last_login",
@@ -55,7 +54,9 @@ class UserManagementSerializer(serializers.ModelSerializer):
         # Seul un superutilisateur peut élever les droits d'administration.
         if request and not request.user.is_superuser:
             attrs.pop("is_superuser", None)
-            attrs.pop("is_staff", None)
+        # is_staff n'est plus géré séparément : il suit is_superuser (l'admin Django l'exige).
+        if "is_superuser" in attrs:
+            attrs["is_staff"] = attrs["is_superuser"]
         password = attrs.get("password")
         if password:
             user = self.instance or User(

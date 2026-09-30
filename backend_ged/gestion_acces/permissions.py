@@ -27,6 +27,12 @@ class GedDjangoModelPermissions(DjangoModelPermissions):
     }
 
 
+class AccountAdminPermission(GedDjangoModelPermissions):
+    """Utilisateurs, groupes et permissions : superutilisateur ou droits Django accordés par les groupes."""
+
+    message = "Vous n'avez pas les droits pour gérer les comptes."
+
+
 class CanReadPlanGeographique(BasePermission):
     """
     Lecture du plan : paramétrage.view_plangeographique OU consultation

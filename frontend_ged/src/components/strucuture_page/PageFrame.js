@@ -10,7 +10,7 @@ export default function PageFrame({ children }) {
 
   return (
     <div
-      className={`${fullBleed ? "" : "pt-20"} min-h-screen bg-cover bg-center bg-no-repeat bg-fixed`}
+      className={`${fullBleed ? "" : "pt-20"} min-h-app-screen bg-cover bg-center bg-no-repeat bg-fixed`}
       style={
         isLogin
           ? undefined

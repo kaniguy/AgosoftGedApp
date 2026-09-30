@@ -33,7 +33,7 @@ export default function PlanGeoFormFields({ formData, formErrors, onChange, focu
           value={formData.code}
           onChange={onChange}
           className={`${inputClass("code")} uppercase font-semibold bg-gray-50`}
-          placeholder="Ex: KHG, 01, ABJ..."
+          placeholder="Ex: DG, DT, DP..."
           autoFocus
         />
       </Field>
@@ -42,11 +42,11 @@ export default function PlanGeoFormFields({ formData, formErrors, onChange, focu
         label="Libellé"
         required
         error={formErrors.libelle}
-        hint={
-          showBulkLibelleHint
-            ? 'Saisissez plusieurs libellés séparés par « + » pour créer plusieurs lignes (ex. Paris + Abidjan + Dakar).'
-            : undefined
-        }
+        // hint={
+        //   showBulkLibelleHint
+        //     ? 'Saisissez plusieurs libellés séparés par « + » pour créer plusieurs lignes (ex. Paris + Abidjan + Dakar).'
+        //     : undefined
+        // }
       >
         <input
           type="text"
@@ -54,7 +54,7 @@ export default function PlanGeoFormFields({ formData, formErrors, onChange, focu
           value={formData.libelle}
           onChange={onChange}
           className={inputClass("libelle")}
-          placeholder="Ex: Korhogo, Abidjan + Cocody + Marcory..."
+          placeholder="Ex: Direction Générale, Direction Technique..."
         />
       </Field>
 

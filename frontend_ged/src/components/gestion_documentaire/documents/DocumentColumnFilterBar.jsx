@@ -16,15 +16,10 @@ import {
   hasColumnFilterValues,
   isColumnFilterActive,
 } from "../../../utils/documentColumnFilters";
+import { FORMAT_FILTER_OPTIONS } from "../../../utils/documentFileTypes";
 
 /** Options du filtre sur la colonne Format (extension fichier). */
-const FORMAT_OPTIONS = [
-  { value: "pdf", label: "PDF" },
-  { value: "jpeg", label: "JPEG" },
-  { value: "png", label: "PNG" },
-  { value: "webp", label: "WEBP" },
-  { value: "gif", label: "GIF" },
-];
+const FORMAT_OPTIONS = FORMAT_FILTER_OPTIONS;
 
 const FIELD_CLASS =
   "w-full border border-gray-300 rounded-lg px-2 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500";
@@ -207,7 +202,7 @@ export default function DocumentColumnFilterBar({ columns = [], columnFilters = 
 
         {open && (
           <div
-            className="absolute top-full left-0 mt-1.5 z-[200] w-[min(100vw-2rem,42rem)] bg-white border border-emerald-200 rounded-xl shadow-2xl p-4 text-gray-800"
+            className="absolute top-full left-0 mt-1.5 z-[200] w-[min(100*var(--app-vw)-2rem,42rem)] bg-white border border-emerald-200 rounded-xl shadow-2xl p-4 text-gray-800"
             onClick={(e) => e.stopPropagation()}
           >
             <p className="text-xs font-semibold text-emerald-800 uppercase tracking-wide mb-3">

@@ -41,6 +41,16 @@ const STEPS = [
   { id: "localites", number: 5, label: "Localités" },
 ];
 
+/** Une permission appartient au module via son app (hors exclusions) ou via la liste des extras. */
+function isPermissionInModule(perm, mod) {
+  const full = `${perm.app_label}.${perm.codename}`;
+  if ((mod.extra_permission_codenames || []).includes(full)) return true;
+  return (
+    (mod.app_labels || []).includes(perm.app_label) &&
+    !(mod.excluded_permission_codenames || []).includes(full)
+  );
+}
+
 function toIdList(values) {
   return (values || []).map((v) => Number(v)).filter((n) => Number.isFinite(n));
 }
@@ -143,15 +153,12 @@ export default function GroupesPage() {
   const filteredPerms = useMemo(
     () => {
       const selected = appModules.filter((m) => form.modules.includes(m.code));
-      const labels = new Set(selected.flatMap((m) => m.app_labels || []));
-      const extras = new Set(selected.flatMap((m) => m.extra_permission_codenames || []));
-      const scoped =
-        labels.size === 0 && extras.size === 0
-          ? permissions
-          : permissions.filter((p) => {
-              const full = `${p.app_label}.${p.codename}`;
-              return labels.has(p.app_label) || extras.has(full);
-            });
+      const hasScope = selected.some(
+        (m) => (m.app_labels || []).length > 0 || (m.extra_permission_codenames || []).length > 0
+      );
+      const scoped = !hasScope
+        ? permissions
+        : permissions.filter((p) => selected.some((m) => isPermissionInModule(p, m)));
       const visible = scoped.filter((p) => !isHiddenPermissionKey(permKey(p)));
       const q = permSearch.toLowerCase();
       if (!q) return visible;
@@ -339,17 +346,10 @@ export default function GroupesPage() {
     }));
   };
 
-  const viewIdsForModule = (mod) => {
-    const labels = new Set(mod.app_labels || []);
-    const extras = new Set(mod.extra_permission_codenames || []);
-    return permissions
-      .filter((p) => {
-        const full = `${p.app_label}.${p.codename}`;
-        const inScope = labels.has(p.app_label) || extras.has(full);
-        return inScope && String(p.codename || "").startsWith("view_");
-      })
+  const viewIdsForModule = (mod) =>
+    permissions
+      .filter((p) => isPermissionInModule(p, mod) && String(p.codename || "").startsWith("view_"))
       .map((p) => Number(p.id));
-  };
 
   /** Ajoute ou retire un module. */
   const toggleModule = (code) => {
@@ -643,7 +643,7 @@ export default function GroupesPage() {
 
       {modal === "form" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl w-full max-w-5xl h-[88vh] flex flex-col shadow-2xl">
+          <div className="bg-white rounded-xl w-full max-w-5xl h-[calc(88*var(--app-vh))] flex flex-col shadow-2xl">
             <div className="bg-purple-600 text-white px-6 py-4 rounded-t-xl flex justify-between items-center shrink-0">
               <div>
                 <h3 className="text-lg font-semibold">
@@ -875,7 +875,7 @@ export default function GroupesPage() {
                         })}
                       </div>
                     )}
-                    <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
+                    <div className="max-h-[calc(50*var(--app-vh))] overflow-y-auto border rounded-lg divide-y">
                       {filteredTypeDocuments.length === 0 ? (
                         <p className="p-4 text-sm text-gray-500 text-center">
                           Aucun type de document trouvé.
@@ -953,7 +953,7 @@ export default function GroupesPage() {
                         })}
                       </div>
                     )}
-                    <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
+                    <div className="max-h-[calc(50*var(--app-vh))] overflow-y-auto border rounded-lg divide-y">
                       {filteredUsers.length === 0 ? (
                         <p className="p-4 text-sm text-gray-500 text-center">
                           Aucun utilisateur trouvé.
@@ -1039,7 +1039,7 @@ export default function GroupesPage() {
                     {loadingLocalites ? (
                       <p className="text-center py-8 text-gray-500">Chargement des localités...</p>
                     ) : (
-                      <div className="max-h-[50vh] overflow-y-auto border rounded-lg divide-y">
+                      <div className="max-h-[calc(50*var(--app-vh))] overflow-y-auto border rounded-lg divide-y">
                         {localitesFeuilles.length === 0 ? (
                           <p className="p-4 text-sm text-gray-500 text-center">
                             Aucune localité au dernier niveau trouvée.

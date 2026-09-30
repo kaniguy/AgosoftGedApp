@@ -86,7 +86,7 @@ export default function ResizableSplitPane({
 
       <div
         className={`flex flex-col min-h-0 min-w-0 flex-1 overflow-hidden ${
-          rightCompact ? "self-start max-h-[min(1120px,85vh)] w-full" : "h-full"
+          rightCompact ? "self-start max-h-[min(1120px,85*var(--app-vh))] w-full" : "h-full"
         }`}
       >
         {right}

@@ -3,45 +3,15 @@
  */
 import { PDFDocument } from "pdf-lib";
 import { pdfjs } from "@/utils/configurePdfJs";
+import {
+  filenameFromDocumentUrl,
+  isPdfFile,
+  isPreviewableFile,
+  isPreviewableImageFile as isImageFile,
+  mimeFromFilename,
+} from "@/utils/documentFileTypes";
 
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || (file?.name || "").toLowerCase().endsWith(".pdf");
-}
-
-function isImageFile(file) {
-  if (file?.type?.startsWith("image/")) return true;
-  return /\.(jpe?g|png|webp|gif)$/i.test(file?.name || "");
-}
-
-const MIME_BY_EXT = {
-  pdf: "application/pdf",
-  jpg: "image/jpeg",
-  jpeg: "image/jpeg",
-  png: "image/png",
-  webp: "image/webp",
-  gif: "image/gif",
-};
-
-/** Nom de fichier depuis une URL API (`?name=…`) ou un chemin. */
-export function filenameFromDocumentUrl(url, fallback = "document") {
-  if (!url) return fallback;
-  const source = String(url);
-  const nameMatch = source.match(/[?&]name=([^&]+)/);
-  if (nameMatch?.[1]) {
-    try {
-      return decodeURIComponent(nameMatch[1]);
-    } catch {
-      return nameMatch[1];
-    }
-  }
-  const last = source.split("/").pop()?.split("?")[0];
-  return last || fallback;
-}
-
-export function mimeFromFilename(name) {
-  const ext = (name || "").split(".").pop()?.toLowerCase();
-  return MIME_BY_EXT[ext] || "";
-}
+export { filenameFromDocumentUrl, mimeFromFilename };
 
 /**
  * Construit un File à partir d'un blob distant en conservant le format d'origine
@@ -113,8 +83,9 @@ function bytesToPdfFile(bytes, baseName = "document") {
   return new File([blob], name, { type: "application/pdf", lastModified: Date.now() });
 }
 
-/** Compte le nombre de pages d'un fichier. */
+/** Compte le nombre de pages d'un fichier (1 pour les formats sans aperçu : Word, Excel, ZIP…). */
 export async function getPdfPageCount(file) {
+  if (!isPreviewableFile(file)) return 1;
   const bytes = await fileToPdfBytes(file);
   const doc = await PDFDocument.load(bytes, { ignoreEncryption: true });
   return doc.getPageCount();
@@ -274,7 +245,7 @@ export async function appendSelectedPagesToPdf(baseFile, sourceFile, selectedPag
   } else if (isImageFile(sourceFile)) {
     await embedImageFileAsPage(merged, sourceFile, pageWidth, pageHeight);
   } else {
-    throw new Error("Format non supporté");
+    throw new Error("Seuls les PDF et les images peuvent être ajoutés comme pages.");
   }
 
   const saved = await merged.save({ useObjectStreams: false });

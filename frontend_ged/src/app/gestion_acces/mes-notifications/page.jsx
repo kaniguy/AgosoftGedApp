@@ -2,65 +2,68 @@
 
 import { useEffect, useState } from "react";
 import {
-  getPreferencesNotification,
-  updatePreferencesNotification,
+  getNotificationsGenerales,
+  updateNotificationsGenerales,
 } from "../../../services/notifications.service";
+import { isSuperuserFromStorage } from "../../../constants/modules";
 
-const PREFERENCES = [
+const NOTIFICATIONS = [
   {
-    key: "notif_soumission",
+    key: "soumission",
     label: "Document soumis au contrôle qualité",
-    description: "Recevoir un e-mail quand un document de mon périmètre est soumis.",
+    description: "Envoyer un e-mail quand un document est soumis au contrôle qualité.",
   },
   {
-    key: "notif_validation",
-    label: "Mon document est validé",
-    description: "Recevoir un e-mail quand un de mes documents est validé.",
+    key: "validation",
+    label: "Document validé",
+    description: "Envoyer un e-mail quand un document est validé.",
   },
   {
-    key: "notif_rejet",
-    label: "Mon document est rejeté",
-    description: "Recevoir un e-mail avec le motif quand un de mes documents est rejeté.",
+    key: "rejet",
+    label: "Document rejeté",
+    description: "Envoyer un e-mail, avec le motif, quand un document est rejeté.",
   },
   {
-    key: "notif_resoumission",
+    key: "resoumission",
     label: "Document corrigé et resoumis",
-    description: "Recevoir un e-mail quand un document rejeté est corrigé puis resoumis.",
+    description: "Envoyer un e-mail quand un document rejeté est corrigé puis resoumis.",
   },
   {
-    key: "notif_identifiants",
+    key: "identifiants",
     label: "Identifiants de connexion",
     description:
-      "Recevoir un e-mail lorsqu'un mot de passe est généré pour votre compte. Sans effet si l'administrateur a déjà saisi un mot de passe à la création.",
+      "Envoyer un e-mail lorsqu'un mot de passe est généré pour un nouveau compte. Sans effet si l'administrateur a saisi un mot de passe à la création.",
   },
   {
     key: "resume_periodique",
     label: "Résumé périodique",
-    description: "Recevoir le récapitulatif des documents en attente de contrôle.",
+    description: "Envoyer aux contrôleurs le récapitulatif des documents en attente de contrôle.",
   },
 ];
 
-export default function MesNotificationsPage() {
-  const [prefs, setPrefs] = useState(null);
-  const [loading, setLoading] = useState(true);
+export default function NotificationsGeneralesPage() {
+  const [isSuperuser] = useState(() => isSuperuserFromStorage());
+  const [etats, setEtats] = useState(null);
+  const [loading, setLoading] = useState(isSuperuser);
   const [savingKey, setSavingKey] = useState(null);
   const [message, setMessage] = useState({ type: "", text: "" });
 
   useEffect(() => {
-    getPreferencesNotification()
-      .then(setPrefs)
+    if (!isSuperuser) return;
+    getNotificationsGenerales()
+      .then(setEtats)
       .catch((err) =>
         setMessage({ type: "error", text: err.message || "Chargement impossible." })
       )
       .finally(() => setLoading(false));
-  }, []);
+  }, [isSuperuser]);
 
   const toggle = async (key, value) => {
     try {
       setSavingKey(key);
-      const data = await updatePreferencesNotification({ [key]: value });
-      setPrefs(data);
-      setMessage({ type: "success", text: "Préférence enregistrée." });
+      const data = await updateNotificationsGenerales({ [key]: value });
+      setEtats(data);
+      setMessage({ type: "success", text: "Configuration enregistrée pour tous les utilisateurs." });
       setTimeout(() => setMessage({ type: "", text: "" }), 3000);
     } catch (err) {
       setMessage({ type: "error", text: err.message || "Enregistrement impossible." });
@@ -69,6 +72,14 @@ export default function MesNotificationsPage() {
     }
   };
 
+  if (!isSuperuser) {
+    return (
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center text-gray-600">
+        Seul un superutilisateur peut gérer les notifications générales.
+      </div>
+    );
+  }
+
   if (loading) {
     return <div className="text-center py-12 text-gray-500">Chargement...</div>;
   }
@@ -76,9 +87,9 @@ export default function MesNotificationsPage() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800">Mes notifications</h1>
+        <h1 className="text-2xl font-bold text-gray-800">Notifications générales</h1>
         <p className="text-sm text-gray-500 mt-1">
-          Choisissez les e-mails que vous souhaitez recevoir sur votre adresse personnelle.
+          Activez ou désactivez chaque e-mail pour l&apos;ensemble des utilisateurs de l&apos;application.
         </p>
       </div>
 
@@ -94,10 +105,10 @@ export default function MesNotificationsPage() {
         </div>
       )}
 
-      {prefs && (
+      {etats && (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
-            {PREFERENCES.map((item) => (
+            {NOTIFICATIONS.map((item) => (
               <div
                 key={item.key}
                 className="bg-white rounded-lg shadow-sm border border-gray-200 p-5 flex items-start justify-between gap-4"
@@ -107,18 +118,18 @@ export default function MesNotificationsPage() {
                   <p className="text-xs text-gray-500 mt-1 leading-relaxed">{item.description}</p>
                 </div>
                 <button
-                  onClick={() => toggle(item.key, !prefs[item.key])}
+                  onClick={() => toggle(item.key, !etats[item.key])}
                   disabled={savingKey === item.key}
                   className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-1 ${
-                    prefs[item.key] ? "bg-purple-600" : "bg-gray-300"
+                    etats[item.key] ? "bg-purple-600" : "bg-gray-300"
                   } ${savingKey === item.key ? "opacity-60" : ""}`}
                   role="switch"
-                  aria-checked={prefs[item.key]}
+                  aria-checked={Boolean(etats[item.key])}
                   aria-label={item.label}
                 >
                   <span
                     className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                      prefs[item.key] ? "translate-x-6" : "translate-x-1"
+                      etats[item.key] ? "translate-x-6" : "translate-x-1"
                     }`}
                   />
                 </button>
@@ -130,15 +141,17 @@ export default function MesNotificationsPage() {
             <div>
               <h2 className="text-sm font-semibold text-gray-800 mb-2">À propos</h2>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Ces préférences s&apos;appliquent uniquement à votre compte. Elles filtrent
-                les e-mails que vous recevez, sans modifier le comportement global du système.
+                Cette configuration s&apos;applique à tous les utilisateurs : un e-mail désactivé
+                ici n&apos;est plus envoyé à personne. Elle est synchronisée avec les règles
+                d&apos;envoi de « Paramétrage → Notifications », où se règlent aussi les
+                destinataires, les modèles d&apos;e-mail et l&apos;horaire du résumé périodique.
               </p>
             </div>
             <div>
               <h2 className="text-sm font-semibold text-gray-800 mb-2">Adresse e-mail</h2>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Les e-mails sont envoyés à l&apos;adresse renseignée dans votre profil. Pensez
-                à la vérifier dans « Mon profil » si vous ne recevez rien.
+                Les e-mails sont envoyés à l&apos;adresse renseignée dans le profil de chaque
+                utilisateur. Les comptes sans adresse sont ignorés et tracés dans le journal.
               </p>
             </div>
           </footer>

@@ -8,7 +8,11 @@ from django.http import HttpResponse
 from rest_framework import mixins, parsers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
-from config.file_validation import validate_document_upload
+from config.file_validation import (
+    DOCUMENT_EXTENSIONS,
+    TIFF_EXTENSIONS,
+    validate_ged_document_upload,
+)
 from django.core.exceptions import ValidationError as DjangoValidationError
 from gestion_acces.permissions import (
     CanSoumettreDocumentQualite,
@@ -37,6 +41,7 @@ from gestion_documentaire.services.archive_service import build_documents_archiv
 from gestion_documentaire.services.document_download_service import (
     get_archived_version_download_payload,
     get_document_download_payload,
+    guess_document_content_type,
 )
 from gestion_documentaire.services.document_version_service import dedupe_archived_versions
 from gestion_documentaire.services.controle_qualite_access import user_can_filter_documents_by_statut
@@ -47,6 +52,7 @@ from gestion_documentaire.services.zone_extractor import extract_field_values_by
 from gestion_documentaire.services.zone_override import apply_zone_overrides, parse_ocr_pages, parse_zone_overrides
 
 PAGE_SIZE = 15
+OCR_EXTENSIONS = DOCUMENT_EXTENSIONS | TIFF_EXTENSIONS
 
 
 from gestion_documentaire.services.document_list_queryset import (
@@ -294,10 +300,20 @@ class DocumentLocaliteViewSet(
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
-            validate_document_upload(fichier)
+            validate_ged_document_upload(fichier)
         except DjangoValidationError as exc:
             message = exc.messages[0] if hasattr(exc, "messages") else str(exc)
             return Response({"detail": message}, status=status.HTTP_400_BAD_REQUEST)
+        if os.path.splitext(fichier.name or "")[1].lower() not in OCR_EXTENSIONS:
+            return Response(
+                {
+                    "detail": (
+                        "L'extraction automatique n'est disponible que pour les PDF et les images. "
+                        "Saisissez les champs manuellement."
+                    )
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         if not type_document_id:
             return Response(
                 {"detail": "Le type de document est requis."},
@@ -601,14 +617,7 @@ class DocumentLocaliteViewSet(
         from gestion_documentaire.services.document_storage import download_display_filename
 
         filename = download_display_filename(raw_name, fallback=f"document-{document.pk}.pdf")
-        content_type = "application/octet-stream"
-        lower = filename.lower()
-        if lower.endswith(".pdf"):
-            content_type = "application/pdf"
-        elif lower.endswith((".jpg", ".jpeg")):
-            content_type = "image/jpeg"
-        elif lower.endswith(".png"):
-            content_type = "image/png"
+        content_type = guess_document_content_type(filename, raw_name, content=content)
 
         response = HttpResponse(content, content_type=content_type)
         response["Content-Disposition"] = f'inline; filename="{filename}"'

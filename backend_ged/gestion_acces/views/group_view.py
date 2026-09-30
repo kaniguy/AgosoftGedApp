@@ -1,5 +1,5 @@
 from rest_framework import viewsets, status
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.contrib.auth.models import Group
@@ -7,6 +7,7 @@ from django.db.models import Count
 from ..serializers.group_serializer import GroupSerializer
 from ..constants import APP_MODULES
 from ..models.group_profile import GroupProfile
+from ..permissions import AccountAdminPermission
 from gestion_acces.services.localites_dernier_niveau_service import (
     build_localites_dernier_niveau_payload,
 )
@@ -17,19 +18,13 @@ from gestion_documentaire.services.controle_qualite_access import (
     user_visible_statuts_qualite,
 )
 
-
-class IsStaffOrSuperuser(IsAdminUser):
-    """Autorise uniquement les utilisateurs is_staff ou is_superuser."""
-    message = "Seuls les administrateurs peuvent gérer les groupes."
-
-
 class GroupViewSet(viewsets.ModelViewSet):
   """CRUD des groupes Django avec modules et localités du dernier niveau."""
 
   serializer_class = GroupSerializer
 
   def get_permissions(self):
-    return [IsAuthenticated(), IsStaffOrSuperuser()]
+    return [IsAuthenticated(), AccountAdminPermission()]
 
   def get_queryset(self):
     """Précharge permissions, profil d'accès et utilisateurs pour limiter les requêtes N+1."""

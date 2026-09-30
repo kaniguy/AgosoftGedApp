@@ -174,7 +174,7 @@ export default function GestionAideVideoPage() {
           Accueil
         </button>
         <span className="text-slate-300">/</span>
-        <span className="text-slate-400">Gestion des accès</span>
+        <span className="text-slate-400">Paramétrage</span>
         <span className="text-slate-300">/</span>
         <span className="text-purple-700 font-semibold">Aide Vidéo</span>
       </nav>

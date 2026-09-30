@@ -280,15 +280,15 @@ export const fetchDocumentFileBlob = async (fileUrl) => {
   }
 
   const blob = await res.blob();
-  // Forcer le type PDF si le proxy / navigateur renvoie octet-stream ou type vide
-  const looksPdf =
-    blob.type === "application/pdf" ||
-    blob.type === "application/octet-stream" ||
-    !blob.type;
-  const typedBlob =
-    looksPdf && blob.type !== "application/pdf"
-      ? new Blob([blob], { type: "application/pdf" })
-      : blob;
+  // Proxy / navigateur renvoyant octet-stream ou type vide : typer en PDF seulement si la signature l'est
+  const untyped = !blob.type || blob.type === "application/octet-stream";
+  let typedBlob = blob;
+  if (untyped) {
+    const signature = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer());
+    if (signature === "%PDF-") {
+      typedBlob = new Blob([blob], { type: "application/pdf" });
+    }
+  }
   return { blob: typedBlob, blobUrl: URL.createObjectURL(typedBlob) };
 };
 

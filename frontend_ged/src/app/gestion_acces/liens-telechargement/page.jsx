@@ -524,14 +524,14 @@ export default function LiensTelechargementPage() {
 
       {detailLink && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[calc(90*var(--app-vh))] overflow-hidden">
             <div className="bg-purple-600 text-white px-6 py-3 flex justify-between items-center">
               <h3 className="font-semibold">Documents du lien</h3>
               <button type="button" onClick={() => setDetailLink(null)} className="text-xl leading-none">
                 ×
               </button>
             </div>
-            <div className="p-4 overflow-y-auto max-h-[70vh] space-y-2">
+            <div className="p-4 overflow-y-auto max-h-[calc(70*var(--app-vh))] space-y-2">
               {(detailLink.documents || []).length === 0 ? (
                 <p className="text-sm text-gray-500 italic">Aucun détail document</p>
               ) : (

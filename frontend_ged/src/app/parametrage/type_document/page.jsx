@@ -252,7 +252,7 @@ export default function TypeDocumentPage() {
   const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       {/* Notification Container */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
@@ -552,9 +552,9 @@ export default function TypeDocumentPage() {
                       {formErrors.libelle}
                     </p>
                   )}
-                  <small className="text-xs text-gray-500">
+                  {/* <small className="text-xs text-gray-500">
                     Plusieurs libellés séparés par « + » créent plusieurs lignes. Le code est généré automatiquement.
-                  </small>
+                  </small> */}
                 </div>
               </div>
               <div className="px-6 py-4 bg-gray-50 rounded-b-lg flex justify-end gap-2">

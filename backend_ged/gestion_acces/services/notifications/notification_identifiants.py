@@ -7,7 +7,6 @@ from gestion_acces.models.notification import (
     CibleNotification,
     EvenementNotification,
     NotificationEmailLog,
-    PreferenceNotification,
 )
 from gestion_acces.services.email_config_service import is_email_configured
 
@@ -23,7 +22,6 @@ from .commun import (
 EVENT_TYPE = EvenementNotification.IDENTIFIANTS
 DEFAULT_TARGET = CibleNotification.COMPTE
 DEFAULT_ENABLED = True
-DEFAULT_RESPECTER_PREFERENCES = False
 MODULE_LABELS = {m["code"]: m["label"] for m in APP_MODULES}
 
 DEFAULT_TEMPLATE = {
@@ -122,17 +120,6 @@ def notifier_identifiants(user, password: str, actor=None) -> str:
     if not template.is_active:
         log_skip(EVENT_TYPE, user, "Modèle d'e-mail désactivé.", actor=actor)
         return "disabled"
-
-    if regle.respecter_preferences:
-        prefs = PreferenceNotification.get_for_user(user)
-        if not prefs.accepte(EVENT_TYPE):
-            log_skip(
-                EVENT_TYPE,
-                user,
-                "Notification désactivée dans les préférences.",
-                actor=actor,
-            )
-            return "skipped"
 
     context = build_identifiants_context(user, password)
     prepared = [(user, *render_for_recipient(template, context, user))]

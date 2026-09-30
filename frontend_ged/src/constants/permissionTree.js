@@ -83,6 +83,19 @@ export const PERMISSION_REQUIRES = {
   "parametrage.add_structuregeographique": ["parametrage.view_structuregeographique"],
   "parametrage.change_structuregeographique": ["parametrage.view_structuregeographique"],
   "parametrage.delete_structuregeographique": ["parametrage.view_structuregeographique"],
+  "gestion_acces.change_entreprise": ["gestion_acces.view_entreprise"],
+  "gestion_acces.change_configurationemail": ["gestion_acces.view_configurationemail"],
+  "gestion_acces.change_reglenotification": ["gestion_acces.view_reglenotification"],
+  "gestion_acces.view_modeleemailnotification": ["gestion_acces.view_reglenotification"],
+  "gestion_acces.change_modeleemailnotification": ["gestion_acces.view_modeleemailnotification"],
+  "gestion_acces.view_configurationresumeperiodique": ["gestion_acces.view_reglenotification"],
+  "gestion_acces.change_configurationresumeperiodique": [
+    "gestion_acces.view_configurationresumeperiodique",
+  ],
+  "gestion_acces.view_notificationemaillog": ["gestion_acces.view_reglenotification"],
+  "gestion_acces.add_guideaide": ["gestion_acces.view_guideaide"],
+  "gestion_acces.change_guideaide": ["gestion_acces.view_guideaide"],
+  "gestion_acces.delete_guideaide": ["gestion_acces.view_guideaide"],
   "auth.add_user": ["auth.view_user"],
   "auth.change_user": ["auth.view_user"],
   "auth.delete_user": ["auth.view_user"],
@@ -165,6 +178,48 @@ export const PERMISSION_TREE = [
           { codename: "parametrage.add_structuregeographique", label: "Ajouter un niveau" },
           { codename: "parametrage.change_structuregeographique", label: "Modifier un niveau" },
           { codename: "parametrage.delete_structuregeographique", label: "Supprimer un niveau" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "parametrage_application",
+    label: "Paramétrage de l'application",
+    hint: "Entreprise, SMTP-MAIL, notifications et aide vidéo (menu Paramétrage).",
+    children: [
+      {
+        codename: "gestion_acces.view_entreprise",
+        label: "Consulter les informations de l'entreprise",
+        children: [
+          { codename: "gestion_acces.change_entreprise", label: "Modifier l'entreprise" },
+        ],
+      },
+      {
+        codename: "gestion_acces.view_configurationemail",
+        label: "Consulter la configuration SMTP-MAIL",
+        children: [
+          { codename: "gestion_acces.change_configurationemail", label: "Modifier la configuration SMTP-MAIL" },
+        ],
+      },
+      {
+        codename: "gestion_acces.view_reglenotification",
+        label: "Consulter les règles de notification",
+        children: [
+          { codename: "gestion_acces.change_reglenotification", label: "Modifier les règles" },
+          { codename: "gestion_acces.view_modeleemailnotification", label: "Consulter les modèles d'e-mails" },
+          { codename: "gestion_acces.change_modeleemailnotification", label: "Modifier les modèles d'e-mails" },
+          { codename: "gestion_acces.view_configurationresumeperiodique", label: "Consulter le résumé périodique" },
+          { codename: "gestion_acces.change_configurationresumeperiodique", label: "Modifier le résumé périodique" },
+          { codename: "gestion_acces.view_notificationemaillog", label: "Consulter le journal des envois" },
+        ],
+      },
+      {
+        codename: "gestion_acces.view_guideaide",
+        label: "Consulter les tutoriels (Aide Vidéo)",
+        children: [
+          { codename: "gestion_acces.add_guideaide", label: "Ajouter un tutoriel" },
+          { codename: "gestion_acces.change_guideaide", label: "Modifier un tutoriel" },
+          { codename: "gestion_acces.delete_guideaide", label: "Supprimer un tutoriel" },
         ],
       },
     ],

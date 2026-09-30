@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { getAnalyticsAdministration } from "../../../services/analytique.service";
 import { getUsers } from "../../../services/user.service";
 import { useAnalytiqueFilters } from "../../../hooks/useAnalytiqueFilters";
@@ -292,7 +292,6 @@ export default function AnalytiqueAdministrationPage() {
     PERMISSIONS.VIEW_GROUP,
   ]);
 
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const { filters, setFilter, buildUrl } = useAnalytiqueFilters();
@@ -314,9 +313,10 @@ export default function AnalytiqueAdministrationPage() {
         else params.delete(key);
       });
       const qs = params.toString();
-      router.replace(qs ? `${pathname}?${qs}` : pathname);
+      // API History : router.replace vers la page sans paramètres les restaure depuis le cache (Next 16.2.x).
+      window.history.replaceState(null, "", qs ? `${pathname}?${qs}` : pathname);
     },
-    [pathname, router, searchParams]
+    [pathname, searchParams]
   );
 
   const toggleCompte = (key) => {
@@ -513,6 +513,9 @@ export default function AnalytiqueAdministrationPage() {
             <option value="90">90 derniers jours</option>
             <option value="365">12 derniers mois</option>
             <option value="all">Toute la période</option>
+            {filters.periode === "custom" && (
+              <option value="custom">Période personnalisée</option>
+            )}
           </select>
         </div>
         <Link

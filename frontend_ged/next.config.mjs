@@ -42,6 +42,15 @@ const nextConfig = {
       },
     ];
   },
+  async redirects() {
+    return ["entreprise", "configuration-email", "notifications", "aide-video", "base-de-donnees"].map(
+      (page) => ({
+        source: `/gestion_acces/${page}`,
+        destination: `/parametrage/${page}`,
+        permanent: false,
+      })
+    );
+  },
   // Évite que Turbopack prenne C:\Users\HP\ comme racine (lockfile parasite)
   turbopack: {
     root: __dirname,

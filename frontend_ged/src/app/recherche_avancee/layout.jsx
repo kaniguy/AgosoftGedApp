@@ -7,7 +7,7 @@ export default function RechercheAvanceeLayout({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       <div className="flex pt-16">
         <RechercheAvanceeSidebar
           isOpen={isSidebarOpen}

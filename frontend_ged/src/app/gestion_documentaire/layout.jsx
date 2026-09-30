@@ -13,7 +13,7 @@ export default function GestionDocumentaireLayout({ children }) {
   };
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       <div className="flex pt-16">
         <GestionDocumentaireSidebar isOpen={isSidebarOpen} onToggle={toggleSidebar} />
 

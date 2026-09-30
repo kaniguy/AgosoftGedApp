@@ -78,14 +78,14 @@ export const envoyerResumeMaintenant = async () => {
   return handleResponse(res);
 };
 
-/** Préférences de notification de l'utilisateur connecté. */
-export const getPreferencesNotification = async () => {
-  const res = await apiFetch(`${BASE()}/preferences/`, { headers: getHeaders() });
+/** Activation globale de chaque e-mail (superutilisateur uniquement). */
+export const getNotificationsGenerales = async () => {
+  const res = await apiFetch(`${BASE()}/generales/`, { headers: getHeaders() });
   return handleResponse(res);
 };
 
-export const updatePreferencesNotification = async (payload) => {
-  const res = await apiFetch(`${BASE()}/preferences/`, {
+export const updateNotificationsGenerales = async (payload) => {
+  const res = await apiFetch(`${BASE()}/generales/`, {
     method: "PATCH",
     headers: getHeaders(),
     body: JSON.stringify(payload),

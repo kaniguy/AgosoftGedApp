@@ -1,8 +1,39 @@
 @import "tailwindcss";
 
+/*
+ * L'app s'affiche à 67 % (comme un navigateur dézoomé à 67 %) : `zoom` sur <html>.
+ * Les media queries ne sont pas affectées par `zoom` : seuils multipliés par 0,67
+ * pour que la mise en page responsive bascule comme avec le zoom du navigateur.
+ */
+@custom-variant short (@media (max-height: 549px));
+
+@theme {
+  --breakpoint-sm: 26.8rem;
+  --breakpoint-md: 32.16rem;
+  --breakpoint-lg: 42.88rem;
+  --breakpoint-xl: 53.6rem;
+  --breakpoint-2xl: 64.32rem;
+}
+
+@utility h-app-screen {
+  height: calc(100 * var(--app-vh));
+}
+
+@utility min-h-app-screen {
+  min-height: calc(100 * var(--app-vh));
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --app-zoom: 0.67;
+  /* `zoom` réduit aussi les unités vh/vw : ces variables redonnent la vraie taille de l'écran. */
+  --app-vh: calc(1vh / var(--app-zoom));
+  --app-vw: calc(1vw / var(--app-zoom));
+}
+
+html {
+  zoom: var(--app-zoom);
 }
 
 @theme inline {

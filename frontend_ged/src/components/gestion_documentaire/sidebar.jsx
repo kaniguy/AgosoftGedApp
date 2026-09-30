@@ -122,7 +122,7 @@ export default function GestionDocumentaireSidebar({ isOpen, onToggle }) {
   return (
     <aside
       className={`
-        fixed left-0 top-16 h-screen bg-white/95 backdrop-blur-md border-r border-emerald-100 shadow-xl
+        fixed left-0 top-16 h-app-screen bg-white/95 backdrop-blur-md border-r border-emerald-100 shadow-xl
         transition-all duration-300 ease-in-out z-50
         ${isOpen ? "w-64" : "w-20"}
       `}

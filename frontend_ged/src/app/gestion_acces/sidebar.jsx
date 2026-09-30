@@ -3,12 +3,12 @@
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { hasPermission, hasAnyPermission, PERMISSIONS, canAccessGuideAideAdmin, canAccessSauvegardeBase } from "../../utils/permissions";
+import { hasPermission, PERMISSIONS } from "../../utils/permissions";
+import { isSuperuserFromStorage } from "../../constants/modules";
 
 export default function GestionAccesSidebar({ isOpen, onToggle }) {
   const pathname = usePathname();
   const [accessVersion, setAccessVersion] = useState(0);
-  const [emailGroupOpen, setEmailGroupOpen] = useState(false);
 
   useEffect(() => {
     const onAccessUpdate = () => setAccessVersion((v) => v + 1);
@@ -76,36 +76,13 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
       ),
     },
     {
-      id: "entreprise",
-      name: "Entreprise",
-      path: "/gestion_acces/entreprise",
-      permissionCheck: () =>
-        hasAnyPermission([PERMISSIONS.VIEW_ENTREPRISE, PERMISSIONS.CHANGE_ENTREPRISE]),
+      id: "mes-notifications",
+      name: "Notifications générales",
+      path: "/gestion_acces/mes-notifications",
+      permissionCheck: () => isSuperuserFromStorage(),
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-        </svg>
-      ),
-    },
-    {
-      id: "base-de-donnees",
-      name: "Base de données",
-      path: "/gestion_acces/base-de-donnees",
-      permissionCheck: () => canAccessSauvegardeBase(),
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-        </svg>
-      ),
-    },
-    {
-      id: "aide-video",
-      name: "Aide Vidéo",
-      path: "/gestion_acces/aide-video",
-      permissionCheck: () => canAccessGuideAideAdmin(),
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
       ),
     },
@@ -122,74 +99,15 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
     },
   ];
 
-  const emailMenuGroup = {
-    id: "emails-notifications",
-    name: "E-mails & notifications",
-    icon: (
-      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-      </svg>
-    ),
-    children: [
-      {
-        id: "configuration-email",
-        name: "Configuration SMTP-MAIL",
-        path: "/gestion_acces/configuration-email",
-        permissionCheck: () =>
-          hasAnyPermission([
-            PERMISSIONS.VIEW_CONFIGURATION_EMAIL,
-            PERMISSIONS.CHANGE_CONFIGURATION_EMAIL,
-          ]),
-      },
-      {
-        id: "notifications",
-        name: "Notifications",
-        path: "/gestion_acces/notifications",
-        permissionCheck: () =>
-          hasAnyPermission([
-            PERMISSIONS.VIEW_REGLE_NOTIFICATION,
-            PERMISSIONS.CHANGE_REGLE_NOTIFICATION,
-          ]),
-      },
-      {
-        id: "mes-notifications",
-        name: "Mes notifications",
-        path: "/gestion_acces/mes-notifications",
-        permission: null,
-      },
-    ],
-  };
-
-  const visibleMenuItems = useMemo(() => {
-    const beforeProfil = menuItems.slice(0, -1).filter(itemIsVisible);
-    const profil = menuItems.at(-1);
-    const profilVisible = profil && itemIsVisible(profil) ? [profil] : [];
-    const emailChildren = emailMenuGroup.children.filter(itemIsVisible);
-
-    return {
-      beforeProfil,
-      emailGroup: emailChildren.length > 0 ? { ...emailMenuGroup, children: emailChildren } : null,
-      profil: profilVisible,
-    };
+  const visibleMenuItems = useMemo(
+    () => menuItems.filter(itemIsVisible),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessVersion]);
+    [accessVersion]
+  );
 
   const isActive = (path) => pathname === path || pathname.startsWith(`${path}/`);
 
-  const emailGroupIsActive = useMemo(
-    () =>
-      visibleMenuItems.emailGroup?.children.some((child) => isActive(child.path)) ?? false,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [pathname, visibleMenuItems.emailGroup]
-  );
-
-  useEffect(() => {
-    if (emailGroupIsActive) {
-      setEmailGroupOpen(true);
-    }
-  }, [emailGroupIsActive]);
-
-  const renderMenuLink = (item, { submenu = false } = {}) => {
+  const renderMenuLink = (item) => {
     const active = isActive(item.path);
 
     return (
@@ -204,7 +122,6 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
               : "text-slate-600 hover:bg-purple-50 hover:text-purple-700"
           }
           ${!isOpen && "justify-center"}
-          ${submenu && isOpen ? "ml-3 pl-4 border-l-2 border-purple-100" : ""}
         `}
         title={!isOpen ? item.name : ""}
       >
@@ -216,7 +133,7 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
 
         {isOpen && (
           <>
-            <span className={`font-medium ${submenu ? "text-xs" : "text-sm"}`}>{item.name}</span>
+            <span className="font-medium text-sm">{item.name}</span>
             {active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white animate-pulse" />}
           </>
         )}
@@ -233,7 +150,7 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
   return (
     <aside
       className={`
-        fixed left-0 top-16 h-screen bg-white/95 backdrop-blur-md border-r border-purple-100 shadow-xl
+        fixed left-0 top-16 h-app-screen bg-white/95 backdrop-blur-md border-r border-purple-100 shadow-xl
         transition-all duration-300 ease-in-out z-40
         ${isOpen ? "w-64" : "w-20"}
       `}
@@ -273,77 +190,7 @@ export default function GestionAccesSidebar({ isOpen, onToggle }) {
         </div>
 
         <div className="space-y-1 flex-1 overflow-y-auto">
-          {visibleMenuItems.beforeProfil.map((item) => renderMenuLink(item))}
-
-          {visibleMenuItems.emailGroup && (
-            <div className="pt-3">
-              {isOpen ? (
-                <>
-                  <button
-                    type="button"
-                    onClick={() => setEmailGroupOpen((open) => !open)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 mb-1 rounded-lg transition-colors ${
-                      emailGroupIsActive
-                        ? "bg-purple-50 text-purple-800"
-                        : "text-slate-700 hover:bg-purple-50 hover:text-purple-700"
-                    }`}
-                    aria-expanded={emailGroupOpen}
-                  >
-                    <span className="text-purple-600 shrink-0">
-                      {visibleMenuItems.emailGroup.icon}
-                    </span>
-                    <span className="text-sm font-semibold leading-tight text-left flex-1">
-                      {visibleMenuItems.emailGroup.name}
-                    </span>
-                    <svg
-                      className={`w-4 h-4 shrink-0 text-purple-500 transition-transform duration-200 ${
-                        emailGroupOpen ? "rotate-90" : ""
-                      }`}
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </button>
-
-                  {emailGroupOpen &&
-                    visibleMenuItems.emailGroup.children.map((child) =>
-                      renderMenuLink(child, { submenu: true })
-                    )}
-                </>
-              ) : (
-                <div className="relative group flex justify-center py-2">
-                  <span className="text-purple-600">{visibleMenuItems.emailGroup.icon}</span>
-                  <div className="absolute left-full ml-2 py-2 px-1 bg-white border border-purple-100 rounded-lg shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto z-50 min-w-[12rem]">
-                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-purple-600">
-                      {visibleMenuItems.emailGroup.name}
-                    </p>
-                    {visibleMenuItems.emailGroup.children.map((child) => (
-                      <Link
-                        key={child.id}
-                        href={child.path}
-                        className={`block px-3 py-2 text-xs rounded-md mx-1 ${
-                          isActive(child.path)
-                            ? "bg-purple-600 text-white"
-                            : "text-slate-600 hover:bg-purple-50 hover:text-purple-700"
-                        }`}
-                      >
-                        {child.name}
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {visibleMenuItems.profil.map((item) => renderMenuLink(item))}
+          {visibleMenuItems.map((item) => renderMenuLink(item))}
         </div>
 
         <div>

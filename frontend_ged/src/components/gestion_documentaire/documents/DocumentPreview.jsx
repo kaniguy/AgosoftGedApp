@@ -1,4 +1,6 @@
-// Aperçu document (PDF ou image) : chargement, zoom, pagination, surlignage des zones de capture
+// Aperçu document (PDF ou image) : chargement, zoom, pagination, surlignage des zones de capture.
+// Word .docx, Excel .xlsx/.xls, CSV et TXT sont rendus localement ; les autres formats affichent une fiche
+// fichier proposant le téléchargement.
 "use client";
 
 import dynamic from "next/dynamic";
@@ -17,36 +19,84 @@ import DocumentOcrScanOverlay from "./DocumentOcrScanOverlay";
 import { ANNOTATION_COLORS, ANNOTATION_TOOLS } from "@/utils/pdfAnnotationUtils";
 import { getProfile, updateUserSignature } from "../../../services/profile.service";
 import { apiFetch, resolveMediaUrl } from "../../../services/api";
+import {
+  filenameFromDocumentUrl,
+  getFileExtension,
+  getOfficePreviewFormat,
+  isPdfFile,
+  isPreviewableImageFile,
+  isPreviewableImageMime,
+  OFFICE_PREVIEW_LABELS,
+} from "@/utils/documentFileTypes";
 
 const PdfViewer = dynamic(() => import("./PdfViewer"), { ssr: false });
+const OfficeDocumentPreview = dynamic(() => import("./OfficeDocumentPreview"), { ssr: false });
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
 const ZOOM_STEP = 0.25;
 const BASE_IMAGE_WIDTH = CAPTURE_BASE_PAGE_WIDTH;
 
-function isImageFile(file) {
-  if (file?.type?.startsWith("image/")) return true;
-  return /\.(jpe?g|png|webp|gif)$/i.test(file?.name || "");
-}
-
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || (file?.name || "").toLowerCase().endsWith(".pdf");
-}
-
 function detectPreviewKind({ file, previewUrl, previewFileName, blobType }) {
   if (file) {
     if (isPdfFile(file)) return "pdf";
-    if (isImageFile(file)) return "image";
+    if (isPreviewableImageFile(file)) return "image";
+    return "file";
   }
+  if (!previewUrl) return null;
 
   if (blobType === "application/pdf") return "pdf";
-  if (blobType?.startsWith("image/")) return "image";
+  if (isPreviewableImageMime(blobType)) return "image";
+  if (blobType && blobType !== "application/octet-stream") return "file";
 
-  const source = `${previewFileName || ""} ${previewUrl || ""}`.toLowerCase();
-  if (source.includes(".pdf")) return "pdf";
-  if (/\.(jpe?g|png|webp|gif)(\?|$)/.test(source)) return "image";
-  return null;
+  const name = previewFileName || filenameFromDocumentUrl(previewUrl, "");
+  if (isPdfFile({ name })) return "pdf";
+  if (isPreviewableImageFile({ name })) return "image";
+  return "file";
+}
+
+function formatFileSize(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return null;
+  if (bytes < 1024) return `${bytes} o`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} Ko`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} Mo`;
+}
+
+function NoPreviewFileCard({ fileName, fileSize, onDownload, message = "Aperçu non disponible pour ce format." }) {
+  const ext = getFileExtension(fileName).toUpperCase() || "FICHIER";
+  const size = formatFileSize(fileSize);
+  return (
+    <div className="flex-1 flex items-center justify-center p-6 bg-white">
+      <div className="flex flex-col items-center text-center max-w-sm">
+        <div className="relative mb-4">
+          <svg className="w-20 h-20 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.2} d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+          </svg>
+          <span className="absolute left-1/2 -translate-x-1/2 bottom-3 px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px] font-semibold tracking-wide">
+            {ext}
+          </span>
+        </div>
+        <p className="text-sm font-medium text-slate-700 break-all">{fileName || "Document"}</p>
+        {size && <p className="text-xs text-slate-400 mt-0.5">{size}</p>}
+        <p className="text-xs text-slate-500 mt-3">
+          {message}
+          {onDownload ? " Téléchargez le fichier pour l'ouvrir avec l'application adaptée." : ""}
+        </p>
+        {onDownload && (
+          <button
+            type="button"
+            onClick={onDownload}
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Télécharger
+          </button>
+        )}
+      </div>
+    </div>
+  );
 }
 
 async function fetchImageAsDataUrl(url) {
@@ -138,7 +188,7 @@ function ImportFileControl({
         <svg className="w-14 h-14 mb-3 text-emerald-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
-        <p className="text-sm text-gray-500 mb-4">Importez un PDF ou une image pour prévisualiser</p>
+        <p className="text-sm text-gray-500 mb-4">Importez un document (PDF, Word, Excel, PowerPoint, image, CSV, TXT, ZIP)</p>
         <button
           type="button"
           onClick={openPicker}
@@ -196,6 +246,7 @@ export default function DocumentPreview({
   importDisabledHint,
   onFileChange,
   onDownload,
+  allowLocalDownload = false,
   onClose,
   captureChamps = [],
   filledChampIds = [],
@@ -241,6 +292,7 @@ export default function DocumentPreview({
   onRequestSignature: onRequestSignatureProp = undefined,
 }) {
   const [objectUrl, setObjectUrl] = useState(null);
+  const [sourceBlob, setSourceBlob] = useState(null);
   const [blobType, setBlobType] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState(null);
@@ -279,6 +331,7 @@ export default function DocumentPreview({
     if (file) {
       const url = URL.createObjectURL(file);
       setObjectUrl(url);
+      setSourceBlob(file);
       setBlobType(file.type || null);
       setLoadError(null);
       setLoading(false);
@@ -287,6 +340,7 @@ export default function DocumentPreview({
 
     if (!previewUrl) {
       setObjectUrl(null);
+      setSourceBlob(null);
       setBlobType(null);
       setLoadError(null);
       setLoading(false);
@@ -307,10 +361,12 @@ export default function DocumentPreview({
         }
         blobUrl = nextUrl;
         setObjectUrl(nextUrl);
+        setSourceBlob(blob);
         setBlobType(blob.type || null);
       } catch (err) {
         if (!cancelled) {
           setObjectUrl(null);
+          setSourceBlob(null);
           setBlobType(null);
           setLoadError(err.message || "Impossible de charger l'aperçu");
         }
@@ -537,6 +593,19 @@ export default function DocumentPreview({
 
   const displayFileName = file?.name || previewFileName || null;
 
+  const saveLocalFile = useCallback(() => {
+    if (!objectUrl) return;
+    const link = document.createElement("a");
+    link.href = objectUrl;
+    link.download = displayFileName || filenameFromDocumentUrl(previewUrl, "document");
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  }, [objectUrl, displayFileName, previewUrl]);
+
+  const downloadHandler =
+    onDownload || (allowLocalDownload && kind === "file" && objectUrl ? saveLocalFile : undefined);
+
   const zoomIn = () => setZoom((z) => Math.min(ZOOM_MAX, +(z + ZOOM_STEP).toFixed(2)));
   const zoomOut = () => setZoom((z) => Math.max(ZOOM_MIN, +(z - ZOOM_STEP).toFixed(2)));
   const resetZoom = () => {
@@ -625,10 +694,10 @@ export default function DocumentPreview({
         )
       )}
       {zoomable && <ZoomToolbar zoom={zoom} onZoomIn={zoomIn} onZoomOut={zoomOut} onReset={resetZoom} />}
-      {onDownload && (
+      {downloadHandler && (
         <button
           type="button"
-          onClick={onDownload}
+          onClick={downloadHandler}
           className="inline-flex items-center gap-1 px-2 py-1 rounded border border-slate-300 text-slate-600 hover:bg-slate-50 text-xs cursor-pointer"
           title="Télécharger"
         >
@@ -652,6 +721,41 @@ export default function DocumentPreview({
       )}
     </div>
   );
+
+  if (kind === "file") {
+    const cardFileName = displayFileName || filenameFromDocumentUrl(previewUrl, "");
+    const officeFormat = getOfficePreviewFormat({ name: cardFileName, mime: blobType });
+    const renderFileCard = (message) => (
+      <NoPreviewFileCard
+        fileName={cardFileName}
+        fileSize={sourceBlob?.size}
+        onDownload={downloadHandler}
+        message={message}
+      />
+    );
+    return (
+      <div className={`${shellClass} relative`}>
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-white border-b border-gray-200 shrink-0 flex-wrap">
+          <span className="text-sm text-gray-600 font-medium">
+            {officeFormat
+              ? OFFICE_PREVIEW_LABELS[officeFormat]
+              : `Fichier ${getFileExtension(cardFileName).toUpperCase()}`}
+          </span>
+          {toolbar}
+        </div>
+        {officeFormat && sourceBlob ? (
+          <OfficeDocumentPreview
+            blob={sourceBlob}
+            format={officeFormat}
+            zoom={zoomable ? zoom : 1}
+            renderFallback={renderFileCard}
+          />
+        ) : (
+          renderFileCard()
+        )}
+      </div>
+    );
+  }
 
   if (kind === "pdf") {
     const goPdfPrev = () => updatePdfPage(Math.max(1, pdfPage - 1));

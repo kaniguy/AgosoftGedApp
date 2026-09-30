@@ -93,10 +93,6 @@ class RegleNotification(models.Model):
         default=True,
         help_text="Ne pas notifier l'utilisateur qui déclenche l'action.",
     )
-    respecter_preferences = models.BooleanField(
-        default=True,
-        help_text="Respecter les préférences de notification de chaque utilisateur.",
-    )
     modele = models.ForeignKey(
         ModeleEmailNotification,
         on_delete=models.SET_NULL,
@@ -176,53 +172,6 @@ class ConfigurationResumePeriodique(models.Model):
 
     def __str__(self):
         return f"Résumé périodique ({'activé' if self.is_enabled else 'désactivé'})"
-
-
-class PreferenceNotification(models.Model):
-    """Préférences e-mail d'un utilisateur (ne peut pas réactiver une règle désactivée)."""
-
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="preference_notification",
-    )
-    notif_soumission = models.BooleanField(default=True)
-    notif_resoumission = models.BooleanField(default=True)
-    notif_validation = models.BooleanField(default=True)
-    notif_rejet = models.BooleanField(default=True)
-    notif_identifiants = models.BooleanField(
-        default=True,
-        help_text="Recevoir un e-mail lorsqu'un mot de passe est généré pour le compte.",
-    )
-    resume_periodique = models.BooleanField(default=True)
-    date_modification = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "préférence de notification"
-        verbose_name_plural = "préférences de notification"
-
-    EVENT_FIELD_MAP = {
-        EvenementNotification.SOUMISSION: "notif_soumission",
-        EvenementNotification.RESOUMISSION: "notif_resoumission",
-        EvenementNotification.VALIDATION: "notif_validation",
-        EvenementNotification.REJET: "notif_rejet",
-        EvenementNotification.IDENTIFIANTS: "notif_identifiants",
-        EvenementNotification.RESUME_PERIODIQUE: "resume_periodique",
-    }
-
-    def accepte(self, event_type):
-        field = self.EVENT_FIELD_MAP.get(event_type)
-        if not field:
-            return True
-        return bool(getattr(self, field, True))
-
-    @classmethod
-    def get_for_user(cls, user):
-        obj, _ = cls.objects.get_or_create(user=user)
-        return obj
-
-    def __str__(self):
-        return f"Préférences notifications — {self.user}"
 
 
 class NotificationEmailLog(models.Model):

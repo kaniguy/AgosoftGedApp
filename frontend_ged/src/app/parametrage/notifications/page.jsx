@@ -310,26 +310,18 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
             </div>
             )}
 
-            <div className={`grid grid-cols-1 ${regle.event_type === "identifiants" ? "" : "md:grid-cols-2"} gap-4`}>
-              {regle.event_type !== "identifiants" && (
-              <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-                <ToggleSwitch
-                  checked={regle.exclude_actor}
-                  disabled={!canChange || savingId === regle.event_type}
-                  onChange={(value) => saveRegle(regle, { exclude_actor: value })}
-                  label="Ne pas notifier l'auteur de l'action"
-                />
+            {regle.event_type !== "identifiants" && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
+                  <ToggleSwitch
+                    checked={regle.exclude_actor}
+                    disabled={!canChange || savingId === regle.event_type}
+                    onChange={(value) => saveRegle(regle, { exclude_actor: value })}
+                    label="Ne pas notifier l'auteur de l'action"
+                  />
+                </div>
               </div>
-              )}
-              <div className="rounded-lg border border-gray-100 bg-gray-50 px-4 py-3">
-                <ToggleSwitch
-                  checked={regle.respecter_preferences}
-                  disabled={!canChange || savingId === regle.event_type}
-                  onChange={(value) => saveRegle(regle, { respecter_preferences: value })}
-                  label="Respecter les préférences utilisateur"
-                />
-              </div>
-            </div>
+            )}
           </div>
 
         </div>
@@ -339,8 +331,9 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
         <p><strong>Aide sur les champs</strong></p>
         <p>
           <strong>Activée / Désactivée :</strong> coupe l&apos;envoi pour tout le monde.
-          Si une règle est désactivée ici, aucun utilisateur ne recevra l&apos;e-mail,
-          même s&apos;il l&apos;a activée dans « Mes notifications ».
+          Si une règle est désactivée ici, aucun utilisateur ne recevra l&apos;e-mail.
+          Ce réglage est le même que celui de « Gestion des accès → Notifications
+          générales ».
         </p>
         <p>
           <strong>Destinataires — Créateur du document :</strong> l&apos;utilisateur
@@ -356,11 +349,6 @@ function ReglesTab({ config, setConfig, canChange, notify }) {
         <p>
           <strong>Ne pas notifier l&apos;auteur :</strong> retire des destinataires
           l&apos;utilisateur qui vient de soumettre, valider ou rejeter.
-        </p>
-        <p>
-          <strong>Respecter les préférences :</strong> si activé, un utilisateur qui a
-          désactivé ce type d&apos;e-mail dans « Mes notifications » ne le recevra pas
-          (sauf si la règle admin est elle-même coupée ci-dessus).
         </p>
         <p>
           <strong>Modèle d&apos;e-mail :</strong> contenu modifiable (sujet et corps)

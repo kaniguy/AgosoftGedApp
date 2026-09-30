@@ -25,11 +25,13 @@ const FIELD_TYPES = [
   { value: 'choix', label: 'Choix multiple' },
   { value: 'select', label: 'Liste déroulante' },
   { value: 'qr', label: 'Code QR' },
-  { value: 'code_barre', label: 'Code barre' },
+  // Désactivé tant que l'extraction des codes-barres n'est pas fiable.
+  // { value: 'code_barre', label: 'Code barre' },
 ];
 
 const LEGACY_FIELD_TYPES = [
   { value: 'fichier', label: 'Fichier (obsolète)' },
+  { value: 'code_barre', label: 'Code barre' },
 ];
 
 export default function ChampsDocumentPage() {
@@ -364,7 +366,7 @@ export default function ChampsDocumentPage() {
   );
 
   return (
-    <div className="min-h-screen bg-transparent pb-12">
+    <div className="min-h-app-screen bg-transparent pb-12">
       {/* Notification */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
@@ -683,7 +685,7 @@ export default function ChampsDocumentPage() {
       {/* Modal Ajouter un Champ */}
       {showAddModal && selectedTypeDoc && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000] p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto animate-zoom-in">
+          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[calc(90*var(--app-vh))] overflow-y-auto animate-zoom-in">
             <div className="bg-blue-600 text-white px-6 py-3 rounded-t-lg flex justify-between items-center sticky top-0">
               <div>
                 <h5 className="text-lg font-semibold">Nouveau champ de document</h5>
@@ -876,7 +878,7 @@ export default function ChampsDocumentPage() {
             </div>
             
             <form onSubmit={handleEditSubmit}>
-              <div className="p-6 max-h-[75vh] overflow-y-auto text-sm">
+              <div className="p-6 max-h-[calc(75*var(--app-vh))] overflow-y-auto text-sm">
                 <div className="mb-4">
                   <label className="block text-sm font-semibold text-gray-700 mb-1">
                     Libellé du champ <span className="text-red-500">*</span>

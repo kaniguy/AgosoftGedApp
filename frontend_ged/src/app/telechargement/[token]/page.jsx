@@ -107,7 +107,7 @@ export default function TelechargementPublicPage({ params }) {
   const icon = STATUS_ICONS[status] || STATUS_ICONS.not_found;
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4">
+    <div className="min-h-app-screen flex items-center justify-center p-4">
       <div className="w-full max-w-md rounded-2xl bg-white shadow-xl border border-slate-200/80 overflow-hidden">
         <div className="px-6 py-8 text-center border-b border-slate-100 bg-gradient-to-r from-cyan-600 to-sky-600 text-white">
           <p className="text-xs uppercase tracking-widest text-cyan-100 font-semibold">AGOSOFT GED</p>

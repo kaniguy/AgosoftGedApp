@@ -180,7 +180,7 @@ function ControleQualiteValidationContent() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] -mx-6 min-h-0">
+    <div className="flex flex-col h-[calc(100*var(--app-vh)-7.5rem)] min-h-[40rem] -mx-6">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999]">
           <div
@@ -199,8 +199,8 @@ function ControleQualiteValidationContent() {
         </div>
       )}
 
-      <div className="mb-4 shrink-0">
-        <nav className="text-sm text-gray-500 flex flex-wrap items-center gap-2">
+      <div className="mb-4 short:mb-1.5 shrink-0">
+        <nav className="text-sm short:text-xs text-gray-500 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => router.push("/")} className="hover:text-yellow-600">
             Accueil
           </button>

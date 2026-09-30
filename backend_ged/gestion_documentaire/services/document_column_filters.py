@@ -40,6 +40,11 @@ FORMAT_EXTENSIONS = {
     "png": (".png",),
     "webp": (".webp",),
     "gif": (".gif",),
+    "tiff": (".tif", ".tiff"),
+    "tif": (".tif", ".tiff"),
+    "word": (".doc", ".docx"),
+    "excel": (".xls", ".xlsx"),
+    "powerpoint": (".ppt", ".pptx"),
 }
 
 

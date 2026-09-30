@@ -90,7 +90,7 @@ export default function PermissionTreePicker({
   });
 
   return (
-    <div className="max-h-[50vh] overflow-y-auto border rounded-lg p-3">
+    <div className="max-h-[calc(50*var(--app-vh))] overflow-y-auto border rounded-lg p-3">
       {scopedPerms.length === 0 ? null : (
         <>
           {PERMISSION_TREE.map((node) => (

@@ -16,6 +16,7 @@ import {
   countZonesByPage,
   normalizedZoneToPixels,
 } from "@/utils/captureZoneUtils";
+import { cssZoomOf } from "@/utils/appZoom";
 import {
   deleteModeleCapture,
   getCaptureZones,
@@ -92,6 +93,9 @@ function countZonesOnPage(zonesMap, pageIndex) {
 
 export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) {
   const fileInputRef = useRef(null);
+  /** Hors des dépendances de loadData : un nouvel onNotify ne doit pas recharger (et écraser) les zones. */
+  const onNotifyRef = useRef(onNotify);
+  onNotifyRef.current = onNotify;
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -133,11 +137,11 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
             : null
       );
     } catch (err) {
-      onNotify?.(err.message || "Erreur de chargement", "error");
+      onNotifyRef.current?.(err.message || "Erreur de chargement", "error");
     } finally {
       setLoading(false);
     }
-  }, [typeDocumentId, onNotify]);
+  }, [typeDocumentId]);
 
   useEffect(() => {
     loadData();
@@ -223,6 +227,25 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
       }
     },
     [zonesMap, modeleUrl, pageHeight, currentPage, updateZoneForChamp]
+  );
+
+  const activeZone = activeChampId ? zonesMap[activeChampId] : null;
+  const activeHasZone = activeZone?.zone_width > 0 && activeZone?.zone_height > 0;
+
+  /**
+   * Déplace la zone du champ actif sur une autre page du modèle (même position et taille relatives).
+   */
+  const handleMoveZoneToPage = useCallback(
+    (pageIndex) => {
+      if (!activeChampId || !activeHasZone || pageIndex === activeZone.capture_page) return;
+      updateZoneForChamp(activeChampId, { capture_page: pageIndex });
+      setCurrentPage(pageIndex);
+      onNotify?.(
+        `Zone déplacée vers la page ${pageIndex + 1}. Ajustez-la si besoin puis enregistrez.`,
+        "info"
+      );
+    },
+    [activeChampId, activeHasZone, activeZone?.capture_page, updateZoneForChamp, onNotify]
   );
 
   /**
@@ -464,7 +487,7 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
 
       <div className="flex flex-1 min-h-0 gap-4 flex-col lg:flex-row">
         {/* Liste des champs */}
-        <div className="w-full lg:w-72 shrink-0 border border-gray-200 rounded-lg overflow-hidden flex flex-col max-h-[40vh] lg:max-h-none">
+        <div className="w-full lg:w-72 shrink-0 border border-gray-200 rounded-lg overflow-hidden flex flex-col max-h-[calc(40*var(--app-vh))] lg:max-h-none">
           <div className="bg-gray-800 text-white text-xs font-semibold px-3 py-2 uppercase tracking-wide">
             Champs ({champs.length})
           </div>
@@ -503,6 +526,22 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
           </div>
           {activeChampId && (
             <div className="p-3 border-t border-gray-200 bg-gray-50 flex flex-col gap-2">
+              {modeleUrl && activeHasZone && numPages > 1 && (
+                <label className="flex flex-col gap-1 text-xs text-gray-600">
+                  Page de la zone
+                  <select
+                    value={activeZone.capture_page ?? 0}
+                    onChange={(e) => handleMoveZoneToPage(Number(e.target.value))}
+                    className="w-full text-xs border border-gray-300 rounded px-2 py-1.5 bg-white"
+                  >
+                    {Array.from({ length: numPages }, (_, index) => (
+                      <option key={index} value={index}>
+                        Page {index + 1}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
               {modeleUrl && (
                 <button
                   type="button"
@@ -617,6 +656,7 @@ export default function CaptureZoneEditor({ typeDocumentId, onNotify, onBack }) 
                           size={{ width: pixels.width, height: pixels.height }}
                           position={{ x: pixels.x, y: pixels.y }}
                           bounds="parent"
+                          scale={cssZoomOf()}
                           enableResizing={isActive}
                           disableDragging={!isActive}
                           onMouseDown={() => setActiveChampId(champ.id)}

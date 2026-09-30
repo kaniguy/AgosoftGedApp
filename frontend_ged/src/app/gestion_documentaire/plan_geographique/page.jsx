@@ -313,7 +313,7 @@ export default function PlanGeographiqueConsultationPage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
           <div
@@ -413,7 +413,7 @@ export default function PlanGeographiqueConsultationPage() {
             ) : (
               <div
                 id={PLAN_GEO_TREE_SCROLL_ID}
-                className="min-h-[560px] max-h-[calc(100vh-240px)] overflow-y-auto pr-1"
+                className="min-h-[560px] max-h-[calc(100*var(--app-vh)-240px)] overflow-y-auto pr-1"
               >
                 <PlanGeoTree
                   data={data}

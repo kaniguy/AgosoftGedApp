@@ -40,7 +40,11 @@ class PlanGeographiqueSerializer(serializers.ModelSerializer):
         }
 
     def get_can_add_child(self, obj):
-        return obj.get_niveau_enfant() is not None
+        niveaux = self.context.get("_structure_niveaux")
+        if niveaux is None:
+            niveaux = PlanGeographique.structure_niveaux_ordered()
+            self.context["_structure_niveaux"] = niveaux
+        return obj.get_niveau_enfant(niveaux) is not None
 
     def get_a_des_enfants(self, obj):
         nb = getattr(obj, "nb_enfants", None)

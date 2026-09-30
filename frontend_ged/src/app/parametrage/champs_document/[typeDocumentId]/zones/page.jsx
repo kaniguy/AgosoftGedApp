@@ -5,7 +5,7 @@
  */
 "use client";
 
-import { use, useState } from "react";
+import { use, useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import CaptureZoneEditor from "@/components/parametrage/capture/CaptureZoneEditor";
 
@@ -21,10 +21,10 @@ export default function CaptureZonesPage({ params }) {
   /**
    * Affiche une notification temporaire en haut de page.
    */
-  const showNotification = (message, type = "success") => {
+  const showNotification = useCallback((message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
-  };
+  }, []);
 
   /**
    * Retourne à la liste des champs document.
@@ -34,10 +34,11 @@ export default function CaptureZonesPage({ params }) {
   };
 
   return (
-    <div className="p-6 h-[calc(100vh-4rem)] flex flex-col">
+    <div className="p-6 h-[calc(100*var(--app-vh)-4rem)] flex flex-col">
       {notification && (
         <div
-          className={`mb-4 px-4 py-3 rounded-lg text-sm font-medium ${
+          role="status"
+          className={`fixed top-20 right-6 z-50 max-w-md shadow-lg px-4 py-3 rounded-lg text-sm font-medium ${
             notification.type === "error"
               ? "bg-red-50 text-red-800 border border-red-200"
               : notification.type === "info"

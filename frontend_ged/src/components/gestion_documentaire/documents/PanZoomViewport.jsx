@@ -2,6 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, forwardRef, useImperativeHandle } from "react";
+import { cssZoomOf } from "../../../utils/appZoom";
 
 const DRAG_THRESHOLD = 5;
 
@@ -161,8 +162,9 @@ const PanZoomViewport = forwardRef(function PanZoomViewport({
     }
 
     e.preventDefault();
-    el.scrollLeft = dragOrigin.current.scrollLeft - dx;
-    el.scrollTop = dragOrigin.current.scrollTop - dy;
+    const zoom = cssZoomOf(el);
+    el.scrollLeft = dragOrigin.current.scrollLeft - dx / zoom;
+    el.scrollTop = dragOrigin.current.scrollTop - dy / zoom;
   };
 
   const handlePointerUp = (e) => {

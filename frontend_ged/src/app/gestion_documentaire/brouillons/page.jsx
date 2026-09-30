@@ -128,7 +128,7 @@ export default function BrouillonsPage() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] -mx-2 min-w-0 max-w-full">
+    <div className="min-h-[calc(100*var(--app-vh)-8rem)] -mx-2 min-w-0 max-w-full">
       <div className="mb-5">
         <nav className="text-sm flex flex-wrap items-center gap-2 px-1">
           <button
@@ -151,7 +151,7 @@ export default function BrouillonsPage() {
         </nav>
       </div>
 
-      <div className="rounded-2xl shadow-xl border border-emerald-100/80 overflow-hidden bg-white flex flex-col min-h-[calc(100vh-10rem)]">
+      <div className="rounded-2xl shadow-xl border border-emerald-100/80 overflow-hidden bg-white flex flex-col min-h-[calc(100*var(--app-vh)-10rem)]">
         <div className="relative px-6 py-5 bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-600 text-white shrink-0">
           <div className="relative flex flex-wrap items-start justify-between gap-4">
             <div>

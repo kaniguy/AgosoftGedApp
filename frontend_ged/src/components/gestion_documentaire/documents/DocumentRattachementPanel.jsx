@@ -49,14 +49,25 @@ import {
 import { apiFetch, resolveMediaUrl } from "../../../services/api";
 import { normalizeDatetimeLocalValue, buildValeursPayload, formatDisplayDateTime, getRegistrationDateFromDocument } from "../../../utils/dateFormat";
 import { getFileFormat, getFileFormatFromName } from "@/utils/documentFileFormat";
+import { cssZoomOf } from "@/utils/appZoom";
 import {
   appendSelectedPagesToPdf,
   buildDocumentFile,
   cropPdfPage,
+  filenameFromDocumentUrl,
   getPdfPageCount,
   removePageFromPdf,
   rotatePdfPage,
 } from "@/utils/pdfPageUtils";
+import {
+  GED_ACCEPT_ATTRIBUTE,
+  GED_FORMATS_LABEL,
+  PAGE_SOURCE_ACCEPT_ATTRIBUTE,
+  getOfficePreviewFormat,
+  isAcceptedGedFile,
+  isPdfFile,
+  isPreviewableFile,
+} from "@/utils/documentFileTypes";
 import {
   champHasCaptureZone,
   countZonesByPage,
@@ -66,12 +77,6 @@ import {
 } from "@/utils/captureZoneUtils";
 import { canSoumettreDocumentQualite, hasPermission, PERMISSIONS } from "@/utils/permissions";
 import { canSoumettreValidation } from "@/utils/documentStatutQualite";
-
-const ACCEPTED_FILES = ".pdf,.jpg,.jpeg,.png,.webp,.gif,image/*,application/pdf";
-
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || (file?.name || "").toLowerCase().endsWith(".pdf");
-}
 
 function SidebarToolButton({ title, onClick, disabled, children, danger = false }) {
   return (
@@ -98,16 +103,6 @@ function buildEmptyFieldValues(champList) {
     values[champ.id] = "";
   });
   return values;
-}
-
-function isAcceptedImportFile(file) {
-  if (!file) return false;
-  const name = file.name.toLowerCase();
-  return (
-    file.type.startsWith("image/") ||
-    file.type === "application/pdf" ||
-    /\.(pdf|jpe?g|png|webp|gif)$/.test(name)
-  );
 }
 
 function createBatchItem(file, champList, extra = {}) {
@@ -144,6 +139,7 @@ export default function DocumentRattachementPanel({
   enableAppendDocuments = false,
   onClose,
   onSaved,
+  onDraftSaved,
   onNotify,
 }) {
   const isEditMode = Boolean(documentToEdit);
@@ -221,6 +217,10 @@ export default function DocumentRattachementPanel({
   const [versionPreview, setVersionPreview] = useState(null);
 
   const activeFile = fullPage ? fichier : importedFile;
+  const activeFilePreviewable = activeFile
+    ? isPreviewableFile(activeFile)
+    : !documentToEdit?.fichier_url ||
+      isPreviewableFile({ name: filenameFromDocumentUrl(documentToEdit.fichier_url, "") });
   const isBatchMode = Boolean(batchItems?.length);
   const pendingBatchCount = isBatchMode
     ? batchItems.filter((item) => item.status !== "submitted").length
@@ -344,7 +344,7 @@ export default function DocumentRattachementPanel({
       setFormPanelWidth(width);
     });
     observer.observe(el);
-    setFormPanelWidth(el.getBoundingClientRect().width);
+    setFormPanelWidth(el.getBoundingClientRect().width / cssZoomOf(el));
 
     return () => observer.disconnect();
   }, [fullPage, selectedTypeId]);
@@ -679,6 +679,21 @@ export default function DocumentRattachementPanel({
     }
     onClose?.();
   }, [fullPage, isEditMode, clearDraft, onClose]);
+
+  const [savingDraft, setSavingDraft] = useState(false);
+
+  /** Même action que « Enregistrer au brouillon » de la modale « Quitter le rattachement ? ». */
+  const handleSaveDraftAndLeave = useCallback(async () => {
+    setSavingDraft(true);
+    try {
+      await persistNow();
+      onNotify?.("Lot enregistré au brouillon.", "success");
+      if (onDraftSaved) onDraftSaved();
+      else onClose?.();
+    } finally {
+      setSavingDraft(false);
+    }
+  }, [persistNow, onNotify, onDraftSaved, onClose]);
 
   const handleRetour = useCallback(() => {
     if (isEditMode) {
@@ -1065,7 +1080,12 @@ export default function DocumentRattachementPanel({
   };
 
   const canRunExtraction =
-    !isEditMode && Boolean(activeFile) && Boolean(selectedTypeId) && champs.length > 0 && !ocrLoading;
+    !isEditMode &&
+    Boolean(activeFile) &&
+    activeFilePreviewable &&
+    Boolean(selectedTypeId) &&
+    champs.length > 0 &&
+    !ocrLoading;
 
   const handleRunExtraction = () => {
     if (!canRunExtraction) return;
@@ -1084,14 +1104,23 @@ export default function DocumentRattachementPanel({
     }
     if (importHintKeyRef.current === "restored-silent") {
       importHintKeyRef.current = hintKey;
-      if (hasConfigurableZones && fullPage) {
+      if (hasConfigurableZones && fullPage && activeFilePreviewable) {
         setShowZonesMode(true);
       }
       return;
     }
     importHintKeyRef.current = hintKey;
 
-    if (hasConfigurableZones) {
+    if (!activeFilePreviewable) {
+      setShowZonesMode(false);
+      setZoneAdjustMode(false);
+      onNotify?.(
+        getOfficePreviewFormat({ name: activeFile.name, mime: activeFile.type })
+          ? "Document importé — aperçu en lecture seule ; extraction automatique indisponible pour ce format : saisissez les champs manuellement."
+          : "Document importé — aperçu et extraction automatique indisponibles pour ce format : saisissez les champs manuellement.",
+        "info"
+      );
+    } else if (hasConfigurableZones) {
       if (fullPage) {
         setShowZonesMode(true);
       } else {
@@ -1118,6 +1147,7 @@ export default function DocumentRattachementPanel({
     }
   }, [
     activeFile,
+    activeFilePreviewable,
     selectedTypeId,
     champs,
     loadingChamps,
@@ -1131,13 +1161,8 @@ export default function DocumentRattachementPanel({
   const handleFileChange = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const name = file.name.toLowerCase();
-    const ok =
-      file.type.startsWith("image/") ||
-      file.type === "application/pdf" ||
-      /\.(pdf|jpe?g|png|webp|gif)$/.test(name);
-    if (!ok) {
-      onNotify?.("Format non supporté. Utilisez PDF ou image.", "error");
+    if (!isAcceptedGedFile(file)) {
+      onNotify?.(`Format non supporté. Formats acceptés : ${GED_FORMATS_LABEL}.`, "error");
       e.target.value = "";
       return;
     }
@@ -1155,6 +1180,10 @@ export default function DocumentRattachementPanel({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!isAcceptedGedFile(file)) {
+      onNotify?.(`Format non supporté. Formats acceptés : ${GED_FORMATS_LABEL}.`, "error");
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -1181,14 +1210,17 @@ export default function DocumentRattachementPanel({
 
     setProcessing(true);
     try {
-      const accepted = [];
-      for (const file of rawFiles) {
-        if (!isAcceptedImportFile(file)) continue;
-        accepted.push(file);
-      }
+      const accepted = rawFiles.filter(isAcceptedGedFile);
       if (!accepted.length) {
-        onNotify?.("Aucun fichier valide dans le lot (PDF ou image).", "error");
+        onNotify?.(`Aucun fichier valide dans le lot (${GED_FORMATS_LABEL}).`, "error");
         return;
+      }
+      const ignoredCount = rawFiles.length - accepted.length;
+      if (ignoredCount > 0) {
+        onNotify?.(
+          `${ignoredCount} fichier${ignoredCount > 1 ? "s" : ""} ignoré${ignoredCount > 1 ? "s" : ""} (format non supporté).`,
+          "warning"
+        );
       }
 
       const newItems = accepted.map((file) => createBatchItem(file, champs));
@@ -1233,8 +1265,13 @@ export default function DocumentRattachementPanel({
     e.target.value = "";
     if (!files.length || !fichier) return;
 
-    const images = files.filter((f) => !isPdfFile(f));
-    const pdfs = files.filter((f) => isPdfFile(f));
+    const pageSources = files.filter(isPreviewableFile);
+    if (pageSources.length < files.length) {
+      onNotify?.("Seuls les PDF et les images peuvent être ajoutés comme pages.", "warning");
+    }
+    if (!pageSources.length) return;
+    const images = pageSources.filter((f) => !isPdfFile(f));
+    const pdfs = pageSources.filter((f) => isPdfFile(f));
 
     setProcessing(true);
     try {
@@ -1957,7 +1994,7 @@ export default function DocumentRattachementPanel({
     zonesOnCurrentPage === 0 &&
     Object.keys(zoneCountByPage).length > 0;
 
-  const annotationPreviewProps = isEditMode
+  const annotationPreviewProps = isEditMode && activeFilePreviewable
     ? {
         annotationMode: true,
         annotations,
@@ -1992,7 +2029,7 @@ export default function DocumentRattachementPanel({
     <div className="flex flex-col h-full min-h-0 bg-slate-100 overflow-hidden">
       <p className="text-xs font-medium text-slate-500 uppercase tracking-wide px-4 pt-4 pb-2 shrink-0 flex flex-wrap items-center gap-2">
         <span>Aperçu — molette ou glisser (main) pour naviguer</span>
-        {hasConfigurableZones && !isEditMode && importedFile && (
+        {hasConfigurableZones && !isEditMode && importedFile && activeFilePreviewable && (
           <button
             type="button"
             onClick={handleToggleZoneAdjust}
@@ -2011,10 +2048,11 @@ export default function DocumentRattachementPanel({
         <DocumentPreview
           file={importedFile}
           previewUrl={!importedFile && isEditMode ? documentToEdit?.fichier_url : undefined}
+          allowLocalDownload={!isEditMode || hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT)}
           large={fullPage}
           zoomable={fullPage}
           fileInputRef={fileInputRef}
-          acceptFiles={ACCEPTED_FILES}
+          acceptFiles={GED_ACCEPT_ATTRIBUTE}
           importEnabled={Boolean(selectedTypeId)}
           importDisabledHint="Sélectionnez d'abord un type de document à gauche."
           onFileChange={handleFileChange}
@@ -2243,7 +2281,7 @@ export default function DocumentRattachementPanel({
           <div className="flex flex-wrap gap-1">
             <SidebarToolButton
               title="Ajouter des pages"
-              disabled={manipulationDisabled}
+              disabled={manipulationDisabled || !activeFilePreviewable}
               onClick={() => addPagesInputRef.current?.click()}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2262,7 +2300,7 @@ export default function DocumentRattachementPanel({
             </SidebarToolButton>
             <SidebarToolButton
               title="Rogner / Recadrer"
-              disabled={manipulationDisabled}
+              disabled={manipulationDisabled || !activeFilePreviewable}
               onClick={() => setShowCropModal(true)}
             >
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2349,7 +2387,7 @@ export default function DocumentRattachementPanel({
                 Extraire
               </button>
             )}
-            {hasConfigurableZones && selectedTypeId && !loadingChamps && (
+            {hasConfigurableZones && selectedTypeId && !loadingChamps && activeFilePreviewable && (
               <button
                 type="button"
                 onClick={handleToggleZones}
@@ -2564,7 +2602,7 @@ export default function DocumentRattachementPanel({
               </RailIcon>
             ),
           },
-          hasPermission(PERMISSIONS.ANNOTER_DOCUMENT) && {
+          activeFilePreviewable && hasPermission(PERMISSIONS.ANNOTER_DOCUMENT) && {
             id: "annotations",
             label: "Annotations",
             icon: (
@@ -2575,7 +2613,7 @@ export default function DocumentRattachementPanel({
               </RailIcon>
             ),
           },
-          hasPermission(PERMISSIONS.TAMPONNER_DOCUMENT) && {
+          activeFilePreviewable && hasPermission(PERMISSIONS.TAMPONNER_DOCUMENT) && {
             id: "stamps",
             label: "Tampons",
             icon: (
@@ -2586,7 +2624,7 @@ export default function DocumentRattachementPanel({
               </RailIcon>
             ),
           },
-          hasPermission(PERMISSIONS.SIGNER_DOCUMENT) && {
+          activeFilePreviewable && hasPermission(PERMISSIONS.SIGNER_DOCUMENT) && {
             id: "signatures",
             label: "Signatures",
             icon: (
@@ -2637,7 +2675,9 @@ export default function DocumentRattachementPanel({
     notes: { title: "Commentaires", content: notesPanelContent },
     versions: { title: "Historique des versions", content: versionsPanelContent },
   };
-  const activeRail = railPanelMap[rightRailPanel] || null;
+  const activeRail = railItems.some((item) => item.id === rightRailPanel)
+    ? railPanelMap[rightRailPanel]
+    : null;
 
   const containerClass = fullPage
     ? "bg-white rounded-xl shadow-md border border-emerald-200 overflow-hidden flex flex-col flex-1 min-h-0 h-full"
@@ -2688,17 +2728,17 @@ export default function DocumentRattachementPanel({
       />
 
       <div
-        className={`flex items-center justify-between px-6 py-4 text-white shrink-0 ${
+        className={`flex items-center justify-between px-6 py-4 short:py-2 text-white shrink-0 ${
           isEditMode
             ? "bg-gradient-to-r from-emerald-600 via-emerald-600 to-teal-600"
             : "bg-emerald-600"
         }`}
       >
         <div>
-          <h3 className="text-xl font-semibold">
+          <h3 className="text-xl short:text-base font-semibold">
             {isEditMode ? "Modifier le document" : "Rattacher un document"}
           </h3>
-          <p className="text-sm mt-1 text-emerald-100">
+          <p className="text-sm short:text-xs mt-1 short:mt-0 text-emerald-100">
             {localite.niveau_libelle} — <strong>{localite.libelle}</strong>
           </p>
           {fullPage && isEditMode && documentToEdit && (
@@ -2772,6 +2812,7 @@ export default function DocumentRattachementPanel({
                   <DocumentPreview
                     key={filePreviewKey}
                     file={fichier}
+                    allowLocalDownload={!isEditMode || hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT)}
                     large
                     zoomable
                     pageNumber={currentPage}
@@ -2818,14 +2859,14 @@ export default function DocumentRattachementPanel({
             <input
               ref={replaceFileInputRef}
               type="file"
-              accept={ACCEPTED_FILES}
+              accept={GED_ACCEPT_ATTRIBUTE}
               className="hidden"
               onChange={handleReplaceDocument}
             />
             <input
               ref={batchImportInputRef}
               type="file"
-              accept={ACCEPTED_FILES}
+              accept={GED_ACCEPT_ATTRIBUTE}
               multiple
               className="hidden"
               onChange={handleBatchImport}
@@ -2833,14 +2874,14 @@ export default function DocumentRattachementPanel({
             <input
               ref={addPagesInputRef}
               type="file"
-              accept={ACCEPTED_FILES}
+              accept={PAGE_SOURCE_ACCEPT_ATTRIBUTE}
               multiple
               className="hidden"
               onChange={handleAddPages}
             />
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 lg:items-stretch lg:max-h-[min(720px,calc(100vh-14rem))]">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 p-6 lg:items-stretch lg:max-h-[min(720px,calc(100*var(--app-vh)-14rem))]">
             <div className="min-h-[280px] lg:min-h-0 lg:h-full lg:overflow-hidden">{formPane}</div>
             <div className="min-h-[320px] lg:min-h-0 lg:h-full lg:overflow-hidden">{previewPane}</div>
           </div>
@@ -2848,7 +2889,7 @@ export default function DocumentRattachementPanel({
 
         <div
           className={`flex justify-end gap-3 shrink-0 ${
-            fullPage ? "px-6 py-4 border-t border-gray-100 bg-white" : "px-6 pb-6 pt-4 border-t border-gray-100"
+            fullPage ? "px-6 py-4 short:py-2 border-t border-gray-100 bg-white" : "px-6 pb-6 pt-4 border-t border-gray-100"
           }`}
         >
           <button
@@ -2885,26 +2926,17 @@ export default function DocumentRattachementPanel({
             </button>
           )}
 
-          {/* Bouton à revoir plus tard */}
-          {/* {!isEditMode && canSoumettreDoc && (
+          {!isEditMode && fullPage && (
             <button
               type="button"
-              disabled={
-                busy ||
-                !selectedTypeId ||
-                !activeFile ||
-                (isBatchMode && pendingBatchCount === 0)
-              }
-              onClick={(e) => handleSubmit(e, { asDraft: true })}
+              disabled={busy || savingDraft || !hasWorkInProgress}
+              title={!hasWorkInProgress ? "Aucune saisie à enregistrer" : undefined}
+              onClick={handleSaveDraftAndLeave}
               className="px-4 py-2 border border-slate-300 text-slate-700 bg-white rounded-lg text-sm font-medium hover:bg-slate-50 transition disabled:opacity-50"
             >
-              {submitting
-                ? "Enregistrement…"
-                : isBatchMode
-                  ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
-                  : "Enregistrer en brouillon"}
+              {savingDraft ? "Enregistrement…" : "Enregistrer au brouillon"}
             </button>
-          )} */}
+          )}
 
 
           {isEditMode && canSoumettreDoc && canSoumettreValidation(documentToEdit?.statut_qualite) && (

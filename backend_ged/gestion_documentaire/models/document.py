@@ -2,7 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from config.file_validation import (
-    ALLOWED_DOCUMENT_FILE_VALIDATOR,
+    ALLOWED_GED_DOCUMENT_FILE_VALIDATOR,
     UploadedFileValidator,
 )
 from gestion_documentaire.services.document_storage import document_upload_path
@@ -12,7 +12,7 @@ from parametrage.models.plan_geographique import PlanGeographique
 
 
 class DocumentLocalite(models.Model):
-    """Document (PDF / image) rattaché à une localité du plan de classement."""
+    """Document (PDF, image, bureautique, CSV/TXT, ZIP) rattaché à une localité du plan de classement."""
 
     STATUT_BROUILLON = "brouillon"
     STATUT_EN_ATTENTE = "en_attente"
@@ -38,7 +38,7 @@ class DocumentLocalite(models.Model):
     fichier = models.FileField(
         upload_to=document_upload_path,
         storage=encrypted_document_storage,
-        validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
+        validators=[ALLOWED_GED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="ged", label="document")],
         max_length=1024,
     )
     reponse = models.OneToOneField(

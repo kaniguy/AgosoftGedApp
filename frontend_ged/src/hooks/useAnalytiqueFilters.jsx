@@ -1,24 +1,40 @@
 "use client";
 
 import { createContext, useCallback, useContext, useMemo } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 const DEFAULT_FILTERS = {
   periode: "365",
+  date_debut: "",
+  date_fin: "",
   statut: "",
   type_document: "",
   localite: "",
 };
 
+/** Bornes de la période personnalisée : comptées avec le filtre « periode », pas séparément. */
+const PERIOD_BOUND_KEYS = new Set(["date_debut", "date_fin"]);
+
 const AnalytiqueFiltersContext = createContext(null);
 
+/**
+ * Mise à jour de l'URL par l'API History (synchronisée avec useSearchParams par Next.js).
+ * router.push/replace vers la même page sans paramètres restaure les anciens paramètres
+ * depuis le cache du routeur en Next 16.2.x : le bouton « Réinitialiser » restait sans effet.
+ */
+function navigateInPlace(url, replace) {
+  if (replace) window.history.replaceState(null, "", url);
+  else window.history.pushState(null, "", url);
+}
+
 export function AnalytiqueFiltersProvider({ children }) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const filters = useMemo(() => ({
     periode: searchParams.get("periode") || DEFAULT_FILTERS.periode,
+    date_debut: searchParams.get("date_debut") || "",
+    date_fin: searchParams.get("date_fin") || "",
     statut: searchParams.get("statut") || "",
     type_document: searchParams.get("type_document") || "",
     localite: searchParams.get("localite") || "",
@@ -35,14 +51,9 @@ export function AnalytiqueFiltersProvider({ children }) {
         }
       });
       const qs = params.toString();
-      const url = qs ? `${pathname}?${qs}` : pathname;
-      if (replace) {
-        router.replace(url);
-      } else {
-        router.push(url);
-      }
+      navigateInPlace(qs ? `${pathname}?${qs}` : pathname, replace);
     },
-    [filters, pathname, router]
+    [filters, pathname]
   );
 
   const setFilter = useCallback(
@@ -59,8 +70,8 @@ export function AnalytiqueFiltersProvider({ children }) {
   );
 
   const resetFilters = useCallback(() => {
-    router.push(pathname);
-  }, [pathname, router]);
+    navigateInPlace(pathname, false);
+  }, [pathname]);
 
   const buildUrl = useCallback(
     (targetPath, extra = {}) => {
@@ -81,6 +92,7 @@ export function AnalytiqueFiltersProvider({ children }) {
   const activeFilterCount = useMemo(
     () =>
       Object.entries(filters).filter(([key, value]) => {
+        if (PERIOD_BOUND_KEYS.has(key)) return false;
         if (key === "periode") return value && value !== DEFAULT_FILTERS.periode;
         return Boolean(value);
       }).length,

@@ -11,6 +11,7 @@ import {
   normalizedZoneToPixels,
   pixelsToNormalizedZone,
 } from "@/utils/captureZoneUtils";
+import { cssZoomOf } from "@/utils/appZoom";
 
 export default function CaptureZonesAdjustOverlay({
   champs = [],
@@ -68,6 +69,7 @@ export default function CaptureZonesAdjustOverlay({
             size={{ width: pixels.width, height: pixels.height }}
             position={{ x: pixels.x, y: pixels.y }}
             bounds="parent"
+            scale={cssZoomOf()}
             enableResizing={isActive}
             disableDragging={false}
             onPointerDown={(e) => {

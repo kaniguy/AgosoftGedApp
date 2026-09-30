@@ -6,7 +6,6 @@ from gestion_acces.models.notification import (
     CibleNotification,
     ConfigurationResumePeriodique,
     EvenementNotification,
-    PreferenceNotification,
 )
 
 from .commun import (
@@ -139,17 +138,6 @@ def envoyer_resume_periodique(force=False, async_send=False):
             continue
         if not (user.email or "").strip():
             log_skip(EVENT_TYPE, user, "Adresse e-mail non renseignée.")
-            result["ignores"] += 1
-            continue
-        if (
-            regle.respecter_preferences
-            and not PreferenceNotification.get_for_user(user).accepte(EVENT_TYPE)
-        ):
-            log_skip(
-                EVENT_TYPE,
-                user,
-                "Notification désactivée dans les préférences.",
-            )
             result["ignores"] += 1
             continue
         context = _build_digest_context(user_documents, now_local)

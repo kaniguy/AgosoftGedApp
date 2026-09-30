@@ -1,4 +1,4 @@
-import { userHasModule } from "../constants/modules";
+import { isSuperuserFromStorage, userHasModule } from "../constants/modules";
 import { CONTROLE_QUALITE_STATUT_IDS } from "./controleQualiteMenu";
 import {
   canAccessControleQualite,
@@ -60,6 +60,31 @@ export const ROUTE_ACCESS_RULES = [
     prefix: "/parametrage/plan_geographique",
     module: "parametrage",
     anyPermission: [PERMISSIONS.VIEW_PLAN_GEOGRAPHIQUE],
+  },
+  {
+    prefix: "/parametrage/entreprise",
+    module: "parametrage",
+    anyPermission: [PERMISSIONS.VIEW_ENTREPRISE, PERMISSIONS.CHANGE_ENTREPRISE],
+  },
+  {
+    prefix: "/parametrage/aide-video",
+    module: "parametrage",
+    check: canAccessGuideAideAdmin,
+  },
+  {
+    prefix: "/parametrage/configuration-email",
+    module: "parametrage",
+    anyPermission: [PERMISSIONS.VIEW_CONFIGURATION_EMAIL, PERMISSIONS.CHANGE_CONFIGURATION_EMAIL],
+  },
+  {
+    prefix: "/parametrage/notifications",
+    module: "parametrage",
+    anyPermission: [PERMISSIONS.VIEW_REGLE_NOTIFICATION, PERMISSIONS.CHANGE_REGLE_NOTIFICATION],
+  },
+  {
+    prefix: "/parametrage/base-de-donnees",
+    module: "parametrage",
+    check: canAccessSauvegardeBase,
   },
   { prefix: "/parametrage", module: "parametrage" },
 
@@ -130,35 +155,10 @@ export const ROUTE_ACCESS_RULES = [
     anyPermission: [PERMISSIONS.VIEW_JOURNAL_ACTIVITE],
   },
   {
-    prefix: "/gestion_acces/entreprise",
-    module: "gestion_acces",
-    anyPermission: [PERMISSIONS.VIEW_ENTREPRISE, PERMISSIONS.CHANGE_ENTREPRISE],
-  },
-  {
-    prefix: "/gestion_acces/configuration-email",
-    module: "gestion_acces",
-    anyPermission: [PERMISSIONS.VIEW_CONFIGURATION_EMAIL, PERMISSIONS.CHANGE_CONFIGURATION_EMAIL],
-  },
-  {
     prefix: "/gestion_acces/mes-notifications",
-    allowAuthenticated: true,
-  },
-  {
-    prefix: "/gestion_acces/notifications",
-    module: "gestion_acces",
-    anyPermission: [PERMISSIONS.VIEW_REGLE_NOTIFICATION, PERMISSIONS.CHANGE_REGLE_NOTIFICATION],
+    check: () => isSuperuserFromStorage(),
   },
   { prefix: "/gestion_acces/profil", allowAuthenticated: true },
-  {
-    prefix: "/gestion_acces/aide-video",
-    module: "gestion_acces",
-    check: canAccessGuideAideAdmin,
-  },
-  {
-    prefix: "/gestion_acces/base-de-donnees",
-    module: "gestion_acces",
-    check: canAccessSauvegardeBase,
-  },
   { prefix: "/gestion_acces", module: "gestion_acces" },
 
   { prefix: "/aide-video", module: "aide_video" },
@@ -198,10 +198,15 @@ export function canAccessPath(pathname) {
 /** Pages d'entrée par module, du plus utile au repli. */
 export const MODULE_LANDING_CANDIDATES = {
   parametrage: [
-    "/parametrage/type_document",
-    "/parametrage/champs_document",
     "/parametrage/structure_geographique",
     "/parametrage/plan_geographique",
+    "/parametrage/type_document",
+    "/parametrage/champs_document",
+    "/parametrage/entreprise",
+    "/parametrage/aide-video",
+    "/parametrage/configuration-email",
+    "/parametrage/notifications",
+    "/parametrage/base-de-donnees",
   ],
   gestion_documentaire: [
     "/gestion_documentaire/plan_geographique",
@@ -217,11 +222,6 @@ export const MODULE_LANDING_CANDIDATES = {
     "/gestion_acces/permissions",
     "/gestion_acces/liens-telechargement",
     "/gestion_acces/journal-activite",
-    "/gestion_acces/entreprise",
-    "/gestion_acces/base-de-donnees",
-    "/gestion_acces/aide-video",
-    "/gestion_acces/configuration-email",
-    "/gestion_acces/notifications",
   ],
   aide_video: ["/aide-video"],
 };

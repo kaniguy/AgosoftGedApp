@@ -14,7 +14,7 @@ export default function AProposPage() {
   }, [router]);
 
   return (
-    <main className="min-h-screen flex items-center justify-center px-4">
+    <main className="min-h-app-screen flex items-center justify-center px-4">
       <p className="text-slate-600 text-sm">
         Ouverture de{" "}
         <a

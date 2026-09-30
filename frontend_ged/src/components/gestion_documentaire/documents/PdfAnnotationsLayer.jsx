@@ -17,6 +17,7 @@ import {
   pointerAngleDeg,
   normalizeRotation,
 } from "@/utils/pdfAnnotationUtils";
+import { cssZoomOf } from "@/utils/appZoom";
 import AnnotationTextEditor from "./AnnotationTextEditor";
 
 function annOnPage(annotations, pageIndex) {
@@ -81,9 +82,9 @@ function BoxShell({
   useEffect(() => {
     const onPointerMove = (e) => {
       if (!dragRef.current) return;
-      const { orig, origBox, mode, corner, startAngle, centerX, centerY, origRotation } = dragRef.current;
-      const dx = (e.clientX - dragRef.current.startClientX) / pageWidth;
-      const dy = (e.clientY - dragRef.current.startClientY) / pageHeight;
+      const { orig, origBox, mode, corner, startAngle, centerX, centerY, origRotation, zoom } = dragRef.current;
+      const dx = (e.clientX - dragRef.current.startClientX) / zoom / pageWidth;
+      const dy = (e.clientY - dragRef.current.startClientY) / zoom / pageHeight;
 
       if (mode === "move") {
         dragRef.current.dirty = true;
@@ -157,12 +158,14 @@ function BoxShell({
     onSelect(ann.id);
 
     const layerRect = layerRectRef.current?.getBoundingClientRect();
-    const centerX = layerRect ? layerRect.left + centerLeft : centerLeft;
-    const centerY = layerRect ? layerRect.top + centerTop : centerTop;
+    const zoom = cssZoomOf(layerRectRef.current);
+    const centerX = layerRect ? layerRect.left + centerLeft * zoom : centerLeft;
+    const centerY = layerRect ? layerRect.top + centerTop * zoom : centerTop;
 
     dragRef.current = {
       mode,
       corner,
+      zoom,
       startClientX: e.clientX,
       startClientY: e.clientY,
       orig: { ...ann },

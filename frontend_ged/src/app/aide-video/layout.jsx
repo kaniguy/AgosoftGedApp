@@ -7,7 +7,7 @@ function AideVideoLayoutInner({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       <div className="flex pt-16">
         <AideVideoSidebar
           isOpen={isSidebarOpen}
@@ -28,7 +28,7 @@ function AideVideoLayoutInner({ children }) {
 
 export default function AideVideoLayout({ children }) {
   return (
-    <Suspense fallback={<div className="min-h-screen pt-16 p-6 text-slate-500">Chargement…</div>}>
+    <Suspense fallback={<div className="min-h-app-screen pt-16 p-6 text-slate-500">Chargement…</div>}>
       <AideVideoLayoutInner>{children}</AideVideoLayoutInner>
     </Suspense>
   );

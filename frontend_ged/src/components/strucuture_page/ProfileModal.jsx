@@ -28,7 +28,7 @@ export default function ProfileModal({ open, onClose }) {
         className="absolute inset-0 bg-slate-900/50"
         onClick={onClose}
       />
-      <div className="relative z-10 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white shadow-2xl">
+      <div className="relative z-10 w-full max-w-3xl max-h-[calc(90*var(--app-vh))] overflow-y-auto rounded-2xl bg-white shadow-2xl">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-6 py-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-purple-700 rounded-xl flex items-center justify-center shadow-md">

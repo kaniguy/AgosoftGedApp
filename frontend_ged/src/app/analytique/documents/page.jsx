@@ -20,7 +20,14 @@ import {
   RefreshOverlay,
 } from "../../../components/analytique/AnalytiqueShared";
 import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
-import { downloadAnalytiqueReport, printAnalytiqueReport, buildFiltersLabel, STATUT_COLORS, formatMoisReport } from "../../../utils/printReport";
+import {
+  downloadAnalytiqueReport,
+  printAnalytiqueReport,
+  buildFiltersLabel,
+  STATUT_COLORS,
+  formatPeriodeBucket,
+  GRANULARITE_LABELS,
+} from "../../../utils/printReport";
 
 export default function AnalytiqueDocumentsPage() {
   const canView = hasPermission(PERMISSIONS.VIEW_DOCUMENT_LOCALITE);
@@ -33,6 +40,8 @@ export default function AnalytiqueDocumentsPage() {
   const hasLoadedOnce = useRef(false);
   const [meta, setMeta] = useState(null);
   const [downloading, setDownloading] = useState(false);
+  const granularite = data?.evolution?.granularite || "mois";
+  const evolutionPoints = data?.evolution?.points ?? [];
 
   useEffect(() => {
     getAnalyticsMeta().then(setMeta).catch(() => setMeta(null));
@@ -137,15 +146,15 @@ export default function AnalytiqueDocumentsPage() {
           {
             type: "chart",
             chart: "stacked",
-            title: "Évolution mensuelle",
-            subtitle: "Documents créés par mois, ventilés par statut",
+            title: "Évolution",
+            subtitle: `Documents créés ${GRANULARITE_LABELS[granularite] || ""}, ventilés par statut`,
             series: [
               { key: "en_attente", label: "En attente", color: STATUT_COLORS.en_attente },
               { key: "valide", label: "Validé", color: STATUT_COLORS.valide },
               { key: "rejete", label: "Rejeté", color: STATUT_COLORS.rejete },
             ],
-            rows: (data.evolution_mensuelle ?? []).map((m) => ({
-              label: formatMoisReport(m.mois),
+            rows: evolutionPoints.map((m) => ({
+              label: formatPeriodeBucket(m.periode, granularite),
               values: {
                 en_attente: m.en_attente,
                 valide: m.valide,
@@ -282,11 +291,12 @@ export default function AnalytiqueDocumentsPage() {
               </SectionCard>
 
               <SectionCard
-                title="Évolution mensuelle"
-                subtitle="Documents créés par mois, ventilés par statut"
+                title="Évolution"
+                subtitle={`Documents créés ${GRANULARITE_LABELS[granularite] || ""}, ventilés par statut`}
               >
                 <EvolutionStackedChart
-                  data={data?.evolution_mensuelle ?? []}
+                  data={evolutionPoints}
+                  granularite={granularite}
                   activeStatut={filters.statut}
                 />
               </SectionCard>

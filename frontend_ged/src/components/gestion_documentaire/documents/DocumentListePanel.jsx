@@ -27,17 +27,11 @@ import {
 } from "../../../utils/documentGeoColumns";
 import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationDateChamp } from "../../../utils/dateFormat";
 import { getFileFormat } from "../../../utils/documentFileFormat";
+import { FORMAT_FILTER_OPTIONS, getDocumentDisplayFilename } from "../../../utils/documentFileTypes";
 import ChampCellValue from "./ChampCellValue";
 import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../../utils/permissions";
 
-const FORMAT_OPTIONS = [
-  { value: "", label: "Tous les formats" },
-  { value: "pdf", label: "PDF" },
-  { value: "jpeg", label: "JPEG" },
-  { value: "png", label: "PNG" },
-  { value: "webp", label: "WEBP" },
-  { value: "gif", label: "GIF" },
-];
+const FORMAT_OPTIONS = [{ value: "", label: "Tous les formats" }, ...FORMAT_FILTER_OPTIONS];
 
 const EMPTY_FILTERS = {
   search: "",
@@ -347,12 +341,7 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
     });
   };
 
-  const getFilename = (doc) => {
-    const base = doc.type_document_libelle || "document";
-    const url = doc.fichier_url || "";
-    const ext = url.split("?")[0].split(".").pop() || "";
-    return ext ? `${base}.${ext}` : base;
-  };
+  const getFilename = getDocumentDisplayFilename;
 
   const goToEdit = (doc) => {
     router.push(
@@ -407,7 +396,7 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
   if (!localite) return null;
 
   return (
-    <div className="rounded-2xl shadow-xl border border-emerald-100/80 overflow-hidden flex flex-col min-h-[calc(100vh-10rem)] max-w-full min-w-0 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 relative">
+    <div className="rounded-2xl shadow-xl border border-emerald-100/80 overflow-hidden flex flex-col min-h-[calc(100*var(--app-vh)-10rem)] max-w-full min-w-0 bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 relative">
       {toast && (
         <div className="fixed top-20 right-5 z-[100000] animate-fade-in">
           <div

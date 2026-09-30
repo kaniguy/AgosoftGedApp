@@ -1,5 +1,3 @@
-from functools import lru_cache
-
 from django.db import models
 from django.conf import settings
 from django.utils import timezone
@@ -51,12 +49,15 @@ class PlanGeographique(models.Model):
 
     # 🔥 niveau suivant
     @staticmethod
-    @lru_cache(maxsize=1)
-    def _structure_niveaux_ordered():
+    def structure_niveaux_ordered():
+        # Pas de cache au niveau du processus : les niveaux changent au paramétrage
+        # et chaque worker Gunicorn garderait sinon une structure périmée.
         return list(StructureGeographique.objects.all().order_by("ordre"))
 
-    def get_niveau_enfant(self):
-        niveaux = PlanGeographique._structure_niveaux_ordered()
+    def get_niveau_enfant(self, niveaux=None):
+        """`niveaux` : liste ordonnée déjà chargée, pour éviter une requête par localité."""
+        if niveaux is None:
+            niveaux = PlanGeographique.structure_niveaux_ordered()
         try:
             current_index = niveaux.index(self.niveau)
             if current_index + 1 < len(niveaux):

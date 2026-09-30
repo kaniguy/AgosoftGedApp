@@ -29,6 +29,8 @@ import {
 } from "@/utils/documentStatutQualite";
 import { useControleQualitePermissions } from "../../utils/controleQualitePermissions";
 import { normalizeDatetimeLocalValue } from "../../utils/dateFormat";
+import { cssZoomOf } from "../../utils/appZoom";
+import { hasPermission, PERMISSIONS } from "../../utils/permissions";
 import { normalizeAnnotations } from "@/utils/pdfAnnotationUtils";
 import {
   appendSelectedPagesToPdf,
@@ -50,13 +52,16 @@ import PageCropModal from "./PageCropModal";
 import DocumentAnalysisLoading from "../gestion_documentaire/documents/DocumentAnalysisLoading";
 import WorkbenchUndoRedoButtons from "../gestion_documentaire/documents/WorkbenchUndoRedoButtons";
 import { useDocumentWorkbenchHistory } from "@/hooks/useDocumentWorkbenchHistory";
+import {
+  GED_ACCEPT_ATTRIBUTE,
+  GED_FORMATS_LABEL,
+  PAGE_SOURCE_ACCEPT_ATTRIBUTE,
+  isAcceptedGedFile,
+  isPdfFile,
+  isPreviewableFile,
+} from "@/utils/documentFileTypes";
 
-const ACCEPTED_FILES = ".pdf,.jpg,.jpeg,.png,.webp,.gif,image/*,application/pdf";
 const FILTER_ACCESS = true;
-
-function isPdfFile(file) {
-  return file?.type === "application/pdf" || (file?.name || "").toLowerCase().endsWith(".pdf");
-}
 
 function SidebarToolButton({ title, onClick, disabled, children, danger = false }) {
   return (
@@ -377,7 +382,7 @@ export default function DocumentControleQualitePanel({
       setFormPanelWidth(entries[0]?.contentRect?.width ?? 0);
     });
     observer.observe(el);
-    setFormPanelWidth(el.getBoundingClientRect().width);
+    setFormPanelWidth(el.getBoundingClientRect().width / cssZoomOf(el));
     return () => observer.disconnect();
   }, []);
 
@@ -569,8 +574,13 @@ export default function DocumentControleQualitePanel({
     e.target.value = "";
     if (!files.length || !fichier) return;
 
-    const images = files.filter((f) => !isPdfFile(f));
-    const pdfs = files.filter((f) => isPdfFile(f));
+    const pageSources = files.filter(isPreviewableFile);
+    if (pageSources.length < files.length) {
+      onNotify?.("Seuls les PDF et les images peuvent être ajoutés comme pages.", "warning");
+    }
+    if (!pageSources.length) return;
+    const images = pageSources.filter((f) => !isPdfFile(f));
+    const pdfs = pageSources.filter((f) => isPdfFile(f));
 
     setProcessing(true);
     try {
@@ -647,6 +657,10 @@ export default function DocumentControleQualitePanel({
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
+    if (!isAcceptedGedFile(file)) {
+      onNotify?.(`Format non supporté. Formats acceptés : ${GED_FORMATS_LABEL}.`, "error");
+      return;
+    }
 
     setProcessing(true);
     try {
@@ -941,7 +955,9 @@ export default function DocumentControleQualitePanel({
   };
 
   const busy = processing || loading || submitting || ocrLoading;
-  const canExtract = Boolean(fichier) && champs.length > 0 && !ocrLoading && !loading;
+  const fichierPreviewable = isPreviewableFile(fichier);
+  const canExtract =
+    Boolean(fichier) && fichierPreviewable && champs.length > 0 && !ocrLoading && !loading;
   const statut = document.statut_qualite || "brouillon";
   const qc = useControleQualitePermissions();
   const modeControle = canValiderOuRejeter(statut) && (qc.canValider || qc.canRejeter);
@@ -1078,12 +1094,12 @@ export default function DocumentControleQualitePanel({
         />
       )}
 
-      <div className="flex items-center justify-between px-6 py-4 text-white shrink-0 bg-gradient-to-r from-yellow-500 via-yellow-500 to-amber-500">
+      <div className="flex items-center justify-between px-6 py-4 short:py-2 text-white shrink-0 bg-gradient-to-r from-yellow-500 via-yellow-500 to-amber-500">
         <div>
-          <h3 className="text-xl font-semibold">
+          <h3 className="text-xl short:text-base font-semibold">
             {modeControle ? "Contrôle qualité" : modeCorrection ? "Contrôle — brouillon" : "Consultation"}
           </h3>
-          <p className="text-sm mt-1 text-yellow-100">
+          <p className="text-sm short:text-xs mt-1 short:mt-0 text-yellow-100">
             {localite.niveau_libelle} — <strong>{localite.libelle}</strong>
           </p>
           <p className="text-xs mt-0.5 text-yellow-100/90">
@@ -1220,7 +1236,7 @@ export default function DocumentControleQualitePanel({
                   </SidebarToolButton>
                   <SidebarToolButton
                     title="Ajouter des pages"
-                    disabled={manipulationDisabled}
+                    disabled={manipulationDisabled || !fichierPreviewable}
                     onClick={() => addPagesInputRef.current?.click()}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1239,7 +1255,7 @@ export default function DocumentControleQualitePanel({
                   </SidebarToolButton>
                   <SidebarToolButton
                     title="Rogner / Recadrer"
-                    disabled={manipulationDisabled}
+                    disabled={manipulationDisabled || !fichierPreviewable}
                     onClick={() => setShowCropModal(true)}
                   >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1255,14 +1271,14 @@ export default function DocumentControleQualitePanel({
                 <input
                   ref={replaceFileInputRef}
                   type="file"
-                  accept={ACCEPTED_FILES}
+                  accept={GED_ACCEPT_ATTRIBUTE}
                   className="hidden"
                   onChange={handleReplaceDocument}
                 />
                 <input
                   ref={addPagesInputRef}
                   type="file"
-                  accept={ACCEPTED_FILES}
+                  accept={PAGE_SOURCE_ACCEPT_ATTRIBUTE}
                   multiple
                   className="hidden"
                   onChange={handleAddPages}
@@ -1286,6 +1302,7 @@ export default function DocumentControleQualitePanel({
                 <DocumentPreview
                   key={filePreviewKey}
                   file={fichier}
+                  allowLocalDownload={hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT)}
                   large
                   zoomable
                   pageNumber={currentPage}
@@ -1345,7 +1362,7 @@ export default function DocumentControleQualitePanel({
                       Extraire
                     </button>
                   )}
-                  {hasConfigurableZones && !loading && (
+                  {hasConfigurableZones && !loading && fichierPreviewable && (
                     <button
                       type="button"
                       onClick={handleToggleZones}
@@ -1392,7 +1409,7 @@ export default function DocumentControleQualitePanel({
           </aside>
         </div>
 
-        <div className="flex justify-between gap-3 shrink-0 px-6 py-4 border-t border-gray-100 bg-white">
+        <div className="flex justify-between gap-3 shrink-0 px-6 py-4 short:py-2 border-t border-gray-100 bg-white">
           {modeControle && qc.canRejeter ? (
             <button
               type="button"

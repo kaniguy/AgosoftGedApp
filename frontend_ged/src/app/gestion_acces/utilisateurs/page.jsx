@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { getUsers, createUser, updateUser, patchUser, deleteUser } from "../../../services/user.service";
 import { getGroups } from "../../../services/group.service";
 import { useCrudPermissions, MODELS } from "../../../utils/permissions";
+import { isSuperuserFromStorage } from "../../../constants/modules";
 import EmptyListState from "../../../components/ui/EmptyListState";
 import { PASSWORD_HELP, passwordComplexityMessage } from "../../../utils/passwordPolicy";
 
@@ -15,7 +16,6 @@ const emptyForm = {
   last_name: "",
   password: "",
   is_active: true,
-  is_staff: false,
   is_superuser: false,
   groups: [],
 };
@@ -81,6 +81,7 @@ export default function UtilisateursPage() {
   const searchParams = useSearchParams();
   const { canAdd, canChange, canDelete } = useCrudPermissions(MODELS.USER);
   const showRowActions = canChange || canDelete;
+  const [viewerIsSuperuser] = useState(() => isSuperuserFromStorage());
   const [users, setUsers] = useState([]);
   const [groups, setGroups] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -174,7 +175,6 @@ export default function UtilisateursPage() {
       last_name: user.last_name || "",
       password: "",
       is_active: user.is_active,
-      is_staff: user.is_staff,
       is_superuser: user.is_superuser,
       groups: toIdList(user.groups),
     });
@@ -357,13 +357,23 @@ export default function UtilisateursPage() {
                       <span className={`px-2 py-1 rounded text-xs ${user.is_active ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
                         {user.is_active ? "Actif" : "Inactif"}
                       </span>
-                      {user.is_staff && <span className="ml-1 px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs">Staff</span>}
+                      {user.is_superuser && (
+                        <span className="ml-1 px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs">Superuser</span>
+                      )}
                       {user.has_usable_password === false && (
                         <span className="ml-1 px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs">Sans mot de passe</span>
                       )}
                     </td>
                     {showRowActions && (
                     <td className="px-4 py-3 text-center">
+                      {user.is_superuser && !viewerIsSuperuser ? (
+                        <span
+                          className="text-xs text-gray-400"
+                          title="Seul un superutilisateur peut modifier un compte superutilisateur."
+                        >
+                          Protégé
+                        </span>
+                      ) : (
                       <div className="flex justify-center flex-wrap gap-1">
                         {canChange && (
                         <button
@@ -392,6 +402,7 @@ export default function UtilisateursPage() {
                         <button onClick={() => { setSelected(user); setModal("delete"); }} className="px-3 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700">Supprimer</button>
                         )}
                       </div>
+                      )}
                     </td>
                     )}
                   </tr>
@@ -404,7 +415,7 @@ export default function UtilisateursPage() {
 
       {modal === "form" && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-lg max-h-[calc(90*var(--app-vh))] overflow-y-auto">
             <div className="bg-purple-600 text-white px-6 py-3 rounded-t-lg flex justify-between">
               <h3 className="font-semibold">{selected ? "Modifier l'utilisateur" : "Nouvel utilisateur"}</h3>
               <button onClick={() => setModal(null)} className="text-xl">×</button>
@@ -456,8 +467,16 @@ export default function UtilisateursPage() {
               </div>
               <div className="flex gap-4">
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} /> Actif</label>
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_staff} onChange={(e) => setForm({ ...form, is_staff: e.target.checked })} /> Staff</label>
-                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.is_superuser} onChange={(e) => setForm({ ...form, is_superuser: e.target.checked })} /> Superuser</label>
+                {viewerIsSuperuser && (
+                <label className="flex items-center gap-2 text-sm" title="Tous les droits sur toute l'application">
+                  <input
+                    type="checkbox"
+                    checked={form.is_superuser}
+                    onChange={(e) => setForm({ ...form, is_superuser: e.target.checked })}
+                  />{" "}
+                  Superuser
+                </label>
+                )}
               </div>
               {groups.length > 0 && (
                 <div>

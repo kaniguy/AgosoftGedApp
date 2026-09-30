@@ -1,10 +1,31 @@
+def _crud(app_label, model):
+    return [f"{app_label}.{action}_{model}" for action in ("view", "add", "change", "delete")]
+
+
+# Modèles stockés dans l'app gestion_acces mais gérés depuis le module Paramétrage
+# (Entreprise, SMTP, Notifications, Aide Vidéo, Base de données).
+PARAMETRAGE_APPLICATION_PERMISSIONS = [
+    *_crud("gestion_acces", "entreprise"),
+    *_crud("gestion_acces", "configurationemail"),
+    *_crud("gestion_acces", "configurationresumeperiodique"),
+    *_crud("gestion_acces", "reglenotification"),
+    *_crud("gestion_acces", "modeleemailnotification"),
+    *_crud("gestion_acces", "notificationemaillog"),
+    *_crud("gestion_acces", "guideaide"),
+    "gestion_acces.view_sauvegardebase",
+    "gestion_acces.exporter_sauvegardebase",
+    "gestion_acces.restaurer_sauvegardebase",
+    "gestion_acces.reinitialiser_sauvegardebase",
+]
+
 # Liste des modules applicatifs assignables aux groupes (miroir du tableau de bord frontend)
 APP_MODULES = [
     {
         "code": "parametrage",
         "label": "Paramétrage",
-        "description": "Configuration du système",
+        "description": "Référentiels, entreprise, e-mails & notifications, aide vidéo, base de données",
         "app_labels": ["parametrage"],
+        "extra_permission_codenames": PARAMETRAGE_APPLICATION_PERMISSIONS,
     },
     {
         "code": "gestion_documentaire",
@@ -63,8 +84,9 @@ APP_MODULES = [
     {
         "code": "gestion_acces",
         "label": "Gestion des accès",
-        "description": "Utilisateurs, groupes et permissions",
+        "description": "Utilisateurs, groupes, permissions, liens et journal d'activité",
         "app_labels": ["gestion_acces", "auth"],
+        "excluded_permission_codenames": PARAMETRAGE_APPLICATION_PERMISSIONS,
     },
     {
         "code": "aide_video",

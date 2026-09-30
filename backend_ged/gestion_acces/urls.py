@@ -44,7 +44,7 @@ from .views.notification_view import (
     modele_email_reset_view,
     modele_email_update_view,
     notifications_config_view,
-    preferences_notification_view,
+    notifications_generales_view,
     regle_notification_update_view,
 )
 
@@ -74,7 +74,7 @@ urlpatterns = [
     path("notifications/modeles-preview/", modele_email_preview_view, name="notification_modele_preview"),
     path("notifications/resume/", configuration_resume_view, name="notification_resume"),
     path("notifications/resume/envoyer/", envoyer_resume_test_view, name="notification_resume_envoyer"),
-    path("notifications/preferences/", preferences_notification_view, name="notification_preferences"),
+    path("notifications/generales/", notifications_generales_view, name="notifications_generales"),
     path("notifications/journal/", journal_notifications_view, name="notification_journal"),
     path("analytics/meta/", analytics_meta_view, name="analytics_meta"),
     path("analytics/documents/", analytics_documents_view, name="analytics_documents"),

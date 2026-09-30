@@ -53,6 +53,15 @@ const FORMAT_STYLES = {
   PNG: "bg-indigo-50 text-indigo-700 border-indigo-200",
   WEBP: "bg-violet-50 text-violet-700 border-violet-200",
   GIF: "bg-pink-50 text-pink-700 border-pink-200",
+  TIFF: "bg-cyan-50 text-cyan-700 border-cyan-200",
+  DOC: "bg-blue-50 text-blue-700 border-blue-200",
+  DOCX: "bg-blue-50 text-blue-700 border-blue-200",
+  XLS: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  XLSX: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  CSV: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  PPT: "bg-orange-50 text-orange-700 border-orange-200",
+  PPTX: "bg-orange-50 text-orange-700 border-orange-200",
+  ZIP: "bg-amber-50 text-amber-700 border-amber-200",
 };
 
 function getFileFormat(doc) {
@@ -67,7 +76,16 @@ function getFileFormat(doc) {
     }
   }
   const ext = candidate.split(".").pop() || "";
-  const labels = { pdf: "PDF", jpg: "JPEG", jpeg: "JPEG", png: "PNG", webp: "WEBP", gif: "GIF" };
+  const labels = {
+    pdf: "PDF",
+    jpg: "JPEG",
+    jpeg: "JPEG",
+    png: "PNG",
+    webp: "WEBP",
+    gif: "GIF",
+    tif: "TIFF",
+    tiff: "TIFF",
+  };
   return labels[ext] || (ext && ext !== "fichier" ? ext.toUpperCase() : "—");
 }
 
@@ -1181,7 +1199,7 @@ export default function RechercheAvanceeWorkbench({ onNotify }) {
   );
 
   return (
-    <div className="flex flex-col h-[calc(100vh-7.5rem)] min-h-[32rem]">
+    <div className="flex flex-col h-[calc(100*var(--app-vh)-7.5rem)] min-h-[32rem]">
       <ResizableThreePane
         left={typesPanel}
         center={criteriaPanel}

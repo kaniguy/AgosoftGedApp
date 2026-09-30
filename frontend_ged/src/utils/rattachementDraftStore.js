@@ -11,6 +11,7 @@ import {
   syncServerRattachementDraft,
 } from "../services/rattachementDraft.service";
 import { getStoredUser } from "./permissions";
+import { mimeFromFilename } from "./documentFileTypes";
 
 const DB_NAME = "ged-rattachement-drafts";
 const DB_VERSION = 1;
@@ -59,18 +60,9 @@ function blobToFile(blob, name) {
   if (!blob) return null;
   if (blob instanceof File) return blob;
   const resolvedName = name || "document";
-  const ext = resolvedName.split(".").pop()?.toLowerCase();
-  const mimeByExt = {
-    pdf: "application/pdf",
-    jpg: "image/jpeg",
-    jpeg: "image/jpeg",
-    png: "image/png",
-    webp: "image/webp",
-    gif: "image/gif",
-  };
   const declared = blob.type && blob.type !== "application/octet-stream" ? blob.type : "";
   return new File([blob], resolvedName, {
-    type: declared || mimeByExt[ext] || "application/octet-stream",
+    type: declared || mimeFromFilename(resolvedName) || "application/octet-stream",
   });
 }
 

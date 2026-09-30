@@ -84,7 +84,7 @@ export default function AuthGuard({ children }) {
 
   if (backendError && !isLoginPage && !isPublicDownloadPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
+      <div className="min-h-app-screen flex items-center justify-center p-6">
         <div className="max-w-md text-center space-y-3">
           <h1 className="text-xl font-semibold">Serveur inaccessible</h1>
           <p className="text-sm text-gray-600">
@@ -104,7 +104,7 @@ export default function AuthGuard({ children }) {
 
   if (authorized === null && !isLoginPage && !isPublicDownloadPage) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-app-screen flex items-center justify-center">
         <p className="text-sm text-gray-500">Vérification de la session…</p>
       </div>
     );

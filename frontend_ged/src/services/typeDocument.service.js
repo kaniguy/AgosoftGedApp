@@ -18,7 +18,12 @@ export const createTypeDocument = async (data) => {
     headers: getHeaders(),
     body: JSON.stringify(data),
   });
-  return res.json();
+  const payload = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const firstError = Object.values(payload || {}).flat()[0];
+    throw new Error(payload?.detail || (typeof firstError === "string" ? firstError : "Création impossible"));
+  }
+  return payload;
 };
 
 // UPDATE

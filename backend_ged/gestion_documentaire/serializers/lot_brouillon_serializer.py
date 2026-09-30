@@ -3,7 +3,7 @@ import json
 from django.db import transaction
 from rest_framework import serializers
 
-from config.file_validation import drf_validate_document
+from config.file_validation import drf_validate_ged_document
 from gestion_documentaire.models import ItemLotBrouillonRattachement, LotBrouillonRattachement
 from gestion_documentaire.services.localite_chemin import nodes_map_for_localite_ids, build_chemin_from_map
 from gestion_documentaire.services.lot_brouillon_storage import delete_lot_brouillon_item_file
@@ -178,7 +178,9 @@ class LotBrouillonSyncSerializer(serializers.Serializer):
         lot.utilisateur = user
         lot.type_document_id = type_document_id
         lot.index_actif = min(batch_active_index, max(0, len(items_data) - 1))
-        lot.save(update_fields=["utilisateur", "type_document_id", "index_actif"])  # ALLOWED
+        lot.save(  # ALLOWED
+            update_fields=["utilisateur", "type_document_id", "index_actif", "date_modification"]
+        )
 
         incoming_client_ids = set()
         for ordre, item_data in enumerate(items_data):
@@ -206,7 +208,7 @@ class LotBrouillonSyncSerializer(serializers.Serializer):
 
             if upload_file:
                 try:
-                    drf_validate_document(upload_file)
+                    drf_validate_ged_document(upload_file)
                 except serializers.ValidationError as exc:
                     detail = exc.detail
                     if isinstance(detail, list):

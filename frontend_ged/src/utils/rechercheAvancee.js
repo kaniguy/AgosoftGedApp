@@ -7,6 +7,7 @@ import {
   getDefaultOperator,
 } from "./documentColumnFilters";
 import { buildGeoColumns } from "./documentGeoColumns";
+import { FORMAT_FILTER_OPTIONS } from "./documentFileTypes";
 
 export const RECHERCHE_PAGE_SIZE = 15;
 
@@ -20,13 +21,7 @@ export function getActiveResultColumns(columns = [], visibleColumns = {}, { acti
   });
 }
 
-export const FORMAT_FIELD_OPTIONS = [
-  { value: "pdf", label: "PDF" },
-  { value: "jpeg", label: "JPEG" },
-  { value: "png", label: "PNG" },
-  { value: "webp", label: "WEBP" },
-  { value: "gif", label: "GIF" },
-];
+export const FORMAT_FIELD_OPTIONS = FORMAT_FILTER_OPTIONS;
 
 const DOCUMENT_FIELDS = [
   { key: "format", label: "Format fichier", typeChamp: "select", options: FORMAT_FIELD_OPTIONS, group: "Document" },

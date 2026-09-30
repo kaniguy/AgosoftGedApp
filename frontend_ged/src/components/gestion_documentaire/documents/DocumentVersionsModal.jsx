@@ -4,7 +4,13 @@ import { useState } from "react";
 import { downloadDocumentLocalite } from "../../../services/documentLocalite.service";
 import { hasPermission, PERMISSIONS } from "../../../utils/permissions";
 import { normalizeAnnotations } from "@/utils/pdfAnnotationUtils";
+import { filenameFromDocumentUrl, getFileExtension } from "@/utils/documentFileTypes";
 import DocumentPreview from "./DocumentPreview";
+
+function versionFilename(version) {
+  const ext = getFileExtension(filenameFromDocumentUrl(version?.fichier_url, "")) || "pdf";
+  return `document-v${version?.version_number}.${ext}`;
+}
 
 function formatDate(value) {
   if (!value) return "—";
@@ -34,7 +40,7 @@ export function DocumentVersionsPanel({
     try {
       await downloadDocumentLocalite(
         { id: documentId },
-        `document-v${version.version_number}.pdf`,
+        versionFilename(version),
         { versionId: version.id }
       );
     } finally {
@@ -103,11 +109,11 @@ export function DocumentVersionPreviewModal({ open, version, documentId, onClose
   const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
   if (!open || !version) return null;
 
-  const filename = `document-v${version.version_number}.pdf`;
+  const filename = versionFilename(version);
 
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/45">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl h-[calc(85*var(--app-vh))] flex flex-col overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between gap-3">
           <div>
             <h2 className="text-base font-semibold text-slate-900">
@@ -172,7 +178,7 @@ export default function DocumentVersionsModal({
 
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 bg-black/45">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[calc(80*var(--app-vh))] flex flex-col overflow-hidden">
         <div className="px-6 py-5 border-b border-slate-100 shrink-0">
           <h2 className="text-lg font-semibold text-slate-900">Historique des versions</h2>
           <p className="text-sm text-slate-600 mt-1">

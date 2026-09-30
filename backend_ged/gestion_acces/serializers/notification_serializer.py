@@ -5,7 +5,6 @@ from gestion_acces.models.notification import (
     ConfigurationResumePeriodique,
     ModeleEmailNotification,
     NotificationEmailLog,
-    PreferenceNotification,
     RegleNotification,
 )
 
@@ -51,7 +50,6 @@ class RegleNotificationSerializer(serializers.ModelSerializer):
             "recipient_groups_detail",
             "recipient_users_detail",
             "exclude_actor",
-            "respecter_preferences",
             "modele_code",
             "date_modification",
         ]
@@ -85,21 +83,6 @@ class ConfigurationResumePeriodiqueSerializer(serializers.ModelSerializer):
             "date_modification",
         ]
         read_only_fields = ["dernier_envoi", "date_modification"]
-
-
-class PreferenceNotificationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = PreferenceNotification
-        fields = [
-            "notif_soumission",
-            "notif_resoumission",
-            "notif_validation",
-            "notif_rejet",
-            "notif_identifiants",
-            "resume_periodique",
-            "date_modification",
-        ]
-        read_only_fields = ["date_modification"]
 
 
 class NotificationEmailLogSerializer(serializers.ModelSerializer):

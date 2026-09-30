@@ -115,7 +115,7 @@ export default function PlanGeoSearch({
       </div>
 
       {open && query.trim().length >= 2 && (
-        <div className="absolute z-[200] left-0 mt-2 min-w-full w-max max-w-[min(100vw-2rem,52rem)] bg-white border-2 border-gray-300 rounded-lg shadow-xl max-h-96 overflow-x-auto overflow-y-auto">
+        <div className="absolute z-[200] left-0 mt-2 min-w-full w-max max-w-[min(100*var(--app-vw)-2rem,52rem)] bg-white border-2 border-gray-300 rounded-lg shadow-xl max-h-96 overflow-x-auto overflow-y-auto">
           {loading ? (
             <div className="p-4 text-sm text-gray-500 text-center whitespace-nowrap">Recherche...</div>
           ) : results.length === 0 ? (

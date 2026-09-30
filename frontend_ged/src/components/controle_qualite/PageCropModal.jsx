@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Rnd } from "react-rnd";
 import { pdfjs } from "@/utils/configurePdfJs";
+import { appViewportSize, cssZoomOf } from "@/utils/appZoom";
 
 const PORTRAIT_TARGET_WIDTH = 560;
 const LANDSCAPE_MAX_WIDTH = 1180;
@@ -34,10 +35,11 @@ function computeDisplayScale(viewportWidth, viewportHeight) {
     return base / viewportWidth;
   }
 
+  const { width: windowWidth, height: windowHeight } = appViewportSize();
   const maxModalWidth = isLandscape
-    ? Math.min(window.innerWidth - 32, LANDSCAPE_MAX_WIDTH)
-    : Math.min(window.innerWidth - 32, PORTRAIT_MAX_WIDTH);
-  const maxContentHeight = window.innerHeight * 0.92 - MODAL_CHROME_HEIGHT;
+    ? Math.min(windowWidth - 32, LANDSCAPE_MAX_WIDTH)
+    : Math.min(windowWidth - 32, PORTRAIT_MAX_WIDTH);
+  const maxContentHeight = windowHeight * 0.92 - MODAL_CHROME_HEIGHT;
 
   const scaleByWidth = (maxModalWidth - CONTENT_PADDING) / viewportWidth;
   const scaleByHeight = maxContentHeight / viewportHeight;
@@ -139,13 +141,13 @@ export default function PageCropModal({ file, pageIndex, onConfirm, onCancel }) 
   };
 
   const modalWidthClass = isLandscape
-    ? "max-w-[min(96vw,75rem)]"
+    ? "max-w-[min(96*var(--app-vw),75rem)]"
     : "max-w-3xl";
 
   return (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center p-3 sm:p-4 bg-black/50">
       <div
-        className={`bg-white rounded-xl shadow-xl ${modalWidthClass} w-full border border-yellow-200 max-h-[96vh] flex flex-col`}
+        className={`bg-white rounded-xl shadow-xl ${modalWidthClass} w-full border border-yellow-200 max-h-[calc(96*var(--app-vh))] flex flex-col`}
       >
         <div className="px-5 py-3 border-b border-slate-100 shrink-0 flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -189,6 +191,7 @@ export default function PageCropModal({ file, pageIndex, onConfirm, onCancel }) 
                     size={{ width: crop.width, height: crop.height }}
                     position={{ x: crop.x, y: crop.y }}
                     bounds="parent"
+                    scale={cssZoomOf()}
                     minWidth={40}
                     minHeight={40}
                     onDragStop={(_e, data) => setCrop((prev) => ({ ...prev, x: data.x, y: data.y }))}

@@ -29,7 +29,7 @@ export default function AnnotationTextEditor({
 
   return (
     <div
-      className="absolute z-50 min-w-[200px] max-w-[min(320px,90vw)] rounded-lg border border-amber-300 bg-white shadow-lg p-2"
+      className="absolute z-50 min-w-[200px] max-w-[min(320px,90*var(--app-vw))] rounded-lg border border-amber-300 bg-white shadow-lg p-2"
       style={{ left, top }}
       onPointerDown={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}

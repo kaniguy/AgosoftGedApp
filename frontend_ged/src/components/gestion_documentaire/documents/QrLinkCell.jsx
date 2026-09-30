@@ -3,16 +3,22 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { normalizeHttpUrl } from "../../../utils/qrLink";
+import { appViewportSize, cssZoomOf } from "../../../utils/appZoom";
 
 const OPEN_DELAY_MS = 2000;
 const CLOSE_DELAY_MS = 220;
 const PREVIEW_WIDTH = 360;
 const PREVIEW_HEIGHT = 260;
 
-function computePreviewPosition(anchorRect) {
+function computePreviewPosition(screenRect) {
   const gap = 8;
-  const vw = window.innerWidth;
-  const vh = window.innerHeight;
+  const zoom = cssZoomOf(document.body);
+  const { width: vw, height: vh } = appViewportSize();
+  const anchorRect = {
+    left: screenRect.left / zoom,
+    top: screenRect.top / zoom,
+    bottom: screenRect.bottom / zoom,
+  };
 
   let left = anchorRect.left;
   if (left + PREVIEW_WIDTH > vw - 12) left = Math.max(12, vw - PREVIEW_WIDTH - 12);

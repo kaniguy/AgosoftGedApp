@@ -27,14 +27,31 @@ export default function DocumentListSplitView({
     showVersionSelect,
   } = useDocumentPreviewVersions(previewDoc);
 
-  // Quand la souris est sur l'aperçu, le trackpad doit scroller la liste (scroll général),
-  // pas rester bloqué dans le PDF.
+  // La zone sous le curseur (page Word, feuille Excel, PDF…) défile en priorité ;
+  // la liste ne prend le relais que si cette zone est déjà en butée dans ce sens.
   useEffect(() => {
     if (!previewDoc) return undefined;
     const pane = previewPaneRef.current;
     if (!pane) return undefined;
 
+    const canScrollInside = (el, dx, dy) => {
+      const style = getComputedStyle(el);
+      if (dy && /(auto|scroll)/.test(style.overflowY) && el.scrollHeight > el.clientHeight + 1) {
+        const room = dy < 0 ? el.scrollTop > 0 : el.scrollTop + el.clientHeight < el.scrollHeight - 1;
+        if (room) return true;
+      }
+      if (dx && /(auto|scroll)/.test(style.overflowX) && el.scrollWidth > el.clientWidth + 1) {
+        const room = dx < 0 ? el.scrollLeft > 0 : el.scrollLeft + el.clientWidth < el.scrollWidth - 1;
+        if (room) return true;
+      }
+      return false;
+    };
+
     const onWheel = (e) => {
+      for (let el = e.target; el && el !== pane; el = el.parentElement) {
+        if (el instanceof Element && canScrollInside(el, e.deltaX, e.deltaY)) return;
+      }
+
       const listEl = listScrollRef?.current;
       if (listEl) {
         const maxTop = Math.max(0, listEl.scrollHeight - listEl.clientHeight);
@@ -131,7 +148,7 @@ export default function DocumentListSplitView({
   );
 
   return (
-    <div className="flex-1 min-h-[28rem] h-[calc(100vh-20rem)] min-w-0 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-[28rem] h-[calc(100*var(--app-vh)-20rem)] min-w-0 flex flex-col overflow-hidden">
       <ResizableSplitPane
         defaultLeftPercent={50}
         left={

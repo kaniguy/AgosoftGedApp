@@ -362,7 +362,7 @@ export default function PlanGeographiquePage() {
   };
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">
           <div
@@ -491,7 +491,7 @@ export default function PlanGeographiquePage() {
             ) : (
               <div
                 id={PLAN_GEO_TREE_SCROLL_ID}
-                className="min-h-[560px] max-h-[calc(100vh-240px)] overflow-y-auto pr-1"
+                className="min-h-[560px] max-h-[calc(100*var(--app-vh)-240px)] overflow-y-auto pr-1"
               >
                 <PlanGeoTree
                   data={data}
@@ -520,7 +520,7 @@ export default function PlanGeographiquePage() {
 
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000] p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[calc(90*var(--app-vh))] overflow-y-auto">
             <div className="bg-blue-600 text-white px-6 py-3 rounded-t-lg flex justify-between items-center sticky top-0">
               <h5 className="text-lg font-semibold">
                 {selectedParent ? "Nouvelle sous-localité" : "Nouvelle localité racine"}
@@ -573,7 +573,7 @@ export default function PlanGeographiquePage() {
 
       {showEditModal && selectedNode && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000] p-4">
-          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-lg shadow-xl max-h-[calc(90*var(--app-vh))] overflow-y-auto">
             <div className="bg-green-600 text-white px-6 py-3 rounded-t-lg flex justify-between items-center sticky top-0">
               <h5 className="text-lg font-semibold">Modifier la localité</h5>
               <button type="button" onClick={closeModals} className="text-white hover:text-red-200 text-2xl font-bold leading-none">×</button>

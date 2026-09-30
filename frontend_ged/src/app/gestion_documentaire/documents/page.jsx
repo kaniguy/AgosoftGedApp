@@ -15,7 +15,7 @@ export default function DocumentsGlobauxPage() {
   }, []);
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] -mx-2 min-w-0 max-w-full overflow-x-hidden">
+    <div className="min-h-[calc(100*var(--app-vh)-8rem)] -mx-2 min-w-0 max-w-full overflow-x-hidden">
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-fade-in">
           <div

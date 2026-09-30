@@ -9,7 +9,7 @@ function AnalytiqueLayoutInner({ children }) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   return (
-    <div className="min-h-screen bg-transparent analytique-module">
+    <div className="min-h-app-screen bg-transparent analytique-module">
       <div className="flex pt-16 print:pt-0">
         <div className="no-print">
           <AnalytiqueSidebar
@@ -36,7 +36,7 @@ function AnalytiqueLayoutInner({ children }) {
 
 export default function AnalytiqueLayout({ children }) {
   return (
-    <Suspense fallback={<div className="min-h-screen pt-16 p-6 text-slate-500">Chargement…</div>}>
+    <Suspense fallback={<div className="min-h-app-screen pt-16 p-6 text-slate-500">Chargement…</div>}>
       <AnalytiqueFiltersProvider>
         <AnalytiqueLayoutInner>{children}</AnalytiqueLayoutInner>
       </AnalytiqueFiltersProvider>

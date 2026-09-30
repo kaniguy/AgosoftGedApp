@@ -2,6 +2,7 @@
  * Historique annuler / rétablir pour le workbench document (PDF + zones + annotations).
  */
 import { useCallback, useMemo, useReducer } from "react";
+import { mimeFromFilename } from "@/utils/documentFileTypes";
 
 const MAX_ENTRIES = 40;
 
@@ -9,7 +10,7 @@ export async function clonePdfFile(file) {
   if (!file) return null;
   const buffer = await file.arrayBuffer();
   return new File([buffer], file.name, {
-    type: file.type || "application/pdf",
+    type: file.type || mimeFromFilename(file.name) || "application/octet-stream",
     lastModified: Date.now(),
   });
 }

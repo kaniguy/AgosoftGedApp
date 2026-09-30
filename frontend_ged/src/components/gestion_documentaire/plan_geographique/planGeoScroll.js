@@ -1,3 +1,5 @@
+import { cssZoomOf } from "../../../utils/appZoom";
+
 export const PLAN_GEO_TREE_SCROLL_ID = "plan-geo-tree-scroll";
 
 export function scrollPlanNodeIntoView(nodeId, containerId = PLAN_GEO_TREE_SCROLL_ID) {
@@ -12,8 +14,9 @@ export function scrollPlanNodeIntoView(nodeId, containerId = PLAN_GEO_TREE_SCROL
 
   const elRect = el.getBoundingClientRect();
   const containerRect = container.getBoundingClientRect();
-  const relativeTop = elRect.top - containerRect.top + container.scrollTop;
-  const targetScroll = relativeTop - container.clientHeight / 2 + elRect.height / 2;
+  const zoom = cssZoomOf(container);
+  const relativeTop = (elRect.top - containerRect.top) / zoom + container.scrollTop;
+  const targetScroll = relativeTop - container.clientHeight / 2 + elRect.height / zoom / 2;
 
   container.scrollTo({
     top: Math.max(0, targetScroll),

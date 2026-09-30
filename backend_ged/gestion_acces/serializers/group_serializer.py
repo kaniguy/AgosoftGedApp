@@ -207,8 +207,9 @@ class GroupSerializer(serializers.ModelSerializer):
     def validate_localites(self, value):
         """Seules les localités du dernier niveau peuvent être assignées."""
         errors = []
+        niveaux = PlanGeographique.structure_niveaux_ordered()
         for loc in value:
-            if loc.get_niveau_enfant() is not None:
+            if loc.get_niveau_enfant(niveaux) is not None:
                 errors.append(
                     f"« {loc.libelle} » n'est pas au dernier niveau du plan de classement."
                 )

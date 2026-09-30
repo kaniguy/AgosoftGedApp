@@ -306,7 +306,7 @@ export default function StructureGeographiquePage() {
   const endIndex = Math.min(currentPage * itemsPerPage, totalCount);
 
   return (
-    <div className="min-h-screen bg-transparent">
+    <div className="min-h-app-screen bg-transparent">
       {/* Notification Container */}
       {notification && (
         <div className="fixed top-20 right-5 z-[99999] animate-slide-in-right">

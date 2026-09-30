@@ -15,7 +15,6 @@ from django.utils import timezone
 from gestion_acces.models.notification import (
     ModeleEmailNotification,
     NotificationEmailLog,
-    PreferenceNotification,
 )
 
 logger = logging.getLogger(__name__)
@@ -364,17 +363,6 @@ def notify_document_event(
                     actor,
                 )
                 continue
-            if regle.respecter_preferences:
-                prefs = PreferenceNotification.get_for_user(recipient)
-                if not prefs.accepte(event_type):
-                    log_skip(
-                        event_type,
-                        recipient,
-                        "Notification désactivée dans les préférences.",
-                        document,
-                        actor,
-                    )
-                    continue
             prepared.append(
                 (
                     recipient,

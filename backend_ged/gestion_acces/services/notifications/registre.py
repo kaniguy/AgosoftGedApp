@@ -55,9 +55,6 @@ def get_or_create_regle(event_type) -> RegleNotification:
         defaults={
             "is_enabled": getattr(module, "DEFAULT_ENABLED", False),
             "recipient_target": module.DEFAULT_TARGET,
-            "respecter_preferences": getattr(
-                module, "DEFAULT_RESPECTER_PREFERENCES", True
-            ),
         },
     )
     if created or not regle.modele_id:

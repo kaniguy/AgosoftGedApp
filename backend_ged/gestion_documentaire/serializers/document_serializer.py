@@ -4,7 +4,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 
-from config.file_validation import drf_validate_document
+from config.file_validation import drf_validate_ged_document
 from gestion_documentaire.models import DocumentLocalite, DocumentVersion
 from gestion_documentaire.services.document_storage import (
     assign_document_fichier,
@@ -140,7 +140,7 @@ class DocumentLocaliteCreateSerializer(serializers.Serializer):
     valeurs = serializers.CharField(required=False, allow_blank=True, default="[]")
 
     def validate_fichier(self, fichier):
-        return drf_validate_document(fichier)
+        return drf_validate_ged_document(fichier)
 
     def validate(self, attrs):
         localite = attrs["localite"]
@@ -245,7 +245,7 @@ class DocumentLocaliteUpdateSerializer(serializers.Serializer):
     def validate_fichier(self, fichier):
         if not fichier:
             return fichier
-        return drf_validate_document(fichier)
+        return drf_validate_ged_document(fichier)
 
     def _parse_annotations(self, raw):
         if raw is None:
@@ -403,7 +403,7 @@ class DocumentControleQualiteSoumettreSerializer(serializers.Serializer):
     def validate_fichier(self, fichier):
         if not fichier:
             return fichier
-        return drf_validate_document(fichier)
+        return drf_validate_ged_document(fichier)
 
     def validate(self, attrs):
         allowed = (DocumentLocalite.STATUT_BROUILLON, DocumentLocalite.STATUT_REJETE)
@@ -462,7 +462,7 @@ class DocumentControleQualiteValiderSerializer(serializers.Serializer):
     def validate_fichier(self, fichier):
         if not fichier:
             return fichier
-        return drf_validate_document(fichier)
+        return drf_validate_ged_document(fichier)
 
     def validate(self, attrs):
         if self.instance.statut_qualite != DocumentLocalite.STATUT_EN_ATTENTE:

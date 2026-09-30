@@ -12,6 +12,7 @@ from gestion_documentaire.services.ocr_service import get_page_count_from_bytes
 
 from ..models import TypeDocument
 from ..models.champs_document import ChampsDocument
+from ..models.plan_geographique import PlanGeographique
 from ..serializers.champs_document_serializer import (
     CaptureZonesBulkSerializer,
     ChampsDocumentSerializer,
@@ -28,6 +29,17 @@ class TypeDocumentViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         qs = TypeDocument.objects.all().prefetch_related("champs")
         return filter_type_document_queryset(qs, self.request.user)
+
+    def create(self, request, *args, **kwargs):
+        if not PlanGeographique.objects.exists():
+            return Response(
+                {
+                    "detail": "Créez d'abord le plan de classement "
+                    "(Paramétrage › Plans géographiques) avant d'ajouter un type de document."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return super().create(request, *args, **kwargs)
 
     @action(
         detail=True,

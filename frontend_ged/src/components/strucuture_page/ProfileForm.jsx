@@ -140,7 +140,7 @@ export default function ProfileForm({ onSaved }) {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[50vh]">
+      <div className="flex items-center justify-center min-h-[calc(50*var(--app-vh))]">
         <div className="w-8 h-8 border-4 border-purple-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );

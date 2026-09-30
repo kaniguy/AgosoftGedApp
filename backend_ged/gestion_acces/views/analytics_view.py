@@ -1,10 +1,11 @@
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Group
-from django.db.models import Count, Q
+from django.db.models import Count, Min, Q
 from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
+from django.utils.dateparse import parse_date
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -12,6 +13,12 @@ from rest_framework.response import Response
 from gestion_acces.models.group_profile import GroupProfile
 from gestion_acces.models.lien_telechargement import LienTelechargement
 from gestion_acces.models.notification import EvenementNotification, NotificationEmailLog
+from gestion_acces.services.access_service import (
+    filter_document_queryset,
+    filter_type_document_queryset,
+    get_allowed_plan_ids,
+    get_user_accessible_leaf_localite_ids,
+)
 from gestion_documentaire.models import DocumentLocalite
 from parametrage.models.champs_document import TypeDocument
 from parametrage.models.plan_geographique import PlanGeographique
@@ -28,25 +35,60 @@ EVENT_LABELS = dict(EvenementNotification.choices)
 NOTIF_STATUT_LABELS = dict(NotificationEmailLog.Statut.choices)
 
 
+PERIODE_DAYS = {"7": 7, "30": 30, "90": 90, "180": 180, "365": 365}
+
+
+def _parse_day(value):
+    try:
+        return parse_date((value or "").strip())
+    except ValueError:
+        return None
+
+
 def _parse_period(request):
-    """Retourne (date_debut, date_fin, periode_code)."""
-    periode = (request.query_params.get("periode") or "365").strip()
+    """
+    Retourne (date_debut, date_fin, periode_code).
+    date_fin est exclusive ; date_debut None = depuis le premier document.
+    """
+    params = request.query_params
+    periode = (params.get("periode") or "365").strip()
     now = timezone.now()
-    mapping = {
-        "7": 7,
-        "30": 30,
-        "90": 90,
-        "180": 180,
-        "365": 365,
-    }
-    days = mapping.get(periode)
+
+    if periode == "custom":
+        debut = _parse_day(params.get("date_debut"))
+        fin = _parse_day(params.get("date_fin"))
+        if debut or fin:
+            if debut and fin and debut > fin:
+                debut, fin = fin, debut
+            tz = timezone.get_current_timezone()
+            start = timezone.make_aware(datetime.combine(debut, time.min), tz) if debut else None
+            end = (
+                timezone.make_aware(datetime.combine(fin, time.min), tz) + timedelta(days=1)
+                if fin
+                else now
+            )
+            return start, end, "custom"
+        periode = "365"
+
+    days = PERIODE_DAYS.get(periode)
     if days is None:
-        return None, None, "all"
+        return None, now, "all"
     return now - timedelta(days=days), now, periode
 
 
-def _document_queryset(request):
-    qs = DocumentLocalite.objects.exclude(statut_qualite="brouillon")
+def _filter_period(qs, date_debut, date_fin):
+    if date_debut:
+        qs = qs.filter(date_creation__gte=date_debut)
+    if date_fin:
+        qs = qs.filter(date_creation__lt=date_fin)
+    return qs
+
+
+def _document_base_queryset(request):
+    """Documents du périmètre de l'utilisateur avec les filtres, hors période."""
+    qs = filter_document_queryset(
+        DocumentLocalite.objects.exclude(statut_qualite="brouillon"), request.user
+    )
     params = request.query_params
 
     statut = (params.get("statut") or "").strip()
@@ -61,13 +103,71 @@ def _document_queryset(request):
     if localite_id.isdigit():
         qs = qs.filter(localite_id=int(localite_id))
 
-    date_debut, date_fin, _ = _parse_period(request)
-    if date_debut:
-        qs = qs.filter(date_creation__gte=date_debut)
-    if date_fin:
-        qs = qs.filter(date_creation__lte=date_fin)
-
     return qs
+
+
+def _document_queryset(request):
+    date_debut, date_fin, _ = _parse_period(request)
+    return _filter_period(_document_base_queryset(request), date_debut, date_fin)
+
+
+def _granularite(jours):
+    if jours <= 31:
+        return "jour"
+    if jours <= 183:
+        return "semaine"
+    return "mois"
+
+
+def _bucket_start(day, granularite):
+    if granularite == "semaine":
+        return day - timedelta(days=day.weekday())
+    if granularite == "mois":
+        return day.replace(day=1)
+    return day
+
+
+def _next_bucket(day, granularite):
+    if granularite == "jour":
+        return day + timedelta(days=1)
+    if granularite == "semaine":
+        return day + timedelta(days=7)
+    return (day.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+
+def _evolution_payload(qs, date_debut, date_fin):
+    """Documents créés par jour, semaine ou mois selon la durée de la période, sans trou."""
+    if date_debut is None:
+        first = qs.aggregate(first=Min("date_creation"))["first"]
+        if first is None:
+            return {"granularite": "mois", "points": []}
+        date_debut = first
+    premier_jour = timezone.localtime(date_debut).date()
+    dernier_jour = timezone.localtime(date_fin - timedelta(microseconds=1)).date()
+    granularite = _granularite((dernier_jour - premier_jour).days + 1)
+
+    trunc = TruncMonth("date_creation") if granularite == "mois" else TruncDate("date_creation")
+    rows = qs.annotate(bucket=trunc).values("bucket", "statut_qualite").annotate(count=Count("id")).order_by()
+
+    points = {}
+    day = _bucket_start(premier_jour, granularite)
+    while day <= dernier_jour:
+        points[day] = {"periode": day.isoformat(), "en_attente": 0, "valide": 0, "rejete": 0, "total": 0}
+        day = _next_bucket(day, granularite)
+
+    for row in rows:
+        bucket = row["bucket"]
+        if bucket is None or row["statut_qualite"] not in STATUT_LABELS:
+            continue
+        if isinstance(bucket, datetime):
+            bucket = timezone.localtime(bucket).date() if timezone.is_aware(bucket) else bucket.date()
+        point = points.get(_bucket_start(bucket, granularite))
+        if point is None:
+            continue
+        point[row["statut_qualite"]] += row["count"]
+        point["total"] += row["count"]
+
+    return {"granularite": granularite, "points": list(points.values())}
 
 
 def _group_count(qs, *fields):
@@ -113,9 +213,21 @@ def _build_subtree_getter():
     return get_subtree
 
 
+def _visible_plan_ids(user):
+    """Branches du plan visibles : ancêtres, localités assignées et leurs descendants. None = tout."""
+    allowed = get_allowed_plan_ids(user)
+    if allowed is None:
+        return None
+    return allowed | (get_user_accessible_leaf_localite_ids(user) or set())
+
+
 def _geo_explorer_payload(request, qs):
     geo_parent = (request.query_params.get("geo_parent") or "").strip()
     get_subtree = _build_subtree_getter()
+    visible_ids = _visible_plan_ids(request.user)
+    plan_qs = PlanGeographique.objects.all()
+    if visible_ids is not None:
+        plan_qs = plan_qs.filter(id__in=visible_ids)
 
     localite_counts = {
         row["localite_id"]: row["count"]
@@ -125,12 +237,12 @@ def _geo_explorer_payload(request, qs):
     if geo_parent.isdigit():
         parent_id = int(geo_parent)
         try:
-            parent_node = PlanGeographique.objects.select_related("niveau").get(pk=parent_id)
+            parent_node = plan_qs.select_related("niveau").get(pk=parent_id)
         except PlanGeographique.DoesNotExist:
             return {"niveau_label": "", "breadcrumb": [], "parent_id": None, "items": []}
 
         nodes = (
-            PlanGeographique.objects.filter(parent_id=parent_id)
+            plan_qs.filter(parent_id=parent_id)
             .select_related("niveau")
             .order_by("libelle")
         )
@@ -141,7 +253,7 @@ def _geo_explorer_payload(request, qs):
         parent_for_back = parent_node.parent_id
     else:
         nodes = (
-            PlanGeographique.objects.filter(parent__isnull=True)
+            plan_qs.filter(parent__isnull=True)
             .select_related("niveau")
             .order_by("libelle")
         )
@@ -154,7 +266,7 @@ def _geo_explorer_payload(request, qs):
     for node in nodes:
         subtree = get_subtree(node.id)
         count = sum(localite_counts.get(lid, 0) for lid in subtree)
-        has_children = PlanGeographique.objects.filter(parent_id=node.id).exists()
+        has_children = plan_qs.filter(parent_id=node.id).exists()
         items.append({
             "localite_id": node.id,
             "libelle": node.libelle,
@@ -192,14 +304,23 @@ def _statuts_with_rates(total, counts_by_statut):
 def analytics_meta_view(request):
     """Métadonnées pour les filtres interactifs du dashboard."""
     types = list(
-        TypeDocument.objects.order_by("libelle").values("id", "libelle", "code")[:100]
+        filter_type_document_queryset(TypeDocument.objects.all(), request.user)
+        .order_by("libelle")
+        .values("id", "libelle", "code")[:100]
     )
-    localites = list(
-        PlanGeographique.objects.annotate(doc_count=Count("documents"))
-        .filter(doc_count__gt=0)
-        .order_by("-doc_count", "libelle")
-        .values("id", "libelle", "code", "doc_count")[:50]
+    docs_qs = filter_document_queryset(
+        DocumentLocalite.objects.exclude(statut_qualite="brouillon"), request.user
     )
+    localites = [
+        {
+            "id": row["localite_id"],
+            "libelle": row["localite__libelle"],
+            "code": row["localite__code"],
+            "doc_count": row["count"],
+        }
+        for row in _group_count(docs_qs, "localite_id", "localite__libelle", "localite__code")
+        .order_by("-count", "localite__libelle")[:50]
+    ]
     return Response({
         "statuts": [{"value": k, "label": v} for k, v in STATUT_LABELS.items()],
         "periodes": [
@@ -209,6 +330,7 @@ def analytics_meta_view(request):
             {"value": "180", "label": "6 derniers mois"},
             {"value": "365", "label": "12 derniers mois"},
             {"value": "all", "label": "Toute la période"},
+            {"value": "custom", "label": "Période personnalisée"},
         ],
         "types_documents": types,
         "localites": localites,
@@ -219,7 +341,8 @@ def analytics_meta_view(request):
 @permission_classes([IsAuthenticated])
 def analytics_documents_view(request):
     """Statistiques documentaires avec filtres croisés."""
-    qs = _document_queryset(request)
+    date_debut, date_fin, _ = _parse_period(request)
+    qs = _filter_period(_document_base_queryset(request), date_debut, date_fin)
     total = qs.count()
     counts_by_statut = {
         row["statut_qualite"]: row["count"]
@@ -239,32 +362,6 @@ def analytics_documents_view(request):
         }
         for item in docs_by_type
     ]
-
-    twelve_months_ago = timezone.now() - timedelta(days=365)
-    monthly_raw = (
-        qs.filter(date_creation__gte=twelve_months_ago)
-        .annotate(mois=TruncMonth("date_creation"))
-        .values("mois", "statut_qualite")
-        .annotate(count=Count("id"))
-        .order_by("mois", "statut_qualite")
-    )
-    evolution_map = {}
-    for row in monthly_raw:
-        key = row["mois"].strftime("%Y-%m")
-        if key not in evolution_map:
-            evolution_map[key] = {
-                "mois": key,
-                "en_attente": 0,
-                "valide": 0,
-                "rejete": 0,
-                "total": 0,
-            }
-        statut = row["statut_qualite"]
-        if statut not in STATUT_LABELS:
-            continue
-        evolution_map[key][statut] = row["count"]
-        evolution_map[key]["total"] += row["count"]
-    evolution_mensuelle = list(evolution_map.values())
 
     funnel_qc = [
         {"etape": label, "statut": key, "count": counts_by_statut.get(key, 0)}
@@ -313,7 +410,7 @@ def analytics_documents_view(request):
         },
         "documents_par_statut": docs_statut,
         "documents_par_type": docs_type,
-        "evolution_mensuelle": evolution_mensuelle,
+        "evolution": _evolution_payload(qs, date_debut, date_fin),
         "funnel_qc": funnel_qc,
         "top_createurs": top_createurs_fmt,
         "top_validateurs": top_validateurs_fmt,
@@ -332,7 +429,8 @@ def analytics_documents_geo_view(request):
 @permission_classes([IsAuthenticated])
 def analytics_administration_view(request):
     """Statistiques d'administration (utilisateurs, accès, workflow QC, partage)."""
-    if not (request.user.is_staff or request.user.is_superuser):
+    user = request.user
+    if not (user.is_superuser or user.has_perm("auth.view_user") or user.has_perm("auth.view_group")):
         return Response({"detail": "Permission refusée."}, status=403)
     now = timezone.now()
     thirty_days_ago = now - timedelta(days=30)

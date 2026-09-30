@@ -93,7 +93,7 @@ function LoginForm() {
 
   return (
     <div
-      className="min-h-screen flex flex-col items-center justify-center bg-slate-100 bg-cover bg-center bg-no-repeat px-4 py-10"
+      className="min-h-app-screen flex flex-col items-center justify-center bg-slate-100 bg-cover bg-center bg-no-repeat px-4 py-10"
       style={{ backgroundImage: `url(${APP_BACKGROUND_SRC})` }}
     >
       {/* Carte blanche rectangulaire */}
@@ -276,7 +276,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div
-          className="min-h-screen flex items-center justify-center bg-slate-100 bg-cover bg-center"
+          className="min-h-app-screen flex items-center justify-center bg-slate-100 bg-cover bg-center"
           style={{ backgroundImage: `url(${APP_BACKGROUND_SRC})` }}
         >
           <div className="w-10 h-10 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />

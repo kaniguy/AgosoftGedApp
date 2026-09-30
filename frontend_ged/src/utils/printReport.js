@@ -331,7 +331,9 @@ export function buildFiltersLabel(filters, meta = {}) {
     "365": "12 mois",
     all: "Toute la période",
   };
-  if (filters.periode && filters.periode !== "365") {
+  if (filters.periode === "custom") {
+    parts.push(`Période : ${formatCustomPeriodLabel(filters.date_debut, filters.date_fin)}`);
+  } else if (filters.periode && filters.periode !== "365") {
     parts.push(`Période : ${periodeLabels[filters.periode] || filters.periode}`);
   }
   if (filters.statut) {
@@ -351,9 +353,39 @@ export function buildFiltersLabel(filters, meta = {}) {
   return parts.length ? parts.join(" · ") : "Aucun filtre actif";
 }
 
+const MOIS_COURTS = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
+
 export function formatMoisReport(str) {
   if (!str) return "";
   const [year, month] = str.split("-");
-  const names = ["Jan", "Fév", "Mar", "Avr", "Mai", "Jun", "Jul", "Aoû", "Sep", "Oct", "Nov", "Déc"];
-  return `${names[parseInt(month, 10) - 1]} ${year}`;
+  return `${MOIS_COURTS[parseInt(month, 10) - 1]} ${year}`;
+}
+
+/** "2026-09-30" (ou ISO complet) → "30/09/2026". */
+export function formatDateFr(iso) {
+  if (!iso) return "";
+  const [y, m, d] = String(iso).slice(0, 10).split("-");
+  return y && m && d ? `${d}/${m}/${y}` : String(iso);
+}
+
+export function formatCustomPeriodLabel(dateDebut, dateFin) {
+  if (dateDebut && dateFin) return `Du ${formatDateFr(dateDebut)} au ${formatDateFr(dateFin)}`;
+  if (dateDebut) return `Depuis le ${formatDateFr(dateDebut)}`;
+  if (dateFin) return `Jusqu'au ${formatDateFr(dateFin)}`;
+  return "Période personnalisée";
+}
+
+export const GRANULARITE_LABELS = {
+  jour: "par jour",
+  semaine: "par semaine",
+  mois: "par mois",
+};
+
+/** Libellé d'un point de l'évolution selon sa granularité (début du jour, de la semaine ou du mois). */
+export function formatPeriodeBucket(periode, granularite) {
+  if (!periode) return "";
+  const [y, m, d] = String(periode).slice(0, 10).split("-");
+  if (granularite === "jour") return `${d}/${m}`;
+  if (granularite === "semaine") return `Sem. ${d}/${m}`;
+  return `${MOIS_COURTS[parseInt(m, 10) - 1]} ${y}`;
 }

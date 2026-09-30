@@ -1,17 +1,14 @@
 from rest_framework import viewsets, status
 from rest_framework.decorators import action
-from rest_framework.permissions import IsAuthenticated, IsAdminUser
+from rest_framework.exceptions import PermissionDenied
+from rest_framework.permissions import SAFE_METHODS, IsAuthenticated
 from rest_framework.response import Response
 from django.contrib.auth.models import User
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from ..permissions import AccountAdminPermission, HasDjangoPermission
 from ..serializers.user_management_serializer import UserManagementSerializer
 from gestion_acces.services.user_credentials_service import mark_password_prompt
-
-
-class IsStaffOrSuperuser(IsAdminUser):
-    """Autorise uniquement les utilisateurs is_staff ou is_superuser."""
-    message = "Seuls les administrateurs peuvent gérer les utilisateurs."
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -19,7 +16,22 @@ class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserManagementSerializer
 
     def get_permissions(self):
-        return [IsAuthenticated(), IsStaffOrSuperuser()]
+        if self.action == "reset_password":
+            self.required_permission = "auth.change_user"
+            return [IsAuthenticated(), HasDjangoPermission()]
+        return [IsAuthenticated(), AccountAdminPermission()]
+
+    def check_object_permissions(self, request, obj):
+        super().check_object_permissions(request, obj)
+        if (
+            request.method not in SAFE_METHODS
+            and obj.is_superuser
+            and not request.user.is_superuser
+        ):
+            raise PermissionDenied(
+                "Seul un superutilisateur peut modifier, réinitialiser ou supprimer "
+                "un compte superutilisateur."
+            )
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)

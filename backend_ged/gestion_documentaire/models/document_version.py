@@ -1,7 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-from config.file_validation import ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator
+from config.file_validation import ALLOWED_GED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator
 from gestion_documentaire.services.document_version_storage import document_version_upload_path
 from gestion_documentaire.services.encrypted_storage import encrypted_document_storage
 
@@ -18,7 +18,7 @@ class DocumentVersion(models.Model):
     fichier = models.FileField(
         upload_to=document_version_upload_path,
         storage=encrypted_document_storage,
-        validators=[ALLOWED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="document", label="document")],
+        validators=[ALLOWED_GED_DOCUMENT_FILE_VALIDATOR, UploadedFileValidator(kind="ged", label="document")],
         max_length=1024,
     )
     valeurs_snapshot = models.JSONField(default=list, blank=True)

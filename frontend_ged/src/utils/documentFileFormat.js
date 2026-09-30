@@ -18,6 +18,8 @@ export function getFileFormat(doc) {
     png: "PNG",
     webp: "WEBP",
     gif: "GIF",
+    tif: "TIFF",
+    tiff: "TIFF",
   };
   return labels[ext] || (ext && ext !== "fichier" ? ext.toUpperCase() : "—");
 }

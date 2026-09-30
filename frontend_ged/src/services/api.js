@@ -45,6 +45,15 @@ export async function apiFetch(url, options = {}) {
     ) {
       handleAuthFailure();
     }
+    const method = String(fetchOptions.method || "GET").toUpperCase();
+    if (
+      res.ok &&
+      method !== "GET" &&
+      typeof window !== "undefined" &&
+      String(url).includes("/api/parametrage/")
+    ) {
+      window.dispatchEvent(new Event("parametrage-data-changed"));
+    }
     return res;
   } catch (err) {
     logError("apiFetch", "Serveur API injoignable", {

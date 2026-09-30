@@ -10,14 +10,12 @@ from gestion_acces.models.notification import (
     EvenementNotification,
     ModeleEmailNotification,
     NotificationEmailLog,
-    PreferenceNotification,
     RegleNotification,
 )
 from gestion_acces.serializers.notification_serializer import (
     ConfigurationResumePeriodiqueSerializer,
     ModeleEmailNotificationSerializer,
     NotificationEmailLogSerializer,
-    PreferenceNotificationSerializer,
     RegleNotificationSerializer,
 )
 from gestion_acces.services.notifications import (
@@ -289,19 +287,53 @@ def envoyer_resume_test_view(request):
     return Response(result)
 
 
+def _etat_notifications_generales():
+    ensure_seed_data()
+    etats = {
+        regle.event_type: regle.is_enabled
+        for regle in RegleNotification.objects.all()
+    }
+    # Le résumé n'est réellement planifié que si sa configuration est activée.
+    etats[EvenementNotification.RESUME_PERIODIQUE] = (
+        ConfigurationResumePeriodique.get_solo().is_enabled
+    )
+    return etats
+
+
 @api_view(["GET", "PATCH"])
 @permission_classes([IsAuthenticated])
-def preferences_notification_view(request):
-    """Préférences de notification de l'utilisateur connecté."""
-    prefs = PreferenceNotification.get_for_user(request.user)
+def notifications_generales_view(request):
+    """Activation globale de chaque e-mail, appliquée à tous les utilisateurs."""
+    if not request.user.is_superuser:
+        return Response(
+            {"detail": "Seul un superutilisateur peut gérer les notifications générales."},
+            status=status.HTTP_403_FORBIDDEN,
+        )
     if request.method == "GET":
-        return Response(PreferenceNotificationSerializer(prefs).data)
+        return Response(_etat_notifications_generales())
 
-    serializer = PreferenceNotificationSerializer(prefs, data=request.data, partial=True)
-    if serializer.is_valid():
-        serializer.save()
-        return Response(serializer.data)
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    changements = {}
+    for event_type, valeur in (request.data or {}).items():
+        if event_type not in EvenementNotification.values:
+            return Response(
+                {"detail": f"Événement inconnu : {event_type}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not isinstance(valeur, bool):
+            return Response(
+                {"detail": f"Valeur booléenne attendue pour {event_type}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        changements[event_type] = valeur
+
+    ensure_seed_data()
+    for event_type, valeur in changements.items():
+        RegleNotification.objects.filter(event_type=event_type).update(is_enabled=valeur)
+        if event_type == EvenementNotification.RESUME_PERIODIQUE:
+            config = ConfigurationResumePeriodique.get_solo()
+            config.is_enabled = valeur
+            config.save(update_fields=["is_enabled", "date_modification"])
+    return Response(_etat_notifications_generales())
 
 
 @api_view(["GET"])
