@@ -239,6 +239,64 @@ def _reload_users(payload: str):
             obj.save()
 
 
+PERMISSION_M2M_FIELDS = ("permissions", "user_permissions")
+
+
+def _prepare_fixture(data_file: Path) -> tuple[Path, int]:
+    """
+    Retire de la sauvegarde ce que la version installée ne connaît pas (modèles,
+    champs ou permissions supprimés / pas encore créés). Retourne (fichier, nb ignorés).
+    À appeler après le flush : les permissions viennent d'être recréées par post_migrate.
+    """
+    from django.apps import apps
+    from django.contrib.auth.models import Permission
+
+    with data_file.open(encoding="utf-8") as fh:
+        objects = json.load(fh)
+
+    known_perms = {
+        tuple(key)
+        for key in Permission.objects.values_list(
+            "codename", "content_type__app_label", "content_type__model"
+        )
+    }
+    field_names_cache = {}
+    kept = []
+    ignored = 0
+    for obj in objects:
+        label = obj.get("model") or ""
+        try:
+            model = apps.get_model(label)
+        except (LookupError, ValueError):
+            ignored += 1
+            continue
+        if label not in field_names_cache:
+            meta = model._meta
+            field_names_cache[label] = {
+                f.name for f in [*meta.concrete_fields, *meta.many_to_many]
+            }
+        allowed = field_names_cache[label]
+        fields = {k: v for k, v in (obj.get("fields") or {}).items() if k in allowed}
+        for perm_field in PERMISSION_M2M_FIELDS:
+            values = fields.get(perm_field)
+            if isinstance(values, list):
+                fields[perm_field] = [
+                    v for v in values if not isinstance(v, list) or tuple(v) in known_perms
+                ]
+        obj["fields"] = fields
+        kept.append(obj)
+
+    cleaned = data_file.with_name("data.cleaned.json")
+    with cleaned.open("w", encoding="utf-8") as fh:
+        json.dump(kept, fh, ensure_ascii=False)
+    return cleaned, ignored
+
+
+def _short_error(exc: Exception) -> str:
+    message = " ".join(str(exc).split())
+    return message[:300] + ("…" if len(message) > 300 else "")
+
+
 def restore_from_zip(uploaded_file, progress=None):
     name = (getattr(uploaded_file, "name", "") or "").lower()
     if not name.endswith(".zip"):
@@ -280,25 +338,34 @@ def restore_from_zip_path(tmp_zip, progress=None):
         if not data_file.is_file():
             raise SauvegardeError("Données manquantes dans l'archive.")
 
-        User = get_user_model()
-        safety = _serialize_keep_users(
-            list(User.objects.filter(is_superuser=True).values_list("pk", flat=True))
-        )
+        from django.contrib.contenttypes.models import ContentType
+        from django.db import transaction
 
+        # Vidage + import dans une seule transaction : en cas d'échec, la base
+        # actuelle est conservée telle quelle.
         try:
-            _notify(progress, "flush", 40, "Vidage de la base actuelle…")
-            call_command("flush", verbosity=0, interactive=False, allow_cascade=True)
-            _notify(progress, "loaddata", 58, "Import des données…")
-            with _silence_restore_signals():
-                call_command("loaddata", str(data_file), verbosity=0)
-        except SauvegardeError:
-            raise
+            with transaction.atomic():
+                _notify(progress, "flush", 40, "Vidage de la base actuelle…")
+                call_command("flush", verbosity=0, interactive=False, allow_cascade=True)
+                ContentType.objects.clear_cache()
+                _notify(progress, "loaddata", 50, "Vérification de la compatibilité…")
+                cleaned_file, ignored = _prepare_fixture(data_file)
+                if ignored:
+                    logger.info(
+                        "Restauration : %s objet(s) d'une version différente ignoré(s).",
+                        ignored,
+                    )
+                _notify(progress, "loaddata", 58, "Import des données…")
+                with _silence_restore_signals():
+                    call_command("loaddata", str(cleaned_file), verbosity=0)
         except Exception as exc:
+            ContentType.objects.clear_cache()
             logger.exception("Échec loaddata pendant la restauration")
-            _reload_users(safety)
             raise SauvegardeError(
-                "Restauration impossible. Les comptes administrateur ont été conservés."
+                f"Restauration impossible : {_short_error(exc)} "
+                "Les données actuelles n'ont pas été modifiées."
             ) from exc
+        ContentType.objects.clear_cache()
 
         _notify(progress, "media", 82, "Restauration des fichiers media…")
         _restore_media(extract_dir)

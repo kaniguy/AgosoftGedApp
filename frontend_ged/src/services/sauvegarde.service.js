@@ -147,9 +147,9 @@ export async function waitSauvegardeJob(jobId, token, onProgress) {
     } catch (err) {
       if (err?.fatal) throw err;
       failures += 1;
-      if (failures >= 8) throw err;
+      if (failures >= 15) throw err;
     }
-    await sleep(700);
+    await sleep(2000);
   }
 }
 

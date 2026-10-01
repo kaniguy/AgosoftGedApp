@@ -33,8 +33,10 @@ export function proxy(request) {
 export const config = {
   matcher: [
     /*
-     * Exclure assets Next + fichiers statiques publics (dont pdf.worker.min.mjs).
+     * Exclure assets Next + fichiers statiques publics (dont pdf.worker.min.mjs),
+     * ainsi que /api et /media : sinon Next garde en mémoire tout le corps des
+     * envois (archives de restauration, documents) avant de les transmettre.
      */
-    "/((?!_next/static|_next/image|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|mjs|js|css|map|woff2?|ttf|eot)$).*)",
+    "/((?!_next/static|_next/image|api/|media/|.*\\.(?:png|jpg|jpeg|gif|svg|ico|webp|mjs|js|css|map|woff2?|ttf|eot)$).*)",
   ],
 };

@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import unicodedata
 
@@ -9,24 +10,18 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework import status
 
-from gestion_acces.models.journal_activite import JournalActivite
-from gestion_acces.services.audit_service import log_activite
 from gestion_acces.services.sauvegarde_jobs import (
     create_job,
     job_matches_token,
-    make_progress,
     public_job,
     read_job,
-    start_job_thread,
+    refresh_if_stale,
+    start_job_process,
     update_job,
 )
 from gestion_acces.services.sauvegarde_service import (
     CONFIRM_RESET,
     CONFIRM_RESTORE,
-    SauvegardeError,
-    build_backup_zip,
-    reset_database,
-    restore_from_zip_path,
 )
 
 PERM_VIEW = "gestion_acces.view_sauvegardebase"
@@ -70,7 +65,7 @@ def _load_job_or_404(job_id, token):
     data = read_job(job_id)
     if not data or not job_matches_token(data, token):
         return None
-    return data
+    return refresh_if_stale(data)
 
 
 @api_view(["GET"])
@@ -103,39 +98,6 @@ def sauvegarde_status_view(request):
     )
 
 
-def _start_export_job(job_id, user_id, username):
-    progress = make_progress(job_id)
-    try:
-        zip_path, filename = build_backup_zip(progress=progress)
-    except SauvegardeError as exc:
-        update_job(job_id, status="error", error=str(exc), message="Export impossible.")
-        return
-    except Exception:
-        update_job(job_id, status="error", error="Export impossible pour le moment.", message="Échec.")
-        return
-
-    from django.contrib.auth import get_user_model
-
-    user = get_user_model().objects.filter(pk=user_id).first()
-    log_activite(
-        action=JournalActivite.Action.EXPORTER,
-        description="Export de la base de données et des fichiers media",
-        user=user,
-        username=username,
-        categorie=JournalActivite.Categorie.BASE_DONNEES,
-        objet_type="sauvegarde",
-    )
-    update_job(
-        job_id,
-        status="done",
-        stage="ready",
-        percent=100,
-        message="Archive prête. Téléchargement…",
-        download_path=zip_path,
-        download_name=filename,
-    )
-
-
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def sauvegarde_export_view(request):
@@ -143,60 +105,13 @@ def sauvegarde_export_view(request):
         return _forbidden("Vous n'avez pas la permission d'exporter la base.")
 
     job = create_job("export", request.user.pk, request.user.get_username())
-    started = start_job_thread(
-        job["id"],
-        _start_export_job,
-        job["id"],
-        request.user.pk,
-        request.user.get_username(),
-    )
+    started = start_job_process(job["id"])
     if not started:
         return Response(
             {"detail": "Une opération de sauvegarde est déjà en cours."},
             status=status.HTTP_409_CONFLICT,
         )
     return Response({"job_id": job["id"], "token": job["token"], **public_job(job)})
-
-
-def _start_restore_job(job_id, zip_path, username):
-    progress = make_progress(job_id)
-    try:
-        restore_from_zip_path(zip_path, progress=progress)
-    except SauvegardeError as exc:
-        update_job(job_id, status="error", error=str(exc), message="Restauration impossible.")
-        return
-    except Exception:
-        update_job(
-            job_id,
-            status="error",
-            error="Restauration impossible pour le moment.",
-            message="Échec.",
-        )
-        return
-    finally:
-        try:
-            os.unlink(zip_path)
-        except OSError:
-            pass
-
-    from django.contrib.auth import get_user_model
-
-    restored_user = get_user_model().objects.filter(username=username).first()
-    log_activite(
-        action=JournalActivite.Action.RESTAURER,
-        description="Restauration de la base de données et des fichiers media",
-        user=restored_user,
-        username=username,
-        categorie=JournalActivite.Categorie.BASE_DONNEES,
-        objet_type="sauvegarde",
-    )
-    update_job(
-        job_id,
-        status="done",
-        stage="media",
-        percent=100,
-        message="Restauration terminée. Reconnectez-vous.",
-    )
 
 
 @api_view(["POST"])
@@ -230,9 +145,13 @@ def sauvegarde_restore_view(request):
     fd, tmp_zip = tempfile.mkstemp(prefix="ged-restore-", suffix=".zip")
     os.close(fd)
     try:
-        with open(tmp_zip, "wb") as dest:
-            for chunk in uploaded.chunks():
-                dest.write(chunk)
+        if hasattr(uploaded, "temporary_file_path"):
+            # Fichier déjà écrit sur disque par Django : déplacement au lieu d'une copie.
+            shutil.move(uploaded.temporary_file_path(), tmp_zip)
+        else:
+            with open(tmp_zip, "wb") as dest:
+                for chunk in uploaded.chunks():
+                    dest.write(chunk)
         with open(tmp_zip, "rb") as check:
             if check.read(2) != b"PK":
                 os.unlink(tmp_zip)
@@ -253,7 +172,7 @@ def sauvegarde_restore_view(request):
     username = request.user.get_username()
     job = create_job("restore", request.user.pk, username)
     update_job(job["id"], stage="upload", percent=12, message="Archive reçue.")
-    started = start_job_thread(job["id"], _start_restore_job, job["id"], tmp_zip, username)
+    started = start_job_process(job["id"], zip_path=tmp_zip)
     if not started:
         try:
             os.unlink(tmp_zip)
@@ -264,42 +183,6 @@ def sauvegarde_restore_view(request):
             status=status.HTTP_409_CONFLICT,
         )
     return Response({"job_id": job["id"], "token": job["token"], **public_job(read_job(job["id"]))})
-
-
-def _start_reset_job(job_id, keep_user_id, username):
-    progress = make_progress(job_id)
-    try:
-        reset_database([keep_user_id], progress=progress)
-    except SauvegardeError as exc:
-        update_job(job_id, status="error", error=str(exc), message="Réinitialisation impossible.")
-        return
-    except Exception:
-        update_job(
-            job_id,
-            status="error",
-            error="Réinitialisation impossible pour le moment.",
-            message="Échec.",
-        )
-        return
-
-    from django.contrib.auth import get_user_model
-
-    kept_user = get_user_model().objects.filter(username=username).first()
-    log_activite(
-        action=JournalActivite.Action.REINITIALISER,
-        description="Réinitialisation de la base de données",
-        user=kept_user,
-        username=username,
-        categorie=JournalActivite.Categorie.BASE_DONNEES,
-        objet_type="sauvegarde",
-    )
-    update_job(
-        job_id,
-        status="done",
-        stage="media",
-        percent=100,
-        message="Base réinitialisée. Les comptes administrateur ont été conservés.",
-    )
 
 
 @api_view(["POST"])
@@ -317,13 +200,7 @@ def sauvegarde_reset_view(request):
 
     username = request.user.get_username()
     job = create_job("reset", request.user.pk, username)
-    started = start_job_thread(
-        job["id"],
-        _start_reset_job,
-        job["id"],
-        request.user.pk,
-        username,
-    )
+    started = start_job_process(job["id"])
     if not started:
         return Response(
             {"detail": "Une opération de sauvegarde est déjà en cours."},

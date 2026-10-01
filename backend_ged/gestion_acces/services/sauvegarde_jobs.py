@@ -3,17 +3,26 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import secrets
+import subprocess
+import sys
 import threading
 import time
 import uuid
 from pathlib import Path
 
-from django.db import close_old_connections
+from django.conf import settings
 
 JOBS_DIR = Path(os.environ.get("GED_BACKUP_JOBS_DIR", "/tmp/ged-sauvegarde-jobs"))
 LOCK_PATH = JOBS_DIR / "exclusive.lock"
+HEARTBEAT_SECONDS = 15
+# Sans signe de vie au-delà de ce délai, la tâche est considérée comme interrompue.
+STALE_AFTER_SECONDS = 120
+
+logger = logging.getLogger(__name__)
+_update_lock = threading.Lock()
 
 STEPS = {
     "export": [
@@ -80,13 +89,42 @@ def read_job(job_id: str) -> dict | None:
 
 
 def update_job(job_id: str, **fields) -> dict | None:
-    data = read_job(job_id)
-    if not data:
-        return None
-    data.update(fields)
-    data["updated_at"] = time.time()
-    _write_atomic(_job_path(job_id), data)
-    return data
+    with _update_lock:
+        data = read_job(job_id)
+        if not data:
+            return None
+        data.update(fields)
+        data["updated_at"] = time.time()
+        _write_atomic(_job_path(job_id), data)
+        return data
+
+
+def _interruption_message(data: dict) -> str:
+    if data.get("kind") == "restore" and data.get("stage") != "media":
+        return (
+            "La restauration a été interrompue avant la fin (redémarrage du serveur ?). "
+            "La base n'a pas été modifiée : relancez la restauration."
+        )
+    if data.get("kind") == "restore":
+        return (
+            "La restauration a été interrompue pendant la copie des fichiers media. "
+            "Les données sont restaurées mais des fichiers peuvent manquer : relancez la restauration."
+        )
+    return "L'opération a été interrompue avant la fin (redémarrage du serveur ?). Relancez-la."
+
+
+def refresh_if_stale(data: dict | None) -> dict | None:
+    """Marque en erreur une tâche « en cours » qui ne donne plus signe de vie."""
+    if not data or data.get("status") != "running":
+        return data
+    if time.time() - float(data.get("updated_at") or 0) < STALE_AFTER_SECONDS:
+        return data
+    return update_job(
+        data["id"],
+        status="error",
+        error=_interruption_message(data),
+        message="Opération interrompue.",
+    ) or data
 
 
 def public_job(data: dict) -> dict:
@@ -151,36 +189,37 @@ class ExclusiveLock:
         self._fh = None
 
 
-def start_job_thread(job_id: str, fn, *args, **kwargs):
-    lock = ExclusiveLock()
-    if not lock.acquire():
-        update_job(
-            job_id,
-            status="error",
-            error="Une opération de sauvegarde est déjà en cours.",
-            message="Opération déjà en cours.",
-        )
+def _mark_already_running(job_id: str):
+    update_job(
+        job_id,
+        status="error",
+        error="Une opération de sauvegarde est déjà en cours.",
+        message="Opération déjà en cours.",
+    )
+
+
+def start_job_process(job_id: str, **params) -> bool:
+    """
+    Lance la tâche dans un processus indépendant (commande executer_tache_sauvegarde).
+    Les paramètres sont stockés dans le fichier de la tâche.
+    """
+    probe = ExclusiveLock()
+    if not probe.acquire():
+        _mark_already_running(job_id)
         return False
+    probe.release()
 
-    def runner():
-        close_old_connections()
-        try:
-            fn(*args, **kwargs)
-        except Exception as exc:
-            update_job(
-                job_id,
-                status="error",
-                error=str(exc) or "Opération impossible.",
-                message="Échec.",
-            )
-        finally:
-            lock.release()
-            close_old_connections()
-
+    if params:
+        update_job(job_id, **params)
     try:
-        threading.Thread(target=runner, daemon=True, name=f"ged-backup-{job_id[:8]}").start()
+        process = subprocess.Popen(
+            [sys.executable, "manage.py", "executer_tache_sauvegarde", job_id],
+            cwd=str(settings.BASE_DIR),
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+        )
     except Exception:
-        lock.release()
+        logger.exception("Impossible de lancer la tâche de sauvegarde %s", job_id)
         update_job(
             job_id,
             status="error",
@@ -188,7 +227,42 @@ def start_job_thread(job_id: str, fn, *args, **kwargs):
             message="Échec.",
         )
         return False
+
+    # Récupère le code de sortie pour ne pas laisser de processus zombie.
+    threading.Thread(target=process.wait, daemon=True).start()
     return True
+
+
+def run_in_current_process(job_id: str, fn):
+    """Exécute la tâche avec verrou exclusif et signal de vie périodique."""
+    lock = ExclusiveLock()
+    if not lock.acquire():
+        _mark_already_running(job_id)
+        return
+
+    stop = threading.Event()
+
+    def heartbeat():
+        while not stop.wait(HEARTBEAT_SECONDS):
+            data = read_job(job_id)
+            if not data or data.get("status") != "running":
+                return
+            update_job(job_id)
+
+    threading.Thread(target=heartbeat, daemon=True).start()
+    try:
+        fn(job_id)
+    except Exception as exc:
+        logger.exception("Échec de la tâche de sauvegarde %s", job_id)
+        update_job(
+            job_id,
+            status="error",
+            error=str(exc) or "Opération impossible.",
+            message="Échec.",
+        )
+    finally:
+        stop.set()
+        lock.release()
 
 
 def make_progress(job_id: str):
