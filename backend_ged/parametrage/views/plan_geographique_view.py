@@ -9,7 +9,7 @@ from gestion_acces.permissions import CanReadPlanGeographique
 from ..models import PlanGeographique, StructureGeographique
 from ..serializers import PlanGeographiqueSerializer
 from gestion_acces.services.access_service import filter_plan_queryset, get_allowed_plan_ids, get_user_type_document_ids
-from gestion_documentaire.models import DocumentLocalite
+from gestion_documentaire.models import DocumentLocalite, ItemLotBrouillonRattachement
 
 PLAN_FIELDS = ("libelle", "code", "description", "longitude", "latitude")
 PAGE_SIZE = 15
@@ -162,6 +162,46 @@ class PlanGeographiqueViewSet(ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(updated_by=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        """Suppression ascendante : localité sans sous-localité, sans document ni brouillon."""
+        localite = self.get_object()
+
+        nb_enfants = PlanGeographique.objects.filter(parent=localite).count()
+        if nb_enfants:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer « {localite.libelle} » : elle contient "
+                    f"{nb_enfants} sous-localité(s). Supprimez d'abord les localités des niveaux "
+                    "inférieurs, en commençant par le dernier niveau."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nb_documents = DocumentLocalite.objects.filter(localite=localite).count()
+        if nb_documents:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer « {localite.libelle} » : elle contient "
+                    f"{nb_documents} document(s). Supprimez d'abord ces documents depuis la "
+                    "Gestion documentaire."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nb_brouillons = ItemLotBrouillonRattachement.objects.filter(lot__localite=localite).count()
+        if nb_brouillons:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer « {localite.libelle} » : elle contient "
+                    f"{nb_brouillons} document(s) en brouillon de rattachement. Supprimez d'abord "
+                    "ce brouillon depuis la Gestion documentaire."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        localite.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"], url_path="rechercher")
     def rechercher(self, request):

@@ -115,7 +115,7 @@ export const PERMISSION_TREE = [
         label: "Consulter les documents",
         children: [
           { codename: "gestion_documentaire.add_documentlocalite", label: "Importer / rattacher des documents" },
-          { codename: "gestion_documentaire.change_documentlocalite", label: "Modifier des documents" },
+          { codename: "gestion_documentaire.change_documentlocalite", label: "Modifier des documents (index, fichier, annotation, signature…)" },
           { codename: "gestion_documentaire.delete_documentlocalite", label: "Supprimer des documents" },
           { codename: "gestion_documentaire.telecharger_document", label: "Télécharger des documents" },
           { codename: "gestion_documentaire.annoter_document", label: "Annoter" },

@@ -7,6 +7,12 @@ from ..permission_tree import expand_permission_objects
 from ..services.access_service import build_localite_chemin
 from gestion_acces.services.permission_labels import format_permission_label_fr
 
+QC_MENU_PERMISSION_CODENAMES = {
+    "gestion_documentaire.qc_menu_en_attente",
+    "gestion_documentaire.qc_menu_rejete",
+    "gestion_documentaire.qc_menu_valide",
+}
+
 
 def _permissions_from_codenames(full_codenames):
     """Résout app_label.codename vers des objets Permission existants."""
@@ -33,6 +39,17 @@ def _default_view_permissions_for_modules(modules):
                 seen.add(full)
                 codenames.append(full)
     return _permissions_from_codenames(codenames)
+
+
+def _ensure_controle_qualite_menus(permissions, modules):
+    """Le module contrôle qualité est invisible sans au moins un menu QC : on les ajoute si aucun n'est coché."""
+    permissions = list(permissions or [])
+    if "controle_qualite" not in (modules or []):
+        return permissions
+    codenames = {f"{p.content_type.app_label}.{p.codename}" for p in permissions}
+    if codenames & QC_MENU_PERMISSION_CODENAMES:
+        return permissions
+    return permissions + _permissions_from_codenames(sorted(QC_MENU_PERMISSION_CODENAMES))
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -270,7 +287,9 @@ class GroupSerializer(serializers.ModelSerializer):
 
         if not permissions:
             permissions = _default_view_permissions_for_modules(modules)
-        permissions = expand_permission_objects(permissions)
+        permissions = expand_permission_objects(
+            _ensure_controle_qualite_menus(permissions, modules)
+        )
 
         group = Group.objects.create(**validated_data)
         group.permissions.set(permissions)
@@ -299,14 +318,20 @@ class GroupSerializer(serializers.ModelSerializer):
         elif validated_data:
             instance.save()
 
+        effective_modules = modules if modules is not None else list(
+            getattr(getattr(instance, "ged_profile", None), "modules", None) or []
+        )
         if permissions is not None:
             if not permissions:
-                permissions = _default_view_permissions_for_modules(
-                    modules if modules is not None else list(
-                        getattr(getattr(instance, "ged_profile", None), "modules", None) or []
-                    )
-                )
-            instance.permissions.set(expand_permission_objects(permissions))
+                permissions = _default_view_permissions_for_modules(effective_modules)
+            instance.permissions.set(expand_permission_objects(
+                _ensure_controle_qualite_menus(permissions, effective_modules)
+            ))
+        elif modules is not None:
+            current = list(instance.permissions.all())
+            completed = _ensure_controle_qualite_menus(current, effective_modules)
+            if len(completed) != len(current):
+                instance.permissions.set(expand_permission_objects(completed))
 
         self._save_profile(
             instance,

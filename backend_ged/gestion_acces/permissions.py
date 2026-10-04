@@ -3,6 +3,11 @@
 from rest_framework.permissions import DjangoModelPermissions, BasePermission, SAFE_METHODS
 
 from gestion_acces.services.access_service import get_user_modules
+from gestion_documentaire.services.annotation_permissions import (
+    ANNOTATION_ONLY_FIELDS,
+    user_can_change_document,
+    user_can_edit_annotations,
+)
 
 GUIDE_AIDE_VIEW = "gestion_acces.view_guideaide"
 GUIDE_AIDE_ADD = "gestion_acces.add_guideaide"
@@ -126,6 +131,25 @@ class CanSoumettreDocumentQualite(BasePermission):
         return user.has_perm("gestion_documentaire.qc_soumettre") or user.has_perm(
             "gestion_documentaire.add_documentlocalite"
         )
+
+
+class CanUpdateDocument(BasePermission):
+    """
+    Modifier des documents : mise à jour complète (index, type, fichier, annotations).
+    Annoter / tamponner / signer seuls : uniquement les annotations ; le droit propre
+    à chaque type d'annotation est vérifié par la vue.
+    """
+
+    message = "Vous n'avez pas le droit de modifier ce document."
+
+    def has_permission(self, request, view):
+        user = request.user
+        if user_can_change_document(user):
+            return True
+        if not user_can_edit_annotations(user):
+            return False
+        fields = set(request.data.keys())
+        return "annotations" in fields and fields <= ANNOTATION_ONLY_FIELDS
 
 
 class GuideAidePermission(BasePermission):

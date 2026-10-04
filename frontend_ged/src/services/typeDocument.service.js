@@ -41,10 +41,14 @@ export const updateTypeDocument = async (id, data) => {
 
 // DELETE
 export const deleteTypeDocument = async (id) => {
-  await apiFetch(`${getApiUrl()}/api/parametrage/type-documents/${id}/`, {
+  const res = await apiFetch(`${getApiUrl()}/api/parametrage/type-documents/${id}/`, {
     method: "DELETE",
     headers: getHeaders(),
   });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload?.detail || "Suppression impossible");
+  }
 
   return { success: true };
 };

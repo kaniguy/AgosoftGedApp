@@ -5,7 +5,7 @@ from rest_framework.response import Response
 from django.contrib.auth.models import Group
 from django.db.models import Count
 from ..serializers.group_serializer import GroupSerializer
-from ..constants import APP_MODULES
+from ..constants import APP_MODULES, MODULE_DEFAULT_VIEW_PERMISSIONS
 from ..models.group_profile import GroupProfile
 from ..permissions import AccountAdminPermission
 from gestion_acces.services.localites_dernier_niveau_service import (
@@ -79,7 +79,10 @@ def _parse_bool(value):
 @permission_classes([IsAuthenticated])
 def modules_list_view(request):
   """Liste des modules applicatifs assignables à un groupe."""
-  return Response(APP_MODULES)
+  return Response([
+    {**m, "default_permission_codenames": MODULE_DEFAULT_VIEW_PERMISSIONS.get(m["code"], [])}
+    for m in APP_MODULES
+  ])
 
 
 @api_view(["GET"])

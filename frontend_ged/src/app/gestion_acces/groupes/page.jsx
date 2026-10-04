@@ -346,10 +346,16 @@ export default function GroupesPage() {
     }));
   };
 
-  const viewIdsForModule = (mod) =>
-    permissions
-      .filter((p) => isPermissionInModule(p, mod) && String(p.codename || "").startsWith("view_"))
+  const viewIdsForModule = (mod) => {
+    const defaults = new Set(mod.default_permission_codenames || []);
+    return permissions
+      .filter(
+        (p) =>
+          defaults.has(permKey(p)) ||
+          (isPermissionInModule(p, mod) && String(p.codename || "").startsWith("view_"))
+      )
       .map((p) => Number(p.id));
+  };
 
   /** Ajoute ou retire un module. */
   const toggleModule = (code) => {

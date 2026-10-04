@@ -16,6 +16,7 @@ from config.file_validation import (
 from django.core.exceptions import ValidationError as DjangoValidationError
 from gestion_acces.permissions import (
     CanSoumettreDocumentQualite,
+    CanUpdateDocument,
     GedDjangoModelPermissions,
     RequiresDjangoPerm,
 )
@@ -37,6 +38,12 @@ from gestion_documentaire.serializers.document_serializer import (
 )
 from gestion_documentaire.serializers.document_comment_serializer import DocumentCommentSerializer
 from gestion_documentaire.services.field_extractor import extract_field_values
+from gestion_documentaire.services.annotation_permissions import (
+    annotation_refusal_message,
+    missing_annotation_permissions,
+    parse_annotations,
+    user_can_change_document,
+)
 from gestion_documentaire.services.archive_service import build_documents_archive
 from gestion_documentaire.services.document_download_service import (
     get_archived_version_download_payload,
@@ -95,6 +102,9 @@ class DocumentLocaliteViewSet(
             self.required_permission = "gestion_documentaire.telecharger_document"
             return [IsAuthenticated(), RequiresDjangoPerm()]
 
+        if action in ("update", "partial_update"):
+            return [IsAuthenticated(), CanUpdateDocument()]
+
         method = getattr(self.request, "method", "GET").upper()
         if action == "commentaires" and method == "POST":
             self.required_permission = "gestion_documentaire.commenter_document"
@@ -111,6 +121,24 @@ class DocumentLocaliteViewSet(
             self.request.query_params,
             localite_id=self.request.query_params.get("localite"),
         )
+
+    def update(self, request, *args, **kwargs):
+        if not user_can_change_document(request.user):
+            instance = self.get_object()
+            try:
+                annotations = parse_annotations(request.data.get("annotations"))
+            except ValueError:
+                return Response(
+                    {"annotations": ["JSON invalide."]},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            missing = missing_annotation_permissions(request.user, instance.annotations, annotations)
+            if missing:
+                return Response(
+                    {"detail": annotation_refusal_message(missing)},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+        return super().update(request, *args, **kwargs)
 
     def perform_destroy(self, instance):
         """La suppression physique est assurée par le signal pre_delete sur DocumentLocalite."""

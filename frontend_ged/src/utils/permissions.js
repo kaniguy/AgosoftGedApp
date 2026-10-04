@@ -213,6 +213,18 @@ export function canSoumettreDocumentQualite() {
   );
 }
 
+/** Même règle que le backend : annoter, tamponner ou signer sans forcément modifier le document. */
+export function canEditDocumentAnnotations() {
+  return (
+    hasPermission(PERMISSIONS.VIEW_DOCUMENT_LOCALITE) &&
+    hasAnyPermission([
+      PERMISSIONS.ANNOTER_DOCUMENT,
+      PERMISSIONS.TAMPONNER_DOCUMENT,
+      PERMISSIONS.SIGNER_DOCUMENT,
+    ])
+  );
+}
+
 export function canAccessGuideAideAdmin() {
   return hasPermission(PERMISSIONS.VIEW_GUIDE_AIDE) || canManageGuideAide();
 }

@@ -31,7 +31,13 @@ import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationD
 import { getFileFormat } from "../../../utils/documentFileFormat";
 import ChampCellValue from "./ChampCellValue";
 import EmptyListState from "../../ui/EmptyListState";
-import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../../utils/permissions";
+import {
+  useCrudPermissions,
+  MODELS,
+  hasPermission,
+  PERMISSIONS,
+  canEditDocumentAnnotations,
+} from "../../../utils/permissions";
 import { STATUT_VALIDE } from "../../../utils/documentStatutQualite";
 import { FORMAT_FILTER_OPTIONS, getDocumentDisplayFilename } from "../../../utils/documentFileTypes";
 
@@ -124,6 +130,7 @@ function ActionButton({ onClick, disabled, variant, title, children }) {
 export default function DocumentListeGlobale({ onNotify }) {
   const { canChange, canDelete } = useCrudPermissions(MODELS.DOCUMENT_LOCALITE);
   const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
+  const canAnnotate = !canChange && canEditDocumentAnnotations();
   const router = useRouter();
   const tableScrollRef = useRef(null);
   const searchDebounceRef = useRef(null);
@@ -859,6 +866,16 @@ export default function DocumentListeGlobale({ onNotify }) {
                           {canChange && (
                           <ActionButton variant="edit" title="Modifier" onClick={() => goToEdit(doc)}>
                             Modifier
+                          </ActionButton>
+                          )}
+                          {canAnnotate && (
+                          <ActionButton
+                            variant="edit"
+                            title="Annoter / signer (index en lecture seule)"
+                            disabled={!doc.fichier_url}
+                            onClick={() => goToEdit(doc)}
+                          >
+                            Annoter
                           </ActionButton>
                           )}
                           {canDelete && (

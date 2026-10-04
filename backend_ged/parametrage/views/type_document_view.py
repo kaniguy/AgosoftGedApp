@@ -6,8 +6,10 @@ from rest_framework.response import Response
 
 from config.file_validation import validate_document_upload
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db.models import ProtectedError
 from gestion_acces.permissions import CanReadDocumentCatalog
 from gestion_acces.services.access_service import filter_type_document_queryset
+from gestion_documentaire.models import DocumentLocalite, ItemLotBrouillonRattachement
 from gestion_documentaire.services.ocr_service import get_page_count_from_bytes
 
 from ..models import TypeDocument
@@ -40,6 +42,46 @@ class TypeDocumentViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         return super().create(request, *args, **kwargs)
+
+    def destroy(self, request, *args, **kwargs):
+        """Un type déjà utilisé pour importer des documents ne peut pas être supprimé."""
+        type_document = self.get_object()
+
+        nb_documents = DocumentLocalite.objects.filter(type_document=type_document).count()
+        if nb_documents:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer le type « {type_document.libelle} » : il a "
+                    f"déjà été utilisé pour {nb_documents} document(s). Supprimez d'abord ces "
+                    "documents depuis la Gestion documentaire."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        nb_brouillons = ItemLotBrouillonRattachement.objects.filter(
+            lot__type_document=type_document
+        ).count()
+        if nb_brouillons:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer le type « {type_document.libelle} » : il est "
+                    f"utilisé par {nb_brouillons} document(s) en brouillon de rattachement. "
+                    "Supprimez d'abord ces brouillons depuis la Gestion documentaire."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            type_document.delete()
+        except ProtectedError:
+            return Response(
+                {
+                    "detail": f"Impossible de supprimer le type « {type_document.libelle} » : "
+                    "il est encore utilisé."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=True,

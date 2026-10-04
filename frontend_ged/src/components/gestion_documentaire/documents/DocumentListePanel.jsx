@@ -29,7 +29,13 @@ import { formatDisplayDateTime, getRegistrationDateFromDocument, isRegistrationD
 import { getFileFormat } from "../../../utils/documentFileFormat";
 import { FORMAT_FILTER_OPTIONS, getDocumentDisplayFilename } from "../../../utils/documentFileTypes";
 import ChampCellValue from "./ChampCellValue";
-import { useCrudPermissions, MODELS, hasPermission, PERMISSIONS } from "../../../utils/permissions";
+import {
+  useCrudPermissions,
+  MODELS,
+  hasPermission,
+  PERMISSIONS,
+  canEditDocumentAnnotations,
+} from "../../../utils/permissions";
 
 const FORMAT_OPTIONS = [{ value: "", label: "Tous les formats" }, ...FORMAT_FILTER_OPTIONS];
 
@@ -118,6 +124,7 @@ function ActionButton({ onClick, disabled, variant, title, children }) {
 export default function DocumentListePanel({ localite, onClose, onAttach, onNotify }) {
   const { canAdd, canChange, canDelete } = useCrudPermissions(MODELS.DOCUMENT_LOCALITE);
   const canDownload = hasPermission(PERMISSIONS.TELECHARGER_DOCUMENT);
+  const canAnnotate = !canChange && canEditDocumentAnnotations();
   const router = useRouter();
   const tableScrollRef = useRef(null);
   const searchDebounceRef = useRef(null);
@@ -727,6 +734,20 @@ export default function DocumentListePanel({ localite, onClose, onAttach, onNoti
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                             </svg>
                             Modifier
+                          </ActionButton>
+                          )}
+                          {canAnnotate && (
+                          <ActionButton
+                            variant="edit"
+                            title="Annoter / signer (index en lecture seule)"
+                            disabled={!doc.fichier_url}
+                            onClick={() => goToEdit(doc)}
+                          >
+                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536M9 13l6.232-6.232a2.5 2.5 0 013.536 3.536L12.536 16.536 8 18l1-4.464z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 21h16" />
+                            </svg>
+                            Annoter
                           </ActionButton>
                           )}
                           {canDelete && (

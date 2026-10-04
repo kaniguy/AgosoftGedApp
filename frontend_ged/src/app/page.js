@@ -24,21 +24,25 @@ const FILTER_CHIP_CLASSES = {
   yellow: { active: "bg-yellow-500 text-white", idle: "hover:bg-yellow-50 text-yellow-700" },
 };
 
+function getAccessibleModules() {
+  return getVisibleModulesFromStorage().filter(
+    (m) => m.code !== "controle_qualite" || hasControleQualiteModule()
+  );
+}
+
 export default function Home() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [currentDateTime, setCurrentDateTime] = useState(new Date());
   const [allowedModules, setAllowedModules] = useState(() =>
-    typeof window !== "undefined" ? getVisibleModulesFromStorage() : []
+    typeof window !== "undefined" ? getAccessibleModules() : []
   );
 
   // Charge les modules autorisés selon les groupes de l'utilisateur connecté
   useEffect(() => {
     const refreshModules = () => {
-      const visible = getVisibleModulesFromStorage().filter(
-        (m) => m.code !== "controle_qualite" || hasControleQualiteModule()
-      );
+      const visible = getAccessibleModules();
       setAllowedModules(visible);
       setSelectedFilter((current) => {
         if (current === "all") return current;
@@ -211,8 +215,19 @@ export default function Home() {
               <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-slate-500 text-lg font-medium">Aucun module trouvé</p>
-              <p className="text-slate-400 text-sm mt-1">Essayez de modifier votre recherche</p>
+              {modules.length === 0 ? (
+                <>
+                  <p className="text-slate-500 text-lg font-medium">Aucun module attribué</p>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Contactez un administrateur pour obtenir l’accès à un module.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="text-slate-500 text-lg font-medium">Aucun module trouvé</p>
+                  <p className="text-slate-400 text-sm mt-1">Essayez de modifier votre recherche</p>
+                </>
+              )}
             </div>
           )}
         </div>

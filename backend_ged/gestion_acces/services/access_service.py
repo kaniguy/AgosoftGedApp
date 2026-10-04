@@ -29,29 +29,17 @@ def _get_group_profiles(user, *, active_only=True):
 def get_user_modules(user):
     """
     Codes modules visibles sur le tableau de bord.
-    Superuser / aucun groupe : tous les modules.
+    Superuser : tous les modules.
     Sinon : union des modules des groupes (y compris désactivés) pour garder
     les cartes ; l'entrée dans le module reste bloquée sans permissions actives.
+    Aucun groupe ou aucun module coché : aucun module.
     """
     if user.is_superuser:
         return [m["code"] for m in APP_MODULES]
 
-    profiles = _get_group_profiles(user, active_only=False)
-    if not profiles:
-        return [m["code"] for m in APP_MODULES]
-
     codes = set()
-    active_unrestricted = False
-    for profile in profiles:
-        mods = [c for c in (profile.modules or []) if c in VALID_MODULE_CODES]
-        if not mods:
-            if profile.is_active:
-                active_unrestricted = True
-            continue
-        codes.update(mods)
-
-    if active_unrestricted:
-        return [m["code"] for m in APP_MODULES]
+    for profile in _get_group_profiles(user, active_only=False):
+        codes.update(c for c in (profile.modules or []) if c in VALID_MODULE_CODES)
     return sorted(codes)
 
 

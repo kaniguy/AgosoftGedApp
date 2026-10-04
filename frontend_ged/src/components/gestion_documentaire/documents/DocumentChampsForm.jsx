@@ -29,6 +29,7 @@ export default function DocumentChampsForm({
   onChampFocus,
   filledChampIds = [],
   panelWidth = 0,
+  readOnly = false,
 }) {
   const columns = useMemo(() => getColumnCount(panelWidth), [panelWidth]);
 
@@ -58,7 +59,12 @@ export default function DocumentChampsForm({
         : "grid-cols-1";
 
   return (
-    <div className={`grid ${gridClass} gap-x-4 gap-y-5`}>
+    <fieldset
+      disabled={readOnly}
+      className={`grid ${gridClass} gap-x-4 gap-y-5 min-w-0 border-0 p-0 m-0 ${
+        readOnly ? "[&_input]:bg-gray-50 [&_select]:bg-gray-50 [&_textarea]:bg-gray-50 [&_input]:text-gray-600 [&_textarea]:text-gray-600 [&_select]:text-gray-600" : ""
+      }`}
+    >
       {champs.map((champ) => {
         const value = values[champ.id] ?? "";
         const error = errors[champ.id];
@@ -216,6 +222,6 @@ export default function DocumentChampsForm({
           </div>
         );
       })}
-    </div>
+    </fieldset>
   );
 }

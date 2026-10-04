@@ -8,12 +8,14 @@ import { getDocumentLocalite } from "@/services/documentLocalite.service";
 import DocumentRattachementPanel from "@/components/gestion_documentaire/documents/DocumentRattachementPanel";
 import { PLAN_GEO_RESTORE_PATH } from "@/components/gestion_documentaire/plan_geographique/planGeoNavigationState";
 import { getControleQualiteRedirectAfterImport } from "@/utils/controleQualitePermissions";
+import { useCrudPermissions, MODELS } from "@/utils/permissions";
 
 export default function ModifierDocumentPage() {
   const router = useRouter();
   const params = useParams();
   const localiteId = params?.localiteId;
   const documentId = params?.documentId;
+  const { canChange } = useCrudPermissions(MODELS.DOCUMENT_LOCALITE);
 
   const [localite, setLocalite] = useState(null);
   const [document, setDocument] = useState(null);
@@ -123,7 +125,7 @@ export default function ModifierDocumentPage() {
             Documents
           </button>
           <span>/</span>
-          <span className="text-gray-700 font-medium">modifier</span>
+          <span className="text-gray-700 font-medium">{document && !canChange ? "annoter" : "modifier"}</span>
         </nav>
       </div>
 

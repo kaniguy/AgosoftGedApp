@@ -75,7 +75,13 @@ import {
   mergeChampsWithZoneOverrides,
   zoneOverridesToPayload,
 } from "@/utils/captureZoneUtils";
-import { canSoumettreDocumentQualite, hasPermission, PERMISSIONS } from "@/utils/permissions";
+import {
+  canSoumettreDocumentQualite,
+  hasPermission,
+  MODEL_PERMISSIONS,
+  MODELS,
+  PERMISSIONS,
+} from "@/utils/permissions";
 import { canSoumettreValidation } from "@/utils/documentStatutQualite";
 
 function SidebarToolButton({ title, onClick, disabled, children, danger = false }) {
@@ -143,6 +149,9 @@ export default function DocumentRattachementPanel({
   onNotify,
 }) {
   const isEditMode = Boolean(documentToEdit);
+  // Sans droit de modification : annotations, tampons et signatures uniquement (index, type et fichier figés).
+  const annotationOnly =
+    isEditMode && !hasPermission(MODEL_PERMISSIONS[MODELS.DOCUMENT_LOCALITE].change);
   const fileInputRef = useRef(null);
   const formPanelRef = useRef(null);
   const addPagesInputRef = useRef(null);
@@ -1722,13 +1731,18 @@ export default function DocumentRattachementPanel({
         fileToSend = fichier;
       }
 
-      const result = await updateDocumentLocalite(documentToEdit.id, {
-        typeDocumentId: Number(selectedTypeId),
-        fichier: fileToSend,
-        valeurs,
-        annotations,
-        saveMode,
-      });
+      const result = await updateDocumentLocalite(
+        documentToEdit.id,
+        annotationOnly
+          ? { annotations, saveMode }
+          : {
+              typeDocumentId: Number(selectedTypeId),
+              fichier: fileToSend,
+              valeurs,
+              annotations,
+              saveMode,
+            }
+      );
 
       if (result?.version_courante != null) {
         setVersionCourante(result.version_courante);
@@ -1755,6 +1769,7 @@ export default function DocumentRattachementPanel({
       return result;
     },
     [
+      annotationOnly,
       annotations,
       champs,
       documentToEdit?.id,
@@ -1815,7 +1830,7 @@ export default function DocumentRattachementPanel({
       onNotify?.("Aucun fichier disponible pour ce document", "error");
       return;
     }
-    if (!validateFields()) return;
+    if (!annotationOnly && !validateFields()) return;
 
     if (isEditMode) {
       if (!hasEditChanges) {
@@ -2053,7 +2068,7 @@ export default function DocumentRattachementPanel({
           zoomable={fullPage}
           fileInputRef={fileInputRef}
           acceptFiles={GED_ACCEPT_ATTRIBUTE}
-          importEnabled={Boolean(selectedTypeId)}
+          importEnabled={Boolean(selectedTypeId) && !annotationOnly}
           importDisabledHint="Sélectionnez d'abord un type de document à gauche."
           onFileChange={handleFileChange}
           captureChamps={effectiveChamps}
@@ -2084,7 +2099,7 @@ export default function DocumentRattachementPanel({
               id="type-document-select"
               value={selectedTypeId}
               onChange={handleTypeChange}
-              disabled={loadingTypes}
+              disabled={loadingTypes || annotationOnly}
               className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
             >
               <option value="">— Choisir un type —</option>
@@ -2095,9 +2110,11 @@ export default function DocumentRattachementPanel({
               ))}
             </select>
             <p className="text-xs text-gray-400 mt-1">
-              {isEditMode
-                ? "Ajustez le fichier, les index et les annotations — à l'enregistrement, choisissez d'écraser ou de créer une nouvelle version."
-                : "Importez un document à droite, vérifiez les zones si besoin, puis extrayez ou saisissez les champs manuellement."}
+              {annotationOnly
+                ? "Vous pouvez annoter, tamponner ou signer ce document. Le type, les index et le fichier sont en lecture seule."
+                : isEditMode
+                  ? "Ajustez le fichier, les index et les annotations — à l'enregistrement, choisissez d'écraser ou de créer une nouvelle version."
+                  : "Importez un document à droite, vérifiez les zones si besoin, puis extrayez ou saisissez les champs manuellement."}
             </p>
           </div>
         </div>
@@ -2144,6 +2161,7 @@ export default function DocumentRattachementPanel({
                 onChampFocus={handleChampFocus}
                 filledChampIds={filledChampIds}
                 panelWidth={formPanelWidth}
+                readOnly={annotationOnly}
               />
             )}
           </div>
@@ -2278,6 +2296,7 @@ export default function DocumentRattachementPanel({
             disabled={manipulationDisabled || !fichier}
             accent="emerald"
           />
+          {!annotationOnly && (
           <div className="flex flex-wrap gap-1">
             <SidebarToolButton
               title="Ajouter des pages"
@@ -2343,6 +2362,7 @@ export default function DocumentRattachementPanel({
               </>
             )}
           </div>
+          )}
         </div>
       )}
     </div>
@@ -2359,7 +2379,7 @@ export default function DocumentRattachementPanel({
             id="type-document-select-workbench"
             value={selectedTypeId}
             onChange={handleTypeChange}
-            disabled={loadingTypes}
+            disabled={loadingTypes || annotationOnly}
             className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
           >
             <option value="">— Choisir un type —</option>
@@ -2373,7 +2393,11 @@ export default function DocumentRattachementPanel({
         <div className="flex items-start justify-between gap-2">
           <div>
             <p className="text-xs text-slate-500">
-              {isEditMode ? "Corrigez les valeurs si nécessaire." : "Saisissez ou extrayez les champs."}
+              {annotationOnly
+                ? "Index en lecture seule — vous pouvez annoter, tamponner ou signer."
+                : isEditMode
+                  ? "Corrigez les valeurs si nécessaire."
+                  : "Saisissez ou extrayez les champs."}
             </p>
           </div>
           <div className="flex flex-col items-stretch gap-1 shrink-0">
@@ -2438,6 +2462,7 @@ export default function DocumentRattachementPanel({
               onChampFocus={handleChampFocus}
               filledChampIds={filledChampIds}
               panelWidth={formPanelWidth}
+              readOnly={annotationOnly}
             />
           </div>
         )}
@@ -2974,15 +2999,17 @@ export default function DocumentRattachementPanel({
                     : "Enregistrement…"
                   : processing
                     ? "Traitement…"
-                    : isEditMode
-                      ? "Enregistrer les modifications"
-                      : canSoumettreDoc
-                        ? isBatchMode
-                          ? `Soumettre le lot au contrôle qualité (${pendingBatchCount})`
-                          : "Soumettre au contrôle qualité"
-                        : isBatchMode
-                          ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
-                          : "Enregistrer en brouillon"}
+                    : annotationOnly
+                      ? "Enregistrer les annotations"
+                      : isEditMode
+                        ? "Enregistrer les modifications"
+                        : canSoumettreDoc
+                          ? isBatchMode
+                            ? `Soumettre le lot au contrôle qualité (${pendingBatchCount})`
+                            : "Soumettre au contrôle qualité"
+                          : isBatchMode
+                            ? `Enregistrer le lot en brouillon (${pendingBatchCount})`
+                            : "Enregistrer en brouillon"}
           </button>
         </div>
       </form>

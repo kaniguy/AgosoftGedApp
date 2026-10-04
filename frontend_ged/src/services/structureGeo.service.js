@@ -45,13 +45,17 @@ export const updateStructureGeographique = async (id, data) => {
 
 // DELETE
 export const deleteStructureGeographique = async (id) => {
-  await apiFetch(
+  const res = await apiFetch(
     `${getApiUrl()}/api/parametrage/structures-geographiques/structures-geographiques/${id}/`,
     {
       method: "DELETE",
       headers: getHeaders(),
     }
   );
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload?.detail || "Suppression impossible");
+  }
 
   return { success: true };
 };
